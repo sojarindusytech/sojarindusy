@@ -1,66 +1,69 @@
-import { SupabaseStatusCard } from "@/components/features/supabase/SupabaseStatusCard";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
-  Zap,
-  Layers,
-  Database,
-  Code2,
-  FolderTree,
-  ShieldCheck,
+  Sparkles,
   ArrowRight,
-  GitBranch,
-  CheckCircle,
-  Terminal,
+  ShieldCheck,
+  Truck,
+  FileCheck,
+  Factory,
+  Layers,
+  CheckCircle2,
+  Clock,
+  Building2,
+  Users,
 } from "lucide-react";
 
-export default function Home() {
-  const architecturalPillars = [
+export default function HomePage() {
+  const categories = [
     {
-      icon: <Zap className="h-5 w-5 text-amber-500" />,
-      title: "Turbopack Bundler",
-      badge: "Fast HMR",
-      description: "Powered by Next.js Turbopack for ultra-fast local compilation and instantaneous hot module replacement.",
+      title: "Precision Industrial Fasteners",
+      grade: "Grade 8.8 / 10.9 / SS316",
+      desc: "High-tensile bolts, nuts, studs, socket screws, and custom anchors for heavy machinery.",
+      status: "Catalog Coming Soon",
     },
     {
-      icon: <Layers className="h-5 w-5 text-blue-500" />,
-      title: "Tailwind & shadcn/ui",
-      badge: "Design System",
-      description: "Centralized component primitives in src/components/ui/ using Tailwind CSS and Radix UI primitives.",
+      title: "High-Pressure Industrial Valves",
+      grade: "Class 150 - 2500 / PN16-PN100",
+      desc: "Ball valves, gate valves, globe valves, check valves, and butterfly valves.",
+      status: "Catalog Coming Soon",
     },
     {
-      icon: <Database className="h-5 w-5 text-emerald-500" />,
-      title: "Supabase SSR Suite",
-      badge: "Full-Stack Auth",
-      description: "Complete browser, server, and middleware client wrappers with secure cookie session refresh.",
+      title: "CNC Machined Flanges & Collars",
+      grade: "EN8 / SS304 / Forged Alloy",
+      desc: "Weld neck, slip-on, blind, and threaded flanges machined to exact micrometric tolerances.",
+      status: "Catalog Coming Soon",
     },
     {
-      icon: <FolderTree className="h-5 w-5 text-purple-500" />,
-      title: "Centralized Architecture",
-      badge: "Clean Code",
-      description: "Strict separation between UI primitives, common components, feature modules, and shared utilities.",
+      title: "Hydraulic Fittings & Manifolds",
+      grade: "BSP / NPT / Metric Standards",
+      desc: "Leak-proof hydraulic adapters, high-pressure couplings, and specialized fluid manifolds.",
+      status: "Catalog Coming Soon",
     },
   ];
 
-  const quickStartSteps = [
+  const features = [
     {
-      step: "01",
-      title: "Configure Supabase Keys",
-      description: "Copy your Project URL and Anon Key into .env.local to link your Supabase database.",
-      command: "cp .env.example .env.local",
+      icon: <ShieldCheck className="h-6 w-6 text-blue-600 dark:text-blue-400" />,
+      title: "Certified Mill Quality",
+      description: "Every component is supplied with EN 10204 3.1 MTC inspection certificates and test reports.",
     },
     {
-      step: "02",
-      title: "Run Turbopack Dev Server",
-      description: "Start the lightning-fast development server with turbopack enabled.",
-      command: "npm run dev",
+      icon: <Truck className="h-6 w-6 text-emerald-600 dark:text-emerald-400" />,
+      title: "Real-Time Order Tracking",
+      description: "Track procurement orders from shop floor production, dispatch, and final site delivery.",
     },
     {
-      step: "03",
-      title: "Push to GitHub Remote",
-      description: "Repository is initialized and connected to origin main branch.",
-      command: "git push -u origin main",
+      icon: <FileCheck className="h-6 w-6 text-indigo-600 dark:text-indigo-400" />,
+      title: "Automated GST Invoicing",
+      description: "Seamless B2B billing with GSTIN verification, e-way bills, and digital purchase orders.",
+    },
+    {
+      icon: <Factory className="h-6 w-6 text-amber-600 dark:text-amber-400" />,
+      title: "OEM & Bulk Manufacturing",
+      description: "Direct-from-manufacturer pricing with flexible MOQs for tier-1 industrial clients.",
     },
   ];
 
@@ -72,7 +75,7 @@ export default function Home() {
         aria-hidden="true"
       >
         <div
-          className="relative left-[calc(50%-11rem)] aspect-[1155/678] w-[36.125rem] -translate-x-1/2 rotate-[30deg] bg-gradient-to-tr from-blue-600 to-indigo-400 opacity-20 sm:left-[calc(50%-30rem)] sm:w-[72.1875rem]"
+          className="relative left-[calc(50%-11rem)] aspect-[1155/678] w-[36.125rem] -translate-x-1/2 rotate-[30deg] bg-gradient-to-tr from-blue-600 via-indigo-500 to-amber-300 opacity-20 sm:left-[calc(50%-30rem)] sm:w-[72.1875rem]"
           style={{
             clipPath:
               "polygon(74.1% 44.1%, 100% 61.6%, 97.5% 26.9%, 85.5% 0.1%, 80.7% 2%, 72.5% 32.5%, 60.2% 62.4%, 52.4% 68.1%, 47.5% 58.3%, 45.2% 34.5%, 27.5% 76.7%, 0.1% 64.9%, 17.9% 100%, 27.6% 76.8%, 76.1% 97.7%, 74.1% 44.1%)",
@@ -80,157 +83,174 @@ export default function Home() {
         />
       </div>
 
-      <div className="container mx-auto max-w-6xl px-4 py-12 sm:px-6 sm:py-16">
-        {/* Hero Section */}
-        <div className="flex flex-col items-center text-center space-y-4 max-w-3xl mx-auto">
-          <div className="flex flex-wrap items-center justify-center gap-2">
-            <Badge variant="outline" className="gap-1.5 py-1 px-3 bg-white/80 dark:bg-slate-900/80 shadow-sm border-blue-200 dark:border-blue-900">
-              <SparkleIcon className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
-              Next.js 16 + Turbopack
-            </Badge>
-            <Badge variant="secondary" className="gap-1 py-1 px-3">
-              <GitBranch className="h-3.5 w-3.5 text-slate-500" />
-              sojarindusytech/sojarindusy
-            </Badge>
-          </div>
+      {/* Hero Section */}
+      <section className="container mx-auto max-w-6xl px-4 pt-16 pb-20 sm:px-6 sm:pt-24 sm:pb-28 text-center space-y-8">
+        <div className="inline-flex items-center gap-2 rounded-full border border-blue-200 bg-blue-50/80 px-4 py-1.5 text-xs font-semibold text-blue-700 shadow-sm backdrop-blur-md dark:border-blue-900 dark:bg-blue-950/60 dark:text-blue-300">
+          <Sparkles className="h-3.5 w-3.5 text-blue-600 animate-pulse" />
+          <span>Next-Gen B2B Industrial Marketplace &bull; Launching Soon</span>
+        </div>
 
-          <h1 className="text-4xl font-extrabold tracking-tight sm:text-5xl lg:text-6xl text-slate-900 dark:text-white">
-            Sojar Indusy <span className="bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">Platform</span>
+        <div className="space-y-4 max-w-4xl mx-auto">
+          <h1 className="text-4xl sm:text-6xl font-extrabold tracking-tight text-slate-900 dark:text-white leading-tight">
+            Industrial Procurement, <br className="hidden sm:inline" />
+            <span className="bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-800 bg-clip-text text-transparent">
+              Engineered for Speed & Scale
+            </span>
           </h1>
 
-          <p className="text-lg text-slate-600 dark:text-slate-300 max-w-2xl leading-relaxed">
-            Enterprise foundation engineered with Next.js App Router, Tailwind CSS design system, shadcn/ui components, and Supabase SSR integration.
+          <p className="text-lg sm:text-xl text-slate-600 dark:text-slate-300 max-w-2xl mx-auto leading-relaxed">
+            Sojar Indusy is building India&apos;s premier digital platform for precision engineering components, heavy valves, fasteners, and custom manufactured hardware.
           </p>
-
-          <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
-            <a
-              href="https://github.com/sojarindusytech/sojarindusy"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              <Button size="lg" className="gap-2 shadow-lg shadow-blue-600/25">
-                GitHub Repository
-                <ArrowRight className="h-4 w-4" />
-              </Button>
-            </a>
-            <a href="#quickstart">
-              <Button size="lg" variant="outline" className="gap-2">
-                Quickstart Guide
-              </Button>
-            </a>
-          </div>
         </div>
 
-        {/* Status Dashboard & Key Metrics */}
-        <div className="mt-14 grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-          <div className="lg:col-span-7 space-y-6">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {architecturalPillars.map((item, index) => (
-                <Card key={index} className="transition-all hover:shadow-md hover:border-slate-300 dark:hover:border-slate-700">
-                  <CardHeader className="p-4 pb-2">
-                    <div className="flex items-center justify-between">
-                      <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-slate-100 dark:bg-slate-800">
-                        {item.icon}
-                      </div>
-                      <Badge variant="secondary" className="text-[11px] font-normal">
-                        {item.badge}
-                      </Badge>
-                    </div>
-                    <CardTitle className="text-sm font-semibold pt-2">{item.title}</CardTitle>
-                  </CardHeader>
-                  <CardContent className="p-4 pt-1">
-                    <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
-                      {item.description}
-                    </p>
-                  </CardContent>
-                </Card>
-              ))}
+        {/* Action CTAs */}
+        <div className="flex flex-wrap items-center justify-center gap-4 pt-2">
+          <Link href="/signup">
+            <Button size="lg" className="gap-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-xl shadow-blue-500/25 px-8">
+              <span>Register Your Company</span>
+              <ArrowRight className="h-4 w-4" />
+            </Button>
+          </Link>
+          <Link href="/login">
+            <Button size="lg" variant="outline" className="px-8 shadow-sm">
+              Sign In to Dashboard
+            </Button>
+          </Link>
+        </div>
+
+        {/* Coming Soon Highlights Bar */}
+        <div className="pt-8 max-w-3xl mx-auto">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 rounded-2xl border border-slate-200/80 bg-white/70 p-4 shadow-md backdrop-blur-md dark:border-slate-800 dark:bg-slate-900/70">
+            <div className="text-center p-2">
+              <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">10,000+</div>
+              <div className="text-[11px] text-slate-500 font-medium mt-0.5">SKUs in Pipeline</div>
             </div>
-
-            {/* Architecture Directory Tree Overview */}
-            <Card>
-              <CardHeader className="pb-3">
-                <div className="flex items-center gap-2">
-                  <Code2 className="h-4 w-4 text-blue-600" />
-                  <CardTitle className="text-sm font-semibold">Centralized Directory Structure</CardTitle>
-                </div>
-                <CardDescription>Standards enforced via workspace rules</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-2 text-xs font-mono bg-slate-950 text-slate-200 rounded-lg m-4 mt-0 p-4 border border-slate-800">
-                <div className="flex items-center gap-2 text-emerald-400">
-                  <CheckCircle className="h-3.5 w-3.5" />
-                  <span>src/components/ui/ &rarr; Basic shadcn/ui primitives</span>
-                </div>
-                <div className="flex items-center gap-2 text-emerald-400">
-                  <CheckCircle className="h-3.5 w-3.5" />
-                  <span>src/components/common/ &rarr; Shared layout & widgets</span>
-                </div>
-                <div className="flex items-center gap-2 text-emerald-400">
-                  <CheckCircle className="h-3.5 w-3.5" />
-                  <span>src/lib/supabase/ &rarr; Client, Server, Admin & Middleware</span>
-                </div>
-                <div className="flex items-center gap-2 text-emerald-400">
-                  <CheckCircle className="h-3.5 w-3.5" />
-                  <span>src/lib/utils.ts &rarr; Centralized cn() helper</span>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Supabase Status Live Card */}
-          <div className="lg:col-span-5">
-            <SupabaseStatusCard />
+            <div className="text-center p-2">
+              <div className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">100%</div>
+              <div className="text-[11px] text-slate-500 font-medium mt-0.5">Tested & Certified</div>
+            </div>
+            <div className="text-center p-2">
+              <div className="text-2xl font-bold text-indigo-600 dark:text-indigo-400">Pan-India</div>
+              <div className="text-[11px] text-slate-500 font-medium mt-0.5">Supply Logistics</div>
+            </div>
+            <div className="text-center p-2">
+              <div className="text-2xl font-bold text-amber-600 dark:text-amber-400">B2B Portal</div>
+              <div className="text-[11px] text-slate-500 font-medium mt-0.5">Instant Invoicing</div>
+            </div>
           </div>
         </div>
+      </section>
 
-        {/* Quickstart Section */}
-        <div id="quickstart" className="mt-16 pt-8 border-t border-slate-200 dark:border-slate-800">
-          <div className="text-center max-w-xl mx-auto mb-8">
-            <h2 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
-              Next Steps & Deployment
+      {/* Featured Categories Section */}
+      <section className="border-t border-slate-200/80 bg-slate-100/50 py-16 dark:border-slate-800 dark:bg-slate-900/30">
+        <div className="container mx-auto max-w-6xl px-4 sm:px-6 space-y-10">
+          <div className="text-center max-w-2xl mx-auto space-y-2">
+            <Badge variant="outline" className="text-xs">Product Lineup</Badge>
+            <h2 className="text-3xl font-bold tracking-tight text-slate-900 dark:text-white">
+              Engineered Manufacturing Capabilities
             </h2>
-            <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-              Follow these simple commands to develop and sync your changes.
+            <p className="text-sm text-slate-500 dark:text-slate-400">
+              Explore our upcoming high-specification product verticals designed for aerospace, automotive, energy, and infrastructure.
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {quickStartSteps.map((step, idx) => (
-              <Card key={idx} className="relative overflow-hidden">
-                <div className="absolute top-0 right-0 p-3 text-2xl font-black text-slate-200/50 dark:text-slate-800/50 select-none">
-                  {step.step}
-                </div>
-                <CardHeader>
-                  <CardTitle className="text-base font-semibold">{step.title}</CardTitle>
-                  <CardDescription className="text-xs">{step.description}</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex items-center gap-2 rounded-md bg-slate-900 px-3 py-2 text-xs font-mono text-slate-100">
-                    <Terminal className="h-3.5 w-3.5 text-blue-400 shrink-0" />
-                    <span className="truncate">{step.command}</span>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {categories.map((cat, idx) => (
+              <Card key={idx} className="group transition-all hover:shadow-lg hover:border-blue-500/40">
+                <CardHeader className="p-6 pb-3">
+                  <div className="flex items-center justify-between">
+                    <Badge variant="secondary" className="text-[10px] font-mono">
+                      {cat.grade}
+                    </Badge>
+                    <Badge variant="warning" className="text-[11px]">
+                      <Clock className="h-3 w-3 mr-1" />
+                      {cat.status}
+                    </Badge>
                   </div>
+                  <CardTitle className="text-lg font-bold text-slate-900 dark:text-slate-100 pt-2">
+                    {cat.title}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="p-6 pt-0">
+                  <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+                    {cat.desc}
+                  </p>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+
+          <div className="text-center pt-4">
+            <Link href="/products">
+              <Button variant="outline" className="gap-2">
+                <span>View Full Catalog Preview</span>
+                <ArrowRight className="h-4 w-4" />
+              </Button>
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      {/* Why Choose Sojar Indusy */}
+      <section className="py-16">
+        <div className="container mx-auto max-w-6xl px-4 sm:px-6 space-y-12">
+          <div className="text-center max-w-2xl mx-auto space-y-2">
+            <Badge variant="outline" className="text-xs">Enterprise Advantages</Badge>
+            <h2 className="text-3xl font-bold tracking-tight text-slate-900 dark:text-white">
+              Built for Modern Industrial Supply Chains
+            </h2>
+            <p className="text-sm text-slate-500 dark:text-slate-400">
+              Eliminating friction in B2B procurement with transparent pricing, instant traceability, and dedicated corporate support.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            {features.map((feat, idx) => (
+              <Card key={idx} className="border-slate-200/80 dark:border-slate-800">
+                <CardHeader className="p-5 pb-2">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-slate-100 dark:bg-slate-800 mb-2">
+                    {feat.icon}
+                  </div>
+                  <CardTitle className="text-base font-semibold">{feat.title}</CardTitle>
+                </CardHeader>
+                <CardContent className="p-5 pt-0">
+                  <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+                    {feat.description}
+                  </p>
                 </CardContent>
               </Card>
             ))}
           </div>
         </div>
-      </div>
-    </div>
-  );
-}
+      </section>
 
-function SparkleIcon({ className }: { className?: string }) {
-  return (
-    <svg
-      className={className}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z" />
-    </svg>
+      {/* Pre-Registration Banner */}
+      <section className="container mx-auto max-w-6xl px-4 pb-20 sm:px-6">
+        <div className="rounded-3xl bg-gradient-to-r from-blue-700 via-indigo-700 to-slate-900 p-8 sm:p-12 text-white shadow-2xl text-center space-y-6">
+          <div className="space-y-2 max-w-2xl mx-auto">
+            <h3 className="text-2xl sm:text-3xl font-bold">
+              Ready to Upgrade Your Industrial Procurement?
+            </h3>
+            <p className="text-sm text-blue-100">
+              Register your business account today to receive priority catalog access, custom credit terms, and direct factory pricing.
+            </p>
+          </div>
+
+          <div className="flex flex-wrap items-center justify-center gap-4">
+            <Link href="/signup">
+              <Button size="lg" variant="secondary" className="gap-2 shadow-lg text-slate-900">
+                <span>Create B2B Account</span>
+                <ArrowRight className="h-4 w-4" />
+              </Button>
+            </Link>
+            <Link href="/login">
+              <Button size="lg" variant="outline" className="bg-transparent border-white/40 text-white hover:bg-white/10">
+                Member Sign In
+              </Button>
+            </Link>
+          </div>
+        </div>
+      </section>
+    </div>
   );
 }
