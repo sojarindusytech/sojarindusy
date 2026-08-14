@@ -4,7 +4,6 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { FontThemeSelector } from "@/components/theme/FontThemeSelector";
 import { Layers, LogIn, UserPlus, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -24,7 +23,7 @@ export function Navbar() {
       <div className="container mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:px-6">
         {/* Brand Logo */}
         <Link href="/" className="flex items-center gap-3 transition-opacity hover:opacity-90">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-[#024AE5] to-[#3C8B4F] text-white shadow-sm">
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-[#024AE5] to-[#3C8B4F] text-white">
             <Layers className="h-5 w-5" />
           </div>
           <div className="flex flex-col">
@@ -58,11 +57,8 @@ export function Navbar() {
           })}
         </nav>
 
-        {/* Action Buttons & Theme/Font Customizer */}
+        {/* Action Buttons */}
         <div className="flex items-center gap-2.5">
-          {/* Centralized Font & Theme Switcher */}
-          <FontThemeSelector />
-
           {isDashboard ? (
             <Badge variant="green" className="gap-1 text-xs">
               <Sparkles className="h-3 w-3" />
