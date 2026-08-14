@@ -3,7 +3,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
-  ChevronRight,
   Clock,
   ArrowLeft,
   Sparkles,
@@ -20,7 +19,6 @@ interface AdminComingSoonProps {
 }
 
 export function AdminComingSoon({
-  section,
   title,
   description,
   features = [
@@ -33,17 +31,6 @@ export function AdminComingSoon({
 }: AdminComingSoonProps) {
   return (
     <div className="space-y-6 max-w-5xl">
-      {/* Breadcrumb Bar */}
-      <nav className="flex items-center gap-2 text-xs text-slate-500">
-        <Link href="/admin/dashboard" className="hover:text-slate-900 transition-colors">
-          Dashboard
-        </Link>
-        <ChevronRight className="h-3.5 w-3.5 text-slate-400" />
-        <span className="text-slate-500">{section}</span>
-        <ChevronRight className="h-3.5 w-3.5 text-slate-400" />
-        <span className="font-semibold text-slate-900">{title}</span>
-      </nav>
-
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-slate-200 pb-4">
         <div>

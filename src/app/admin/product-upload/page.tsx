@@ -58,17 +58,6 @@ export default function ProductUploadPage() {
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
-      {/* Breadcrumb Bar */}
-      <nav className="flex items-center gap-2 text-xs text-slate-500">
-        <Link href="/admin/dashboard" className="hover:text-slate-900 transition-colors">
-          Dashboard
-        </Link>
-        <ChevronRight className="h-3.5 w-3.5 text-slate-400" />
-        <span className="text-slate-500">Product Management</span>
-        <ChevronRight className="h-3.5 w-3.5 text-slate-400" />
-        <span className="font-semibold text-slate-900">Product Upload</span>
-      </nav>
-
       {/* Header with Title and Actions */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
