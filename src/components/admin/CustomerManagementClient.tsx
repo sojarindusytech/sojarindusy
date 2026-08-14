@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, useMemo } from "react";
 import { Profile } from "@/types/database.types";
 import {
   USER_TYPES,
@@ -56,11 +56,20 @@ import {
   CreditCard,
   Check,
   AlertCircle,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
+  Calendar,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 
 interface CustomerManagementClientProps {
   initialCustomers: Profile[];
 }
+
+type SortField = "name" | "type" | "status" | "date" | "location";
+type SortDirection = "asc" | "desc";
 
 export function CustomerManagementClient({ initialCustomers }: CustomerManagementClientProps) {
   const [customers, setCustomers] = useState<Profile[]>(initialCustomers);
@@ -68,6 +77,14 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
   const [selectedUserType, setSelectedUserType] = useState<string>("all");
   const [selectedStatus, setSelectedStatus] = useState<string>("all");
   const [isPending, startTransition] = useTransition();
+
+  // Sorting State
+  const [sortField, setSortField] = useState<SortField>("date");
+  const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
+
+  // Pagination State
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const [itemsPerPage, setItemsPerPage] = useState<number>(10);
 
   // Modal & Form State with shadcn controlled selects
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -95,34 +112,111 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
     (c) => (c.approval_status || APPROVAL_STATUSES.PENDING) === APPROVAL_STATUSES.PENDING && c.role !== "platform_owner"
   ).length;
 
-  // Filtered List
-  const filteredCustomers = customers.filter((c) => {
-    // Exclude platform admin from customer table
-    if (c.role === "platform_owner") return false;
+  // Filtered & Sorted List
+  const filteredAndSortedCustomers = useMemo(() => {
+    const result = customers.filter((c) => {
+      // Exclude platform admin from customer table
+      if (c.role === "platform_owner") return false;
 
-    // Search query filter
-    const query = searchQuery.toLowerCase().trim();
-    const matchesSearch =
-      !query ||
-      c.company_name?.toLowerCase().includes(query) ||
-      c.first_name?.toLowerCase().includes(query) ||
-      c.last_name?.toLowerCase().includes(query) ||
-      c.email?.toLowerCase().includes(query) ||
-      c.mobile?.toLowerCase().includes(query) ||
-      c.gstin?.toLowerCase().includes(query) ||
-      c.city?.toLowerCase().includes(query) ||
-      c.state?.toLowerCase().includes(query);
+      // Search query filter
+      const query = searchQuery.toLowerCase().trim();
+      const matchesSearch =
+        !query ||
+        c.company_name?.toLowerCase().includes(query) ||
+        c.first_name?.toLowerCase().includes(query) ||
+        c.last_name?.toLowerCase().includes(query) ||
+        c.email?.toLowerCase().includes(query) ||
+        c.mobile?.toLowerCase().includes(query) ||
+        c.gstin?.toLowerCase().includes(query) ||
+        c.city?.toLowerCase().includes(query) ||
+        c.state?.toLowerCase().includes(query);
 
-    // User Type filter
-    const userType = c.user_type || USER_TYPES.PLATFORM_USER;
-    const matchesType = selectedUserType === "all" || userType === selectedUserType;
+      // User Type filter
+      const userType = c.user_type || USER_TYPES.PLATFORM_USER;
+      const matchesType = selectedUserType === "all" || userType === selectedUserType;
 
-    // Approval Status filter
-    const status = c.approval_status || APPROVAL_STATUSES.APPROVED;
-    const matchesStatus = selectedStatus === "all" || status === selectedStatus;
+      // Approval Status filter
+      const status = c.approval_status || APPROVAL_STATUSES.APPROVED;
+      const matchesStatus = selectedStatus === "all" || status === selectedStatus;
 
-    return matchesSearch && matchesType && matchesStatus;
-  });
+      return matchesSearch && matchesType && matchesStatus;
+    });
+
+    // Apply Sorting
+    result.sort((a, b) => {
+      let comparison = 0;
+      if (sortField === "name") {
+        const nameA = (a.company_name || a.first_name || "").toLowerCase();
+        const nameB = (b.company_name || b.first_name || "").toLowerCase();
+        comparison = nameA.localeCompare(nameB);
+      } else if (sortField === "type") {
+        const typeA = a.user_type || USER_TYPES.PLATFORM_USER;
+        const typeB = b.user_type || USER_TYPES.PLATFORM_USER;
+        comparison = typeA.localeCompare(typeB);
+      } else if (sortField === "status") {
+        const statusA = a.approval_status || APPROVAL_STATUSES.PENDING;
+        const statusB = b.approval_status || APPROVAL_STATUSES.PENDING;
+        comparison = statusA.localeCompare(statusB);
+      } else if (sortField === "date") {
+        const dateA = a.created_at ? new Date(a.created_at).getTime() : 0;
+        const dateB = b.created_at ? new Date(b.created_at).getTime() : 0;
+        comparison = dateA - dateB;
+      } else if (sortField === "location") {
+        const locA = `${a.city || ""}, ${a.state || ""}`.toLowerCase();
+        const locB = `${b.city || ""}, ${b.state || ""}`.toLowerCase();
+        comparison = locA.localeCompare(locB);
+      }
+
+      return sortDirection === "asc" ? comparison : -comparison;
+    });
+
+    return result;
+  }, [customers, searchQuery, selectedUserType, selectedStatus, sortField, sortDirection]);
+
+  // Pagination Calculations
+  const totalItems = filteredAndSortedCustomers.length;
+  const totalPages = Math.max(1, Math.ceil(totalItems / itemsPerPage));
+  const validCurrentPage = Math.min(currentPage, totalPages);
+
+  const paginatedCustomers = useMemo(() => {
+    const startIndex = (validCurrentPage - 1) * itemsPerPage;
+    return filteredAndSortedCustomers.slice(startIndex, startIndex + itemsPerPage);
+  }, [filteredAndSortedCustomers, validCurrentPage, itemsPerPage]);
+
+  const handleSort = (field: SortField) => {
+    if (sortField === field) {
+      setSortDirection((prev) => (prev === "asc" ? "desc" : "asc"));
+    } else {
+      setSortField(field);
+      setSortDirection("asc");
+    }
+  };
+
+  const getSortIcon = (field: SortField) => {
+    if (sortField !== field) {
+      return <ArrowUpDown className="h-3 w-3 text-slate-400 opacity-60 ml-1" />;
+    }
+    return sortDirection === "asc" ? (
+      <ArrowUp className="h-3 w-3 text-[#024AE5] ml-1" />
+    ) : (
+      <ArrowDown className="h-3 w-3 text-[#024AE5] ml-1" />
+    );
+  };
+
+  // Format Registered Date
+  const formatDate = (dateString?: string) => {
+    if (!dateString) return "—";
+    try {
+      const d = new Date(dateString);
+      return d.toLocaleDateString("en-IN", {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+      });
+    } catch {
+      return "—";
+    }
+  };
 
   // Handle Quick Approval / Rejection
   const handleStatusChange = (customerId: string, newStatus: ApprovalStatus) => {
@@ -209,11 +303,11 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
               // CSV export
               const csvContent =
                 "data:text/csv;charset=utf-8," +
-                ["Company,Name,Email,Mobile,GSTIN,City,Type,Status"]
+                ["Company,Name,Email,Mobile,GSTIN,City,State,Registered Date,Type,Status,Credit Limit"]
                   .concat(
-                    filteredCustomers.map(
+                    filteredAndSortedCustomers.map(
                       (c) =>
-                        `"${c.company_name}","${c.title} ${c.first_name} ${c.last_name}","${c.email}","${c.mobile}","${c.gstin || "-"}","${c.city}","${c.user_type || USER_TYPES.PLATFORM_USER}","${c.approval_status || APPROVAL_STATUSES.APPROVED}"`
+                        `"${c.company_name}","${c.title} ${c.first_name} ${c.last_name}","${c.email}","${c.mobile}","${c.gstin || "-"}","${c.city}","${c.state}","${formatDate(c.created_at)}","${c.user_type || USER_TYPES.PLATFORM_USER}","${c.approval_status || APPROVAL_STATUSES.APPROVED}","${c.credit_limit || 0}"`
                     )
                   )
                   .join("\n");
@@ -254,8 +348,9 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
           onClick={() => {
             setSelectedUserType("all");
             setSelectedStatus("all");
+            setCurrentPage(1);
           }}
-          className="border-slate-200/80 bg-white shadow-none rounded-xl p-4 cursor-pointer hover:border-[#024AE5]/40 transition-colors"
+          className="border border-slate-200 bg-white shadow-none rounded-xl p-4 cursor-pointer hover:border-[#024AE5]/40 transition-colors"
         >
           <div className="flex items-center justify-between">
             <div>
@@ -276,9 +371,12 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
           onClick={() => {
             setSelectedUserType(USER_TYPES.PLATFORM_USER);
             setSelectedStatus("all");
+            setCurrentPage(1);
           }}
-          className={`border-slate-200/80 bg-white shadow-none rounded-xl p-4 cursor-pointer transition-colors ${
-            selectedUserType === USER_TYPES.PLATFORM_USER ? "border-[#024AE5] ring-1 ring-[#024AE5]" : "hover:border-[#024AE5]/40"
+          className={`border bg-white shadow-none rounded-xl p-4 cursor-pointer transition-colors ${
+            selectedUserType === USER_TYPES.PLATFORM_USER
+              ? "border-[#024AE5] ring-1 ring-[#024AE5]"
+              : "border-slate-200 hover:border-[#024AE5]/40"
           }`}
         >
           <div className="flex items-center justify-between">
@@ -300,9 +398,12 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
           onClick={() => {
             setSelectedUserType(USER_TYPES.OFFLINE_USER);
             setSelectedStatus("all");
+            setCurrentPage(1);
           }}
-          className={`border-slate-200/80 bg-white shadow-none rounded-xl p-4 cursor-pointer transition-colors ${
-            selectedUserType === USER_TYPES.OFFLINE_USER ? "border-[#3C8B4F] ring-1 ring-[#3C8B4F]" : "hover:border-[#3C8B4F]/40"
+          className={`border bg-white shadow-none rounded-xl p-4 cursor-pointer transition-colors ${
+            selectedUserType === USER_TYPES.OFFLINE_USER
+              ? "border-[#3C8B4F] ring-1 ring-[#3C8B4F]"
+              : "border-slate-200 hover:border-[#3C8B4F]/40"
           }`}
         >
           <div className="flex items-center justify-between">
@@ -324,9 +425,12 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
           onClick={() => {
             setSelectedStatus(APPROVAL_STATUSES.PENDING);
             setSelectedUserType("all");
+            setCurrentPage(1);
           }}
-          className={`border-slate-200/80 bg-white shadow-none rounded-xl p-4 cursor-pointer transition-colors ${
-            selectedStatus === APPROVAL_STATUSES.PENDING ? "border-amber-500 ring-1 ring-amber-500" : "hover:border-amber-400"
+          className={`border bg-white shadow-none rounded-xl p-4 cursor-pointer transition-colors ${
+            selectedStatus === APPROVAL_STATUSES.PENDING
+              ? "border-amber-500 ring-1 ring-amber-500"
+              : "border-slate-200 hover:border-amber-400"
           }`}
         >
           <div className="flex items-center justify-between">
@@ -355,7 +459,10 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
             type="text"
             placeholder="Search company, contact name, email, phone, GSTIN, city..."
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            onChange={(e) => {
+              setSearchQuery(e.target.value);
+              setCurrentPage(1);
+            }}
             className="pl-9 h-10 text-xs bg-slate-50 border-slate-200 focus-visible:bg-white focus-visible:ring-[#024AE5]"
           />
         </div>
@@ -366,7 +473,13 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
           <div className="flex items-center gap-2">
             <Filter className="h-3.5 w-3.5 text-slate-400 shrink-0" />
             <div className="w-[180px]">
-              <Select value={selectedUserType} onValueChange={setSelectedUserType}>
+              <Select
+                value={selectedUserType}
+                onValueChange={(val) => {
+                  setSelectedUserType(val);
+                  setCurrentPage(1);
+                }}
+              >
                 <SelectTrigger className="h-10 text-xs bg-white border-slate-200">
                   <SelectValue placeholder="All Types" />
                 </SelectTrigger>
@@ -385,7 +498,13 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
 
           {/* Status Filter (shadcn Select) */}
           <div className="w-[170px]">
-            <Select value={selectedStatus} onValueChange={setSelectedStatus}>
+            <Select
+              value={selectedStatus}
+              onValueChange={(val) => {
+                setSelectedStatus(val);
+                setCurrentPage(1);
+              }}
+            >
               <SelectTrigger className="h-10 text-xs bg-white border-slate-200">
                 <SelectValue placeholder="All Statuses" />
               </SelectTrigger>
@@ -413,6 +532,7 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
                 setSearchQuery("");
                 setSelectedUserType("all");
                 setSelectedStatus("all");
+                setCurrentPage(1);
               }}
               className="text-xs text-slate-500 hover:text-slate-900 h-10 px-2"
             >
@@ -425,21 +545,83 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
       {/* Customers Data Table */}
       <div className="rounded-xl border border-slate-200 bg-white overflow-hidden shadow-none">
         <Table>
-          <TableHeader className="bg-slate-50/80">
+          <TableHeader>
             <TableRow>
-              <TableHead className="text-xs font-semibold text-slate-700 py-3.5">Customer & Company</TableHead>
-              <TableHead className="text-xs font-semibold text-slate-700 py-3.5">Contact Details</TableHead>
-              <TableHead className="text-xs font-semibold text-slate-700 py-3.5">User Type</TableHead>
-              <TableHead className="text-xs font-semibold text-slate-700 py-3.5">Approval Status</TableHead>
-              <TableHead className="text-xs font-semibold text-slate-700 py-3.5">Credit Terms</TableHead>
-              <TableHead className="text-xs font-semibold text-slate-700 py-3.5">Location</TableHead>
-              <TableHead className="text-xs font-semibold text-slate-700 py-3.5 text-right">Actions</TableHead>
+              {/* Customer & Company (Sortable) */}
+              <TableHead
+                onClick={() => handleSort("name")}
+                className="text-xs font-semibold text-slate-700 py-3.5 cursor-pointer select-none hover:text-[#024AE5]"
+              >
+                <div className="flex items-center">
+                  Customer & Company
+                  {getSortIcon("name")}
+                </div>
+              </TableHead>
+
+              {/* Contact Details */}
+              <TableHead className="text-xs font-semibold text-slate-700 py-3.5">
+                Contact Details
+              </TableHead>
+
+              {/* Registered Date (Sortable) */}
+              <TableHead
+                onClick={() => handleSort("date")}
+                className="text-xs font-semibold text-slate-700 py-3.5 cursor-pointer select-none hover:text-[#024AE5]"
+              >
+                <div className="flex items-center">
+                  Registered Date
+                  {getSortIcon("date")}
+                </div>
+              </TableHead>
+
+              {/* User Type (Sortable) */}
+              <TableHead
+                onClick={() => handleSort("type")}
+                className="text-xs font-semibold text-slate-700 py-3.5 cursor-pointer select-none hover:text-[#024AE5]"
+              >
+                <div className="flex items-center">
+                  User Type
+                  {getSortIcon("type")}
+                </div>
+              </TableHead>
+
+              {/* Approval Status (Sortable) */}
+              <TableHead
+                onClick={() => handleSort("status")}
+                className="text-xs font-semibold text-slate-700 py-3.5 cursor-pointer select-none hover:text-[#024AE5]"
+              >
+                <div className="flex items-center">
+                  Approval Status
+                  {getSortIcon("status")}
+                </div>
+              </TableHead>
+
+              {/* Commercial Terms */}
+              <TableHead className="text-xs font-semibold text-slate-700 py-3.5">
+                Commercial Terms
+              </TableHead>
+
+              {/* Location (Sortable) */}
+              <TableHead
+                onClick={() => handleSort("location")}
+                className="text-xs font-semibold text-slate-700 py-3.5 cursor-pointer select-none hover:text-[#024AE5]"
+              >
+                <div className="flex items-center">
+                  Location
+                  {getSortIcon("location")}
+                </div>
+              </TableHead>
+
+              {/* Actions */}
+              <TableHead className="text-xs font-semibold text-slate-700 py-3.5 text-right">
+                Actions
+              </TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filteredCustomers.length === 0 ? (
+            {paginatedCustomers.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} className="text-center py-12 text-slate-500">
+                <TableCell colSpan={8} className="text-center py-12 text-slate-500 bg-white">
                   <div className="flex flex-col items-center justify-center space-y-2">
                     <Users className="h-8 w-8 text-slate-300" />
                     <p className="text-sm font-medium text-slate-700">No customers found</p>
@@ -450,16 +632,23 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
                 </TableCell>
               </TableRow>
             ) : (
-              filteredCustomers.map((customer) => {
+              paginatedCustomers.map((customer) => {
+                const isOffline = customer.user_type === USER_TYPES.OFFLINE_USER;
                 const userType = customer.user_type || USER_TYPES.PLATFORM_USER;
                 const approvalStatus = customer.approval_status || APPROVAL_STATUSES.APPROVED;
-                const typeConfig = USER_TYPE_CONFIG[userType as UserType] || USER_TYPE_CONFIG[USER_TYPES.PLATFORM_USER];
-                const statusConfig = APPROVAL_STATUS_CONFIG[approvalStatus as ApprovalStatus] || APPROVAL_STATUS_CONFIG[APPROVAL_STATUSES.APPROVED];
+                const typeConfig =
+                  USER_TYPE_CONFIG[userType as UserType] || USER_TYPE_CONFIG[USER_TYPES.PLATFORM_USER];
+                const statusConfig =
+                  APPROVAL_STATUS_CONFIG[approvalStatus as ApprovalStatus] ||
+                  APPROVAL_STATUS_CONFIG[APPROVAL_STATUSES.APPROVED];
 
                 return (
-                  <TableRow key={customer.id} className="hover:bg-slate-50/60 transition-colors">
+                  <TableRow
+                    key={customer.id}
+                    className="hover:bg-slate-50/80 transition-colors bg-white border-b border-slate-200"
+                  >
                     {/* Customer & Company */}
-                    <TableCell className="py-3">
+                    <TableCell className="py-3 bg-transparent">
                       <div className="flex items-center gap-3">
                         <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-700 font-semibold text-xs border border-slate-200">
                           {customer.first_name?.[0] || "C"}
@@ -483,7 +672,7 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
                     </TableCell>
 
                     {/* Contact Details */}
-                    <TableCell className="py-3">
+                    <TableCell className="py-3 bg-transparent">
                       <div className="space-y-1 text-xs">
                         <div className="flex items-center gap-1.5 text-slate-700">
                           <Mail className="h-3.5 w-3.5 text-slate-400 shrink-0" />
@@ -496,21 +685,33 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
                       </div>
                     </TableCell>
 
+                    {/* Registered Date */}
+                    <TableCell className="py-3 bg-transparent">
+                      <div className="flex items-center gap-1.5 text-xs text-slate-600 font-medium whitespace-nowrap">
+                        <Calendar className="h-3.5 w-3.5 text-slate-400 shrink-0" />
+                        <span>{formatDate(customer.created_at)}</span>
+                      </div>
+                    </TableCell>
+
                     {/* User Type */}
-                    <TableCell className="py-3">
+                    <TableCell className="py-3 bg-transparent">
                       {userType === USER_TYPES.PLATFORM_USER ? (
-                        <Badge className={`${typeConfig.badgeBg} ${typeConfig.badgeText} border-0 gap-1 text-[10px] font-semibold py-0.5`}>
+                        <Badge
+                          className={`${typeConfig.badgeBg} ${typeConfig.badgeText} border-0 gap-1 text-[10px] font-semibold py-0.5`}
+                        >
                           <Globe className="h-3 w-3" /> {typeConfig.shortLabel}
                         </Badge>
                       ) : (
-                        <Badge className={`${typeConfig.badgeBg} ${typeConfig.badgeText} border-0 gap-1 text-[10px] font-semibold py-0.5`}>
+                        <Badge
+                          className={`${typeConfig.badgeBg} ${typeConfig.badgeText} border-0 gap-1 text-[10px] font-semibold py-0.5`}
+                        >
                           <Store className="h-3 w-3" /> {typeConfig.shortLabel}
                         </Badge>
                       )}
                     </TableCell>
 
                     {/* Approval Status */}
-                    <TableCell className="py-3">
+                    <TableCell className="py-3 bg-transparent">
                       {approvalStatus === APPROVAL_STATUSES.APPROVED && (
                         <Badge className="bg-emerald-50 text-emerald-700 border-emerald-200 gap-1 text-[10px] font-semibold py-0.5">
                           <CheckCircle2 className="h-3 w-3 text-emerald-600" /> {statusConfig.label}
@@ -528,20 +729,37 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
                       )}
                     </TableCell>
 
-                    {/* Credit Terms */}
-                    <TableCell className="py-3">
-                      <div className="text-xs">
-                        <div className="font-semibold text-slate-900">
-                          ₹{(customer.credit_limit || COMMERCIAL_DEFAULTS.DEFAULT_CREDIT_LIMIT).toLocaleString("en-IN")}
+                    {/* Commercial / Credit Terms */}
+                    <TableCell className="py-3 bg-transparent">
+                      {isOffline ? (
+                        <div className="text-xs">
+                          <div className="font-semibold text-slate-900">
+                            ₹{(customer.credit_limit || COMMERCIAL_DEFAULTS.DEFAULT_CREDIT_LIMIT).toLocaleString("en-IN")}
+                          </div>
+                          <div className="text-[10px] text-slate-400">
+                            {customer.credit_days || COMMERCIAL_DEFAULTS.DEFAULT_CREDIT_DAYS} Days Net Credit
+                          </div>
                         </div>
-                        <div className="text-[10px] text-slate-400">
-                          {customer.credit_days || COMMERCIAL_DEFAULTS.DEFAULT_CREDIT_DAYS} Days Net Credit
+                      ) : customer.credit_limit && customer.credit_limit > 0 ? (
+                        <div className="text-xs">
+                          <div className="font-semibold text-slate-900">
+                            ₹{customer.credit_limit.toLocaleString("en-IN")}
+                          </div>
+                          <div className="text-[10px] text-slate-400">
+                            {customer.credit_days || 30} Days Approved
+                          </div>
                         </div>
-                      </div>
+                      ) : (
+                        <div className="text-xs text-slate-500 font-medium">
+                          <span className="inline-flex items-center rounded-md bg-slate-100 px-2 py-0.5 text-[10px] font-medium text-slate-600 border border-slate-200">
+                            Prepaid (Online)
+                          </span>
+                        </div>
+                      )}
                     </TableCell>
 
                     {/* Location */}
-                    <TableCell className="py-3">
+                    <TableCell className="py-3 bg-transparent">
                       <div className="text-xs text-slate-700 flex items-center gap-1">
                         <MapPin className="h-3 w-3 text-slate-400 shrink-0" />
                         <span>
@@ -551,7 +769,7 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
                     </TableCell>
 
                     {/* Actions */}
-                    <TableCell className="py-3 text-right">
+                    <TableCell className="py-3 text-right bg-transparent">
                       <div className="flex items-center justify-end gap-1.5">
                         {/* Quick Approve / Reject for Pending Accounts */}
                         {approvalStatus === APPROVAL_STATUSES.PENDING && (
@@ -597,6 +815,106 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
             )}
           </TableBody>
         </Table>
+
+        {/* Pagination Bar */}
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-4 py-3 border-t border-slate-200 bg-slate-50/70">
+          <div className="flex items-center gap-2 text-xs text-slate-600">
+            <span>
+              Showing{" "}
+              <strong className="font-semibold text-slate-900">
+                {totalItems === 0 ? 0 : (validCurrentPage - 1) * itemsPerPage + 1}
+              </strong>{" "}
+              to{" "}
+              <strong className="font-semibold text-slate-900">
+                {Math.min(validCurrentPage * itemsPerPage, totalItems)}
+              </strong>{" "}
+              of <strong className="font-semibold text-slate-900">{totalItems}</strong> customers
+            </span>
+
+            {/* Rows Per Page Selector */}
+            <div className="hidden sm:flex items-center gap-1.5 ml-4">
+              <span className="text-slate-400">Rows per page:</span>
+              <div className="w-[70px]">
+                <Select
+                  value={String(itemsPerPage)}
+                  onValueChange={(val) => {
+                    setItemsPerPage(Number(val));
+                    setCurrentPage(1);
+                  }}
+                >
+                  <SelectTrigger className="h-7 text-xs bg-white border-slate-200 py-0 px-2">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="5">5</SelectItem>
+                    <SelectItem value="10">10</SelectItem>
+                    <SelectItem value="25">25</SelectItem>
+                    <SelectItem value="50">50</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </div>
+
+          {/* Page Navigation Buttons */}
+          <div className="flex items-center gap-1">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={validCurrentPage <= 1}
+              onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+              className="h-8 px-2.5 text-xs gap-1 border-slate-200 text-slate-700 hover:bg-white disabled:opacity-40"
+            >
+              <ChevronLeft className="h-3.5 w-3.5" />
+              <span>Previous</span>
+            </Button>
+
+            {/* Page Number Buttons */}
+            {Array.from({ length: totalPages }, (_, i) => i + 1)
+              .filter(
+                (p) =>
+                  p === 1 ||
+                  p === totalPages ||
+                  (p >= validCurrentPage - 1 && p <= validCurrentPage + 1)
+              )
+              .map((pageNum, idx, arr) => {
+                const prevPage = arr[idx - 1];
+                const showEllipsis = prevPage && pageNum - prevPage > 1;
+
+                return (
+                  <div key={pageNum} className="flex items-center">
+                    {showEllipsis && <span className="px-1 text-slate-400 text-xs">...</span>}
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant={validCurrentPage === pageNum ? "default" : "outline"}
+                      onClick={() => setCurrentPage(pageNum)}
+                      className={`h-8 w-8 p-0 text-xs font-semibold ${
+                        validCurrentPage === pageNum
+                          ? "bg-[#024AE5] text-white hover:bg-[#023ecc]"
+                          : "border-slate-200 text-slate-700 hover:bg-white"
+                      }`}
+                    >
+                      {pageNum}
+                    </Button>
+                  </div>
+                );
+              })}
+
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={validCurrentPage >= totalPages}
+              onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+              className="h-8 px-2.5 text-xs gap-1 border-slate-200 text-slate-700 hover:bg-white disabled:opacity-40"
+            >
+              <span>Next</span>
+              <ChevronRight className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+        </div>
       </div>
 
       {/* MODAL 1: ADD OFFLINE CUSTOMER (with shadcn Inputs and Selects) */}
@@ -973,11 +1291,25 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
               </div>
               <div className="space-y-1">
                 <span className="text-slate-400 font-medium">GSTIN</span>
-                <p className="font-mono font-semibold text-slate-800">{viewingCustomer.gstin || "Not Registered / N/A"}</p>
+                <p className="font-mono font-semibold text-slate-800">
+                  {viewingCustomer.gstin || "Not Registered / N/A"}
+                </p>
               </div>
               <div className="space-y-1">
                 <span className="text-slate-400 font-medium">Department</span>
                 <p className="font-semibold text-slate-800">{viewingCustomer.department}</p>
+              </div>
+              <div className="space-y-1">
+                <span className="text-slate-400 font-medium">Registered Date</span>
+                <p className="font-semibold text-slate-800">{formatDate(viewingCustomer.created_at)}</p>
+              </div>
+              <div className="space-y-1">
+                <span className="text-slate-400 font-medium">Commercial Model</span>
+                <p className="font-semibold text-slate-800">
+                  {viewingCustomer.user_type === USER_TYPES.OFFLINE_USER
+                    ? "Direct ERP / Net Credit Terms"
+                    : "Online Self-Service / Prepaid"}
+                </p>
               </div>
               <div className="space-y-1 sm:col-span-2">
                 <span className="text-slate-400 font-medium">Registered Address</span>
@@ -985,16 +1317,22 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
                   {viewingCustomer.company_address}, {viewingCustomer.city}, {viewingCustomer.state} - {viewingCustomer.pincode}
                 </p>
               </div>
-              <div className="space-y-1">
-                <span className="text-slate-400 font-medium">Credit Limit</span>
-                <p className="font-bold text-slate-900 text-sm">
-                  ₹{(viewingCustomer.credit_limit || COMMERCIAL_DEFAULTS.DEFAULT_CREDIT_LIMIT).toLocaleString("en-IN")}
-                </p>
-              </div>
-              <div className="space-y-1">
-                <span className="text-slate-400 font-medium">Credit Payment Terms</span>
-                <p className="font-semibold text-slate-800">{viewingCustomer.credit_days || COMMERCIAL_DEFAULTS.DEFAULT_CREDIT_DAYS} Days Net</p>
-              </div>
+              {viewingCustomer.user_type === USER_TYPES.OFFLINE_USER && (
+                <>
+                  <div className="space-y-1">
+                    <span className="text-slate-400 font-medium">Credit Limit</span>
+                    <p className="font-bold text-slate-900 text-sm">
+                      ₹{(viewingCustomer.credit_limit || COMMERCIAL_DEFAULTS.DEFAULT_CREDIT_LIMIT).toLocaleString("en-IN")}
+                    </p>
+                  </div>
+                  <div className="space-y-1">
+                    <span className="text-slate-400 font-medium">Credit Payment Terms</span>
+                    <p className="font-semibold text-slate-800">
+                      {viewingCustomer.credit_days || COMMERCIAL_DEFAULTS.DEFAULT_CREDIT_DAYS} Days Net
+                    </p>
+                  </div>
+                </>
+              )}
               {viewingCustomer.notes && (
                 <div className="space-y-1 sm:col-span-2 bg-slate-50 p-3 rounded-lg border border-slate-100">
                   <span className="text-slate-400 font-medium">Internal Notes</span>

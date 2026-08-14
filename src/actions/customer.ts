@@ -32,12 +32,13 @@ export async function fetchCustomersList(): Promise<Profile[]> {
 
   if (dbProfiles && dbProfiles.length > 0) {
     (dbProfiles as Profile[]).forEach((p) => {
+      const isOffline = p.user_type === USER_TYPES.OFFLINE_USER;
       profilesMap.set(p.id, {
         ...p,
         approval_status: (p.approval_status as ApprovalStatus) || APPROVAL_STATUSES.PENDING,
         user_type: (p.user_type as UserType) || USER_TYPES.PLATFORM_USER,
-        credit_limit: p.credit_limit || COMMERCIAL_DEFAULTS.DEFAULT_CREDIT_LIMIT,
-        credit_days: p.credit_days || COMMERCIAL_DEFAULTS.DEFAULT_CREDIT_DAYS,
+        credit_limit: p.credit_limit ?? (isOffline ? COMMERCIAL_DEFAULTS.DEFAULT_CREDIT_LIMIT : null),
+        credit_days: p.credit_days ?? (isOffline ? COMMERCIAL_DEFAULTS.DEFAULT_CREDIT_DAYS : null),
       });
     });
   }
@@ -74,8 +75,8 @@ export async function fetchCustomersList(): Promise<Profile[]> {
             pincode: meta.pincode || "400001",
             approval_status: (meta.approval_status as ApprovalStatus) || APPROVAL_STATUSES.PENDING,
             user_type: USER_TYPES.PLATFORM_USER,
-            credit_limit: COMMERCIAL_DEFAULTS.DEFAULT_CREDIT_LIMIT,
-            credit_days: COMMERCIAL_DEFAULTS.DEFAULT_CREDIT_DAYS,
+            credit_limit: null, // Platform users are prepaid by default
+            credit_days: null,
             created_at: u.created_at,
             updated_at: u.updated_at,
           });
