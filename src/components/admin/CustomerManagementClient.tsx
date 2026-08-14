@@ -527,15 +527,15 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
         </div>
       </div>
 
-      {/* Customers Data Table - Fits 100% Desktop Width Without Horizontal Scroll */}
+      {/* Customers Data Table - Balanced Column Proportions without wasted space */}
       <div className="rounded-xl border border-slate-200 bg-white shadow-none overflow-hidden">
         <Table className="w-full table-fixed">
           <TableHeader className="bg-slate-50/80 border-b border-slate-200">
             <TableRow className="hover:bg-transparent border-0">
-              {/* Customer & Company (28%) */}
+              {/* Customer & Company (24%) */}
               <TableHead
                 onClick={() => handleSort("name")}
-                className="w-[28%] text-[11px] font-semibold text-slate-600 tracking-wider uppercase py-3 px-4 cursor-pointer select-none hover:text-slate-900"
+                className="w-[24%] text-[11px] font-semibold text-slate-600 tracking-wider uppercase py-2.5 px-3.5 cursor-pointer select-none hover:text-slate-900"
               >
                 <div className="flex items-center gap-1">
                   Customer & Company
@@ -543,15 +543,15 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
                 </div>
               </TableHead>
 
-              {/* Contact Details (24%) */}
-              <TableHead className="w-[24%] text-[11px] font-semibold text-slate-600 tracking-wider uppercase py-3 px-4">
+              {/* Contact Details (20%) */}
+              <TableHead className="w-[20%] text-[11px] font-semibold text-slate-600 tracking-wider uppercase py-2.5 px-3.5">
                 Contact Details
               </TableHead>
 
-              {/* Registered Date (14%) */}
+              {/* Registered Date (12%) */}
               <TableHead
                 onClick={() => handleSort("date")}
-                className="w-[14%] text-[11px] font-semibold text-slate-600 tracking-wider uppercase py-3 px-4 cursor-pointer select-none hover:text-slate-900"
+                className="w-[12%] text-[11px] font-semibold text-slate-600 tracking-wider uppercase py-2.5 px-3.5 cursor-pointer select-none hover:text-slate-900"
               >
                 <div className="flex items-center gap-1">
                   Registered On
@@ -562,7 +562,7 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
               {/* User Type (11%) */}
               <TableHead
                 onClick={() => handleSort("type")}
-                className="w-[11%] text-[11px] font-semibold text-slate-600 tracking-wider uppercase py-3 px-4 cursor-pointer select-none hover:text-slate-900"
+                className="w-[11%] text-[11px] font-semibold text-slate-600 tracking-wider uppercase py-2.5 px-3.5 cursor-pointer select-none hover:text-slate-900"
               >
                 <div className="flex items-center gap-1">
                   Type
@@ -573,7 +573,7 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
               {/* Approval Status (11%) */}
               <TableHead
                 onClick={() => handleSort("status")}
-                className="w-[11%] text-[11px] font-semibold text-slate-600 tracking-wider uppercase py-3 px-4 cursor-pointer select-none hover:text-slate-900"
+                className="w-[11%] text-[11px] font-semibold text-slate-600 tracking-wider uppercase py-2.5 px-3.5 cursor-pointer select-none hover:text-slate-900"
               >
                 <div className="flex items-center gap-1">
                   Status
@@ -581,10 +581,10 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
                 </div>
               </TableHead>
 
-              {/* Location (12%) */}
+              {/* Location (10%) */}
               <TableHead
                 onClick={() => handleSort("location")}
-                className="w-[12%] text-[11px] font-semibold text-slate-600 tracking-wider uppercase py-3 px-4 cursor-pointer select-none hover:text-slate-900"
+                className="w-[10%] text-[11px] font-semibold text-slate-600 tracking-wider uppercase py-2.5 px-3.5 cursor-pointer select-none hover:text-slate-900"
               >
                 <div className="flex items-center gap-1">
                   Location
@@ -592,8 +592,8 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
                 </div>
               </TableHead>
 
-              {/* Actions (10%) */}
-              <TableHead className="w-[10%] text-[11px] font-semibold text-slate-600 tracking-wider uppercase py-3 px-4 text-right">
+              {/* Actions (12%) */}
+              <TableHead className="w-[12%] text-[11px] font-semibold text-slate-600 tracking-wider uppercase py-2.5 px-3.5 text-right">
                 Actions
               </TableHead>
             </TableRow>
@@ -622,9 +622,9 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
                     className="hover:bg-slate-50/70 transition-colors bg-white border-b border-slate-200/80"
                   >
                     {/* Customer & Company */}
-                    <TableCell className="py-3 px-4 truncate">
-                      <div className="flex items-center gap-3">
-                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-700 font-medium text-xs border border-slate-200/80">
+                    <TableCell className="py-2.5 px-3.5 truncate">
+                      <div className="flex items-center gap-2.5">
+                        <div className="flex h-7.5 w-7.5 shrink-0 items-center justify-center rounded-md bg-slate-100 text-slate-700 font-medium text-xs border border-slate-200/80">
                           {customer.first_name?.[0] || "C"}
                           {customer.last_name?.[0] || ""}
                         </div>
@@ -632,7 +632,7 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
                           <div className="font-medium text-xs text-slate-900 truncate">
                             {customer.title} {customer.first_name} {customer.last_name}
                           </div>
-                          <div className="text-[11px] text-slate-500 flex items-center gap-1.5 mt-0.5 truncate">
+                          <div className="text-[11px] text-slate-500 flex items-center gap-1 mt-0.5 truncate">
                             <Building2 className="h-3 w-3 text-slate-400 shrink-0" />
                             <span className="truncate">{customer.company_name}</span>
                           </div>
@@ -646,7 +646,7 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
                     </TableCell>
 
                     {/* Contact Details */}
-                    <TableCell className="py-3 px-4 truncate">
+                    <TableCell className="py-2.5 px-3.5 truncate">
                       <div className="space-y-0.5 text-xs">
                         <div className="flex items-center gap-1.5 text-slate-700 truncate">
                           <Mail className="h-3 w-3 text-slate-400 shrink-0" />
@@ -660,7 +660,7 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
                     </TableCell>
 
                     {/* Registered Date */}
-                    <TableCell className="py-3 px-4 whitespace-nowrap">
+                    <TableCell className="py-2.5 px-3.5 whitespace-nowrap">
                       <div className="flex items-center gap-1.5 text-xs text-slate-600">
                         <Calendar className="h-3 w-3 text-slate-400 shrink-0" />
                         <span>{formatDate(customer.created_at)}</span>
@@ -668,20 +668,20 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
                     </TableCell>
 
                     {/* User Type */}
-                    <TableCell className="py-3 px-4 whitespace-nowrap">
+                    <TableCell className="py-2.5 px-3.5 whitespace-nowrap">
                       {userType === USER_TYPES.PLATFORM_USER ? (
-                        <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[11px] font-medium bg-slate-100 text-slate-700 border border-slate-200/60">
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium bg-slate-100 text-slate-700 border border-slate-200/60">
                           <Globe className="h-3 w-3 text-slate-500" /> Platform
                         </span>
                       ) : (
-                        <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[11px] font-medium bg-slate-100 text-slate-700 border border-slate-200/60">
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium bg-slate-100 text-slate-700 border border-slate-200/60">
                           <Store className="h-3 w-3 text-slate-500" /> Offline ERP
                         </span>
                       )}
                     </TableCell>
 
                     {/* Approval Status */}
-                    <TableCell className="py-3 px-4 whitespace-nowrap">
+                    <TableCell className="py-2.5 px-3.5 whitespace-nowrap">
                       {approvalStatus === APPROVAL_STATUSES.APPROVED && (
                         <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[11px] font-medium bg-emerald-50 text-emerald-700 border border-emerald-200/60">
                           <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" /> Approved
@@ -700,7 +700,7 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
                     </TableCell>
 
                     {/* Location */}
-                    <TableCell className="py-3 px-4 truncate">
+                    <TableCell className="py-2.5 px-3.5 truncate">
                       <div className="text-xs text-slate-600 flex items-center gap-1 truncate">
                         <MapPin className="h-3 w-3 text-slate-400 shrink-0" />
                         <span className="truncate">
@@ -709,8 +709,8 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
                       </div>
                     </TableCell>
 
-                    {/* Actions (Solid Green Check & Red X for Instant Approval/Rejection) */}
-                    <TableCell className="py-3 px-4 text-right whitespace-nowrap">
+                    {/* Actions (Solid Green Check & Red X with proper padding & breathing room) */}
+                    <TableCell className="py-2.5 px-3.5 text-right whitespace-nowrap">
                       <div className="flex items-center justify-end gap-1.5">
                         {approvalStatus === APPROVAL_STATUSES.PENDING && (
                           <>
@@ -720,7 +720,7 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
                               title="Approve Customer"
                               disabled={isPending}
                               onClick={() => handleStatusChange(customer.id, APPROVAL_STATUSES.APPROVED)}
-                              className="h-7 w-7 bg-emerald-600 text-white hover:bg-emerald-700 cursor-pointer shadow-none rounded-md"
+                              className="h-7 w-7 bg-emerald-600 text-white hover:bg-emerald-700 cursor-pointer shadow-none rounded-md p-1.5 shrink-0"
                             >
                               <Check className="h-3.5 w-3.5" />
                             </Button>
@@ -730,7 +730,7 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
                               title="Reject Customer"
                               disabled={isPending}
                               onClick={() => handleStatusChange(customer.id, APPROVAL_STATUSES.REJECTED)}
-                              className="h-7 w-7 bg-rose-600 text-white hover:bg-rose-700 cursor-pointer shadow-none rounded-md"
+                              className="h-7 w-7 bg-rose-600 text-white hover:bg-rose-700 cursor-pointer shadow-none rounded-md p-1.5 shrink-0"
                             >
                               <X className="h-3.5 w-3.5" />
                             </Button>
@@ -742,7 +742,7 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
                           variant="outline"
                           size="sm"
                           onClick={() => setViewingCustomer(customer)}
-                          className="h-7 text-xs px-2.5 border-slate-200 text-slate-700 hover:bg-slate-50 hover:text-slate-900 shadow-none cursor-pointer"
+                          className="h-7 text-xs px-2.5 border-slate-200 text-slate-700 hover:bg-slate-50 hover:text-slate-900 shadow-none cursor-pointer shrink-0"
                         >
                           <Eye className="h-3.5 w-3.5 text-slate-500 mr-1" />
                           <span>View</span>
@@ -757,7 +757,7 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
         </Table>
 
         {/* Pagination Bar */}
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-4 py-3 border-t border-slate-200 bg-slate-50/60">
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-3.5 py-2.5 border-t border-slate-200 bg-slate-50/60">
           <div className="flex items-center gap-2 text-xs text-slate-500">
             <span>
               Showing{" "}
@@ -772,7 +772,7 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
             </span>
 
             {/* Rows Per Page Selector */}
-            <div className="hidden sm:flex items-center gap-1.5 ml-4">
+            <div className="hidden sm:flex items-center gap-1.5 ml-3">
               <span className="text-slate-400">Rows per page:</span>
               <div className="w-[65px]">
                 <Select
@@ -804,7 +804,7 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
               size="sm"
               disabled={validCurrentPage <= 1}
               onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-              className="h-8 px-2.5 text-xs gap-1 border-slate-200 text-slate-700 hover:bg-white disabled:opacity-40"
+              className="h-7.5 px-2.5 text-xs gap-1 border-slate-200 text-slate-700 hover:bg-white disabled:opacity-40"
             >
               <ChevronLeft className="h-3.5 w-3.5" />
               <span>Previous</span>
@@ -830,7 +830,7 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
                       size="sm"
                       variant={validCurrentPage === pageNum ? "default" : "outline"}
                       onClick={() => setCurrentPage(pageNum)}
-                      className={`h-8 w-8 p-0 text-xs font-semibold ${
+                      className={`h-7.5 w-7.5 p-0 text-xs font-semibold ${
                         validCurrentPage === pageNum
                           ? "bg-[#024AE5] text-white hover:bg-[#023ecc]"
                           : "border-slate-200 text-slate-700 hover:bg-white"
@@ -848,7 +848,7 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
               size="sm"
               disabled={validCurrentPage >= totalPages}
               onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-              className="h-8 px-2.5 text-xs gap-1 border-slate-200 text-slate-700 hover:bg-white disabled:opacity-40"
+              className="h-7.5 px-2.5 text-xs gap-1 border-slate-200 text-slate-700 hover:bg-white disabled:opacity-40"
             >
               <span>Next</span>
               <ChevronRight className="h-3.5 w-3.5" />
