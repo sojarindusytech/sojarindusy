@@ -52,14 +52,27 @@ body {
   font-feature-settings: "rlig" 1, "calt" 1;
 }
 
-/* Force dark text on inputs and selects */
-input, select, textarea, button {
-  color: inherit;
+/* Force dark text on form inputs and selects only */
+input, select, textarea {
+  color: #0f172a;
+}
+
+/* Ensure primary & green buttons always have pure white text */
+button.bg-\[\#024AE5\],
+button.bg-\[\#3C8B4F\],
+button.bg-blue-600,
+button[data-variant="primary"],
+button[data-variant="green"],
+button[data-variant="default"],
+.btn-primary,
+.bg-brand-blue {
+  color: #ffffff !important;
 }
 
 /* Centralized Brand Color Classes */
 .bg-brand-blue {
   background-color: #024AE5;
+  color: #ffffff !important;
 }
 
 .text-brand-blue {
@@ -72,6 +85,7 @@ input, select, textarea, button {
 
 .bg-brand-green {
   background-color: #3C8B4F;
+  color: #ffffff !important;
 }
 
 .text-brand-green {

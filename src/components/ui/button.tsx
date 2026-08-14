@@ -9,19 +9,19 @@ const buttonVariants = cva(
     variants: {
       variant: {
         default:
-          "bg-[#024AE5] text-white shadow-sm hover:bg-[#013bb8] hover:shadow-md",
+          "bg-[#024AE5] text-white hover:bg-[#013bb8] shadow-none",
         primary:
-          "bg-[#024AE5] text-white shadow-sm hover:bg-[#013bb8] hover:shadow-md",
+          "bg-[#024AE5] text-white hover:bg-[#013bb8] shadow-none",
         green:
-          "bg-[#3C8B4F] text-white shadow-sm hover:bg-[#317240] hover:shadow-md",
+          "bg-[#3C8B4F] text-white hover:bg-[#317240] shadow-none",
         destructive:
-          "bg-red-600 text-white shadow-sm hover:bg-red-700",
+          "bg-red-600 text-white hover:bg-red-700 shadow-none",
         outline:
-          "border border-slate-200 bg-white text-slate-800 shadow-xs hover:border-[#024AE5] hover:text-[#024AE5] hover:bg-blue-50/50",
+          "border border-slate-200 bg-white text-slate-800 hover:border-[#024AE5] hover:text-[#024AE5] hover:bg-blue-50/50 shadow-none",
         "outline-green":
-          "border border-[#3C8B4F]/40 bg-white text-[#3C8B4F] shadow-xs hover:border-[#3C8B4F] hover:bg-emerald-50/50",
+          "border border-[#3C8B4F]/40 bg-white text-[#3C8B4F] hover:border-[#3C8B4F] hover:bg-emerald-50/50 shadow-none",
         secondary:
-          "bg-slate-100 text-slate-900 shadow-xs hover:bg-slate-200",
+          "bg-slate-100 text-slate-900 hover:bg-slate-200 shadow-none",
         ghost:
           "hover:bg-slate-100 text-slate-700 hover:text-slate-900",
         link: "text-[#024AE5] underline-offset-4 hover:underline",

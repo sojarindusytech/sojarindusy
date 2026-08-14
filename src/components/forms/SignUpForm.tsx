@@ -241,14 +241,14 @@ export function SignUpForm() {
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-12 gap-3">
-                  {/* Title */}
-                  <div className="sm:col-span-3 space-y-1">
+                  {/* Title (Reduced width for Mr, Mrs, Miss, Ms) */}
+                  <div className="sm:col-span-2 space-y-1">
                     <Label>Title *</Label>
                     <Select
                       value={formData.title}
                       onValueChange={(val) => handleSelectChange("title", val)}
                     >
-                      <SelectTrigger>
+                      <SelectTrigger className="px-2">
                         <SelectValue placeholder="Title" />
                       </SelectTrigger>
                       <SelectContent>
@@ -262,7 +262,7 @@ export function SignUpForm() {
                   </div>
 
                   {/* First Name */}
-                  <div className="sm:col-span-4 space-y-1">
+                  <div className="sm:col-span-5 space-y-1">
                     <Label htmlFor="first_name">First Name *</Label>
                     <Input
                       id="first_name"
