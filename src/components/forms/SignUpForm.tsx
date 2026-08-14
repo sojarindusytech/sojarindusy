@@ -23,7 +23,6 @@ import {
   Check,
 } from "lucide-react";
 import Link from "next/link";
-import { cn } from "@/lib/utils";
 
 export function SignUpForm() {
   const router = useRouter();
@@ -147,70 +146,15 @@ export function SignUpForm() {
   return (
     <div className="w-full max-w-xl mx-auto py-2">
       <Card className="border border-slate-200 bg-white shadow-xl rounded-2xl overflow-hidden">
-        {/* Centered Header & Sleek Stepper */}
-        <CardHeader className="bg-white p-6 pb-5 border-b border-slate-100 text-center">
+        {/* Centered Sign Up Header */}
+        <CardHeader className="bg-white p-6 pb-2 border-0 text-center">
           <CardTitle className="text-2xl font-bold tracking-tight text-slate-900">
             Sign Up
           </CardTitle>
-
-          {/* Stepper UI */}
-          <div className="flex items-center justify-center max-w-xs mx-auto pt-4">
-            {/* Step 1 */}
-            <div className="flex flex-col items-center">
-              <div
-                className={cn(
-                  "flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold transition-all",
-                  step === 1
-                    ? "bg-[#024AE5] text-white ring-4 ring-blue-100 shadow-xs"
-                    : "bg-[#3C8B4F] text-white"
-                )}
-              >
-                {step > 1 ? <Check className="h-4 w-4 stroke-[3]" /> : "1"}
-              </div>
-              <span
-                className={cn(
-                  "mt-1.5 text-[11px] font-semibold tracking-tight whitespace-nowrap",
-                  step === 1 ? "text-[#024AE5]" : "text-slate-700"
-                )}
-              >
-                User Details
-              </span>
-            </div>
-
-            {/* Connecting Bar */}
-            <div
-              className={cn(
-                "h-0.5 w-24 mx-2 mb-5 transition-colors duration-300",
-                step === 2 ? "bg-[#024AE5]" : "bg-slate-200"
-              )}
-            />
-
-            {/* Step 2 */}
-            <div className="flex flex-col items-center">
-              <div
-                className={cn(
-                  "flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold transition-all",
-                  step === 2
-                    ? "bg-[#024AE5] text-white ring-4 ring-blue-100 shadow-xs"
-                    : "bg-slate-100 text-slate-400 border border-slate-200"
-                )}
-              >
-                2
-              </div>
-              <span
-                className={cn(
-                  "mt-1.5 text-[11px] font-semibold tracking-tight whitespace-nowrap",
-                  step === 2 ? "text-[#024AE5]" : "text-slate-400"
-                )}
-              >
-                Company Details
-              </span>
-            </div>
-          </div>
         </CardHeader>
 
         <form onSubmit={handleSubmit}>
-          <CardContent className="p-6 bg-white min-h-[420px] flex flex-col justify-start">
+          <CardContent className="p-6 pt-2 bg-white min-h-[420px] flex flex-col justify-start">
             {error && (
               <div className="mb-4 flex items-start gap-2.5 rounded-lg border border-red-500/20 bg-red-50 p-3 text-xs text-red-800">
                 <AlertCircle className="h-4 w-4 shrink-0 text-red-600 mt-0.5" />
@@ -225,9 +169,15 @@ export function SignUpForm() {
               </div>
             )}
 
-            {/* STEP 1: User & Contact Details */}
+            {/* STEP 1: User Details Heading & Form */}
             {step === 1 && (
               <div className="space-y-3.5 animate-in fade-in-50 duration-200">
+                <div className="border-b border-slate-100 pb-2 mb-3">
+                  <h2 className="text-sm font-bold uppercase tracking-wider text-slate-800">
+                    User Details
+                  </h2>
+                </div>
+
                 <div className="grid grid-cols-1 sm:grid-cols-12 gap-3">
                   {/* Title */}
                   <div className="sm:col-span-3 space-y-1">
@@ -382,9 +332,15 @@ export function SignUpForm() {
               </div>
             )}
 
-            {/* STEP 2: Company Details */}
+            {/* STEP 2: Company Details Heading & Form */}
             {step === 2 && (
               <div className="space-y-3.5 animate-in fade-in-50 duration-200">
+                <div className="border-b border-slate-100 pb-2 mb-3">
+                  <h2 className="text-sm font-bold uppercase tracking-wider text-slate-800">
+                    Company Details
+                  </h2>
+                </div>
+
                 {/* Company Name */}
                 <div className="space-y-1">
                   <Label htmlFor="company_name">Company Name *</Label>
