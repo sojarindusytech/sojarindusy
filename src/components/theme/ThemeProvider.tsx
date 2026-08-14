@@ -12,7 +12,7 @@ interface ThemeContextType {
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [font, setFontState] = useState<AvailableFont>("jakarta");
+  const [font, setFontState] = useState<AvailableFont>("inter");
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -22,13 +22,12 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       setFontState(savedFont);
       applyFontClass(savedFont);
     } else {
-      applyFontClass("jakarta");
+      applyFontClass("inter");
     }
   }, []);
 
   const applyFontClass = (selectedFont: AvailableFont) => {
     const root = document.documentElement;
-    // Remove existing font classes
     FONT_OPTIONS.forEach((f) => {
       root.classList.remove(`font-${f.id}`);
     });

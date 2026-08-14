@@ -1,9 +1,22 @@
-<!-- BEGIN:nextjs-agent-rules -->
+# Project Architecture & Standards - Sojar Indusy
 
-# This is NOT the Next.js you know
+Refer to [.agents/rules/project_standards.md](file:///d:/17_Quinite_Technologies/Project%208%20Sojar%20Indusy/.agents/rules/project_standards.md) for full architectural guidelines.
 
-This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
+## Mandatory Project Rules
+- **Font**: Inter
+- **UI**: shadcn/ui
+- **Primitives**: Radix UI (`@radix-ui/*`)
+- **Icons**: Lucide (`lucide-react`)
+- **Styling**: Tailwind CSS
+- **Colors**:
+  - Background: `#FFFFFF` (White)
+  - Primary Button & Brand: `#024AE5` (Cobalt Blue)
+  - Secondary / Highlight: `#3C8B4F` (Brand Green)
+  - Text / Foreground: `#0F172A`
 
-This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
-
-<!-- END:nextjs-agent-rules -->
+## Centralized Architecture
+- `src/components/ui/` for basic UI primitives.
+- `src/components/common/` for shared widgets and layout components.
+- `src/components/theme/` for typography and theme providers.
+- `src/lib/theme.ts` & `src/lib/utils.ts` for centralized constants and utilities.
+- `src/lib/supabase/` for Supabase SSR client integration.

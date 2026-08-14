@@ -34,16 +34,16 @@ export interface FontOption {
 
 export const FONT_OPTIONS: FontOption[] = [
   {
-    id: "jakarta",
-    name: "Plus Jakarta Sans",
-    className: "font-jakarta",
-    description: "Modern Geometric & Corporate (Recommended)",
-  },
-  {
     id: "inter",
     name: "Inter",
     className: "font-inter",
-    description: "Ultra-clean UI Standard",
+    description: "Standard Industrial UI Font (Default)",
+  },
+  {
+    id: "jakarta",
+    name: "Plus Jakarta Sans",
+    className: "font-jakarta",
+    description: "Geometric Corporate",
   },
   {
     id: "outfit",
@@ -55,6 +55,6 @@ export const FONT_OPTIONS: FontOption[] = [
     id: "geist",
     name: "Geist",
     className: "font-geist",
-    description: "Precision Industrial & Code",
+    description: "Precision Technical",
   },
 ];
