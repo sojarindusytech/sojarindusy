@@ -104,13 +104,13 @@ export function AdminSidebar() {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
 
-  // Maintain open/closed state for each dropdown section
+  // Maintain open/closed state for each dropdown section (all closed by default)
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({
-    products: true,
-    orders: true,
-    sales: true,
-    ledger: true,
-    analytics: true,
+    products: false,
+    orders: false,
+    sales: false,
+    ledger: false,
+    analytics: false,
   });
 
   // Automatically expand the section that contains the current active route

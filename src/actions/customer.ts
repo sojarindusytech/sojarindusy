@@ -1,6 +1,6 @@
 "use server";
 
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { Profile } from "@/types/database.types";
 import {
   USER_ROLES,
@@ -10,43 +10,90 @@ import {
   COMMERCIAL_DEFAULTS,
   ApprovalStatus,
   UserTitle,
+  UserType,
 } from "@/lib/constants";
 import { revalidatePath } from "next/cache";
 
 export async function fetchCustomersList(): Promise<Profile[]> {
-  const supabase = await createClient();
+  const supabase = createAdminClient();
 
-  // Fetch only actual registered profiles from Supabase database
+  // 1. Fetch all customer profiles from Supabase database using Service Role
   const { data: dbProfiles, error } = await supabase
     .from("profiles")
     .select("*")
-    .neq("role", USER_ROLES.PLATFORM_OWNER) // Exclude admin accounts from customer list
+    .neq("role", USER_ROLES.PLATFORM_OWNER) // Exclude platform administrator accounts
     .order("created_at", { ascending: false });
 
   if (error) {
     console.warn("Could not fetch customer profiles from database:", error.message);
-    return [];
   }
 
-  if (!dbProfiles || dbProfiles.length === 0) {
-    return [];
+  const profilesMap = new Map<string, Profile>();
+
+  if (dbProfiles && dbProfiles.length > 0) {
+    (dbProfiles as Profile[]).forEach((p) => {
+      profilesMap.set(p.id, {
+        ...p,
+        approval_status: (p.approval_status as ApprovalStatus) || APPROVAL_STATUSES.PENDING,
+        user_type: (p.user_type as UserType) || USER_TYPES.PLATFORM_USER,
+        credit_limit: p.credit_limit || COMMERCIAL_DEFAULTS.DEFAULT_CREDIT_LIMIT,
+        credit_days: p.credit_days || COMMERCIAL_DEFAULTS.DEFAULT_CREDIT_DAYS,
+      });
+    });
   }
 
-  // Normalize real profile records
-  return (dbProfiles as Profile[]).map((p) => ({
-    ...p,
-    approval_status: p.approval_status || APPROVAL_STATUSES.PENDING,
-    user_type: p.user_type || USER_TYPES.PLATFORM_USER,
-    credit_limit: p.credit_limit || COMMERCIAL_DEFAULTS.DEFAULT_CREDIT_LIMIT,
-    credit_days: p.credit_days || COMMERCIAL_DEFAULTS.DEFAULT_CREDIT_DAYS,
-  }));
+  // 2. Also inspect Auth users to ensure any registered user is guaranteed to appear
+  try {
+    const { data: authData } = await supabase.auth.admin.listUsers();
+    if (authData?.users) {
+      authData.users.forEach((u) => {
+        const meta = u.user_metadata || {};
+        if (meta.role === USER_ROLES.PLATFORM_OWNER || u.email === "admin@sojarindusy.com") {
+          return; // Skip platform owner
+        }
+
+        // If not already in profilesMap or needs hydration
+        if (!profilesMap.has(u.id)) {
+          profilesMap.set(u.id, {
+            id: u.id,
+            role: USER_ROLES.CUSTOMER,
+            title: (meta.title as UserTitle) || USER_TITLES[0],
+            first_name: meta.first_name || (u.email?.split("@")[0] ?? "Customer"),
+            last_name: meta.last_name || "",
+            department: meta.department || "Operations",
+            designation: meta.designation || "Customer Representative",
+            mobile: meta.mobile || "-",
+            landline: meta.landline || null,
+            email: u.email || "",
+            company_name: meta.company_name || "Registered Enterprise",
+            company_address: meta.company_address || "Industrial Facility",
+            additional_address: meta.additional_address || null,
+            gstin: meta.gstin || null,
+            city: meta.city || "Mumbai",
+            state: meta.state || "Maharashtra",
+            pincode: meta.pincode || "400001",
+            approval_status: (meta.approval_status as ApprovalStatus) || APPROVAL_STATUSES.PENDING,
+            user_type: USER_TYPES.PLATFORM_USER,
+            credit_limit: COMMERCIAL_DEFAULTS.DEFAULT_CREDIT_LIMIT,
+            credit_days: COMMERCIAL_DEFAULTS.DEFAULT_CREDIT_DAYS,
+            created_at: u.created_at,
+            updated_at: u.updated_at,
+          });
+        }
+      });
+    }
+  } catch (authListErr) {
+    console.warn("Notice fetching auth users list:", authListErr);
+  }
+
+  return Array.from(profilesMap.values());
 }
 
 export async function updateCustomerApprovalStatus(
   customerId: string,
   newStatus: ApprovalStatus
 ): Promise<{ success: boolean; message: string }> {
-  const supabase = await createClient();
+  const supabase = createAdminClient();
 
   try {
     const { error } = await supabase
@@ -58,8 +105,15 @@ export async function updateCustomerApprovalStatus(
       .eq("id", customerId);
 
     if (error) {
-      console.warn("Notice updating approval status:", error.message);
+      console.warn("Notice updating approval status in profiles:", error.message);
     }
+
+    // Also update auth user metadata if auth account exists
+    await supabase.auth.admin.updateUserById(customerId, {
+      user_metadata: {
+        approval_status: newStatus,
+      },
+    }).catch(() => null);
   } catch (err) {
     console.warn("Database update exception handled:", err);
   }
@@ -76,7 +130,7 @@ export async function createOfflineCustomer(formData: FormData): Promise<{
   error?: string;
   message?: string;
 }> {
-  const supabase = await createClient();
+  const supabase = createAdminClient();
 
   const title = (formData.get("title") as UserTitle) || USER_TITLES[0];
   const firstName = (formData.get("first_name") as string)?.trim();

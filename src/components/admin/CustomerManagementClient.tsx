@@ -22,6 +22,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   Table,
   TableBody,
   TableCell,
@@ -62,11 +69,19 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
   const [selectedStatus, setSelectedStatus] = useState<string>("all");
   const [isPending, startTransition] = useTransition();
 
-  // Modal State
+  // Modal & Form State with shadcn controlled selects
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [viewingCustomer, setViewingCustomer] = useState<Profile | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const [formSuccess, setFormSuccess] = useState<string | null>(null);
+
+  // Form select values
+  const [formTitle, setFormTitle] = useState<UserTitle>(USER_TITLES[0]);
+  const [formDept, setFormDept] = useState<string>(DEPARTMENT_OPTIONS[0]);
+  const [formState, setFormState] = useState<string>("Maharashtra");
+  const [formCreditDays, setFormCreditDays] = useState<string>(
+    String(COMMERCIAL_DEFAULTS.DEFAULT_CREDIT_DAYS)
+  );
 
   // Statistics calculation based on single source of truth enums
   const totalCount = customers.length;
@@ -129,6 +144,10 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
     setFormError(null);
     setFormSuccess(null);
     const formData = new FormData(e.currentTarget);
+    formData.set("title", formTitle);
+    formData.set("department", formDept);
+    formData.set("state", formState);
+    formData.set("credit_days", formCreditDays);
 
     startTransition(async () => {
       const res = await createOfflineCustomer(formData);
@@ -143,23 +162,23 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
           const newCust: Profile = {
             id: `off-${Date.now()}`,
             role: "customer",
-            title: (formData.get("title") as UserTitle) || USER_TITLES[0],
+            title: formTitle,
             first_name: (formData.get("first_name") as string) || "",
             last_name: (formData.get("last_name") as string) || "",
             company_name: (formData.get("company_name") as string) || "",
             email: (formData.get("email") as string) || "",
             mobile: (formData.get("mobile") as string) || "",
             designation: (formData.get("designation") as string) || "Commercial Contact",
-            department: (formData.get("department") as string) || DEPARTMENT_OPTIONS[0],
+            department: formDept,
             company_address: (formData.get("company_address") as string) || "",
             city: (formData.get("city") as string) || "",
-            state: (formData.get("state") as string) || INDIAN_STATES[0],
+            state: formState,
             pincode: (formData.get("pincode") as string) || "",
             gstin: (formData.get("gstin") as string) || null,
             approval_status: APPROVAL_STATUSES.APPROVED,
             user_type: USER_TYPES.OFFLINE_USER,
             credit_limit: Number(formData.get("credit_limit")) || COMMERCIAL_DEFAULTS.DEFAULT_CREDIT_LIMIT,
-            credit_days: Number(formData.get("credit_days")) || COMMERCIAL_DEFAULTS.DEFAULT_CREDIT_DAYS,
+            credit_days: Number(formCreditDays) || COMMERCIAL_DEFAULTS.DEFAULT_CREDIT_DAYS,
             created_at: new Date().toISOString(),
           };
           setCustomers((prev) => [newCust, ...prev]);
@@ -327,9 +346,9 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
         </Card>
       </div>
 
-      {/* Filter & Search Bar */}
+      {/* Filter & Search Bar with shadcn Inputs and Selects */}
       <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 bg-white p-3.5 rounded-xl border border-slate-200 shadow-none">
-        {/* Search Input */}
+        {/* Search Input (shadcn) */}
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
           <Input
@@ -337,40 +356,52 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
             placeholder="Search company, contact name, email, phone, GSTIN, city..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-9 h-9 text-xs bg-slate-50 border-slate-200 focus-visible:bg-white focus-visible:ring-[#024AE5]"
+            className="pl-9 h-10 text-xs bg-slate-50 border-slate-200 focus-visible:bg-white focus-visible:ring-[#024AE5]"
           />
         </div>
 
-        {/* Dropdown Filters */}
-        <div className="flex flex-wrap items-center gap-2.5">
-          {/* User Type Filter */}
-          <div className="flex items-center gap-1.5">
-            <Filter className="h-3.5 w-3.5 text-slate-400" />
-            <span className="text-xs text-slate-500 font-medium">Type:</span>
-            <select
-              value={selectedUserType}
-              onChange={(e) => setSelectedUserType(e.target.value)}
-              className="h-9 rounded-lg border border-slate-200 bg-white px-2.5 text-xs text-slate-700 focus:border-[#024AE5] focus:outline-hidden"
-            >
-              <option value="all">All Types</option>
-              <option value={USER_TYPES.PLATFORM_USER}>{USER_TYPE_CONFIG[USER_TYPES.PLATFORM_USER].label}</option>
-              <option value={USER_TYPES.OFFLINE_USER}>{USER_TYPE_CONFIG[USER_TYPES.OFFLINE_USER].label}</option>
-            </select>
+        {/* shadcn Dropdown Filters */}
+        <div className="flex flex-wrap items-center gap-3">
+          {/* User Type Filter (shadcn Select) */}
+          <div className="flex items-center gap-2">
+            <Filter className="h-3.5 w-3.5 text-slate-400 shrink-0" />
+            <div className="w-[180px]">
+              <Select value={selectedUserType} onValueChange={setSelectedUserType}>
+                <SelectTrigger className="h-10 text-xs bg-white border-slate-200">
+                  <SelectValue placeholder="All Types" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Types</SelectItem>
+                  <SelectItem value={USER_TYPES.PLATFORM_USER}>
+                    {USER_TYPE_CONFIG[USER_TYPES.PLATFORM_USER].shortLabel}
+                  </SelectItem>
+                  <SelectItem value={USER_TYPES.OFFLINE_USER}>
+                    {USER_TYPE_CONFIG[USER_TYPES.OFFLINE_USER].shortLabel}
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
 
-          {/* Status Filter */}
-          <div className="flex items-center gap-1.5">
-            <span className="text-xs text-slate-500 font-medium">Status:</span>
-            <select
-              value={selectedStatus}
-              onChange={(e) => setSelectedStatus(e.target.value)}
-              className="h-9 rounded-lg border border-slate-200 bg-white px-2.5 text-xs text-slate-700 focus:border-[#024AE5] focus:outline-hidden"
-            >
-              <option value="all">All Statuses</option>
-              <option value={APPROVAL_STATUSES.APPROVED}>{APPROVAL_STATUS_CONFIG[APPROVAL_STATUSES.APPROVED].label}</option>
-              <option value={APPROVAL_STATUSES.PENDING}>{APPROVAL_STATUS_CONFIG[APPROVAL_STATUSES.PENDING].label}</option>
-              <option value={APPROVAL_STATUSES.REJECTED}>{APPROVAL_STATUS_CONFIG[APPROVAL_STATUSES.REJECTED].label}</option>
-            </select>
+          {/* Status Filter (shadcn Select) */}
+          <div className="w-[170px]">
+            <Select value={selectedStatus} onValueChange={setSelectedStatus}>
+              <SelectTrigger className="h-10 text-xs bg-white border-slate-200">
+                <SelectValue placeholder="All Statuses" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Statuses</SelectItem>
+                <SelectItem value={APPROVAL_STATUSES.APPROVED}>
+                  {APPROVAL_STATUS_CONFIG[APPROVAL_STATUSES.APPROVED].label}
+                </SelectItem>
+                <SelectItem value={APPROVAL_STATUSES.PENDING}>
+                  {APPROVAL_STATUS_CONFIG[APPROVAL_STATUSES.PENDING].label}
+                </SelectItem>
+                <SelectItem value={APPROVAL_STATUSES.REJECTED}>
+                  {APPROVAL_STATUS_CONFIG[APPROVAL_STATUSES.REJECTED].label}
+                </SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
           {(searchQuery || selectedUserType !== "all" || selectedStatus !== "all") && (
@@ -383,9 +414,9 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
                 setSelectedUserType("all");
                 setSelectedStatus("all");
               }}
-              className="text-xs text-slate-500 hover:text-slate-900 h-9 px-2"
+              className="text-xs text-slate-500 hover:text-slate-900 h-10 px-2"
             >
-              Reset Filters
+              Reset
             </Button>
           )}
         </div>
@@ -568,7 +599,7 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
         </Table>
       </div>
 
-      {/* MODAL 1: ADD OFFLINE CUSTOMER */}
+      {/* MODAL 1: ADD OFFLINE CUSTOMER (with shadcn Inputs and Selects) */}
       {isAddModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-xs p-4 overflow-y-auto">
           <div className="relative w-full max-w-3xl rounded-2xl bg-white p-6 shadow-2xl border border-slate-200 my-8 max-h-[90vh] overflow-y-auto animate-in fade-in zoom-in-95 duration-150">
@@ -613,7 +644,7 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
               </div>
             )}
 
-            {/* Same Registration Form */}
+            {/* Same Registration Form with shadcn Components */}
             <form onSubmit={handleAddOfflineCustomer} className="space-y-6">
               {/* Section 1: Company Profile */}
               <div>
@@ -629,7 +660,7 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
                     <Input
                       name="company_name"
                       required
-                      className="h-9 text-xs border-slate-200"
+                      className="h-10 text-xs border-slate-200"
                     />
                   </div>
 
@@ -639,7 +670,7 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
                     </Label>
                     <Input
                       name="gstin"
-                      className="h-9 text-xs border-slate-200 font-mono uppercase"
+                      className="h-10 text-xs border-slate-200 font-mono uppercase"
                     />
                   </div>
 
@@ -647,16 +678,18 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
                     <Label className="text-xs font-medium text-slate-700">
                       Department / Industry Sector
                     </Label>
-                    <select
-                      name="department"
-                      className="h-9 w-full rounded-md border border-slate-200 bg-white px-2.5 text-xs text-slate-700 focus:outline-hidden"
-                    >
-                      {DEPARTMENT_OPTIONS.map((dept) => (
-                        <option key={dept} value={dept}>
-                          {dept}
-                        </option>
-                      ))}
-                    </select>
+                    <Select value={formDept} onValueChange={setFormDept}>
+                      <SelectTrigger className="h-10 text-xs bg-white border-slate-200">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {DEPARTMENT_OPTIONS.map((dept) => (
+                          <SelectItem key={dept} value={dept}>
+                            {dept}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
 
                   <div className="space-y-1.5 sm:col-span-2">
@@ -666,7 +699,7 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
                     <Input
                       name="company_address"
                       required
-                      className="h-9 text-xs border-slate-200"
+                      className="h-10 text-xs border-slate-200"
                     />
                   </div>
 
@@ -677,7 +710,7 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
                     <Input
                       name="city"
                       required
-                      className="h-9 text-xs border-slate-200"
+                      className="h-10 text-xs border-slate-200"
                     />
                   </div>
 
@@ -686,16 +719,18 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
                       <Label className="text-xs font-medium text-slate-700">
                         State <span className="text-red-500">*</span>
                       </Label>
-                      <select
-                        name="state"
-                        className="h-9 w-full rounded-md border border-slate-200 bg-white px-2 text-xs text-slate-700 focus:outline-hidden"
-                      >
-                        {INDIAN_STATES.map((st) => (
-                          <option key={st} value={st}>
-                            {st}
-                          </option>
-                        ))}
-                      </select>
+                      <Select value={formState} onValueChange={setFormState}>
+                        <SelectTrigger className="h-10 text-xs bg-white border-slate-200">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent className="max-h-60">
+                          {INDIAN_STATES.map((st) => (
+                            <SelectItem key={st} value={st}>
+                              {st}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </div>
                     <div className="space-y-1.5">
                       <Label className="text-xs font-medium text-slate-700">
@@ -704,7 +739,7 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
                       <Input
                         name="pincode"
                         required
-                        className="h-9 text-xs border-slate-200"
+                        className="h-10 text-xs border-slate-200"
                       />
                     </div>
                   </div>
@@ -718,27 +753,29 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
                   2. Primary Contact Person
                 </h3>
                 <div className="grid grid-cols-1 sm:grid-cols-12 gap-4">
-                  {/* Title */}
-                  <div className="space-y-1.5 sm:col-span-2">
+                  {/* Title (shadcn Select) */}
+                  <div className="space-y-1.5 sm:col-span-3">
                     <Label className="text-xs font-medium text-slate-700">Title</Label>
-                    <select
-                      name="title"
-                      className="h-9 w-full rounded-md border border-slate-200 bg-white px-2 text-xs text-slate-700 focus:outline-hidden"
-                    >
-                      {USER_TITLES.map((t) => (
-                        <option key={t} value={t}>
-                          {t}
-                        </option>
-                      ))}
-                    </select>
+                    <Select value={formTitle} onValueChange={(val) => setFormTitle(val as UserTitle)}>
+                      <SelectTrigger className="h-10 text-xs bg-white border-slate-200">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {USER_TITLES.map((t) => (
+                          <SelectItem key={t} value={t}>
+                            {t}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
 
                   {/* First Name */}
-                  <div className="space-y-1.5 sm:col-span-5">
+                  <div className="space-y-1.5 sm:col-span-4">
                     <Label className="text-xs font-medium text-slate-700">
                       First Name <span className="text-red-500">*</span>
                     </Label>
-                    <Input name="first_name" required className="h-9 text-xs border-slate-200" />
+                    <Input name="first_name" required className="h-10 text-xs border-slate-200" />
                   </div>
 
                   {/* Last Name */}
@@ -746,13 +783,13 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
                     <Label className="text-xs font-medium text-slate-700">
                       Last Name <span className="text-red-500">*</span>
                     </Label>
-                    <Input name="last_name" required className="h-9 text-xs border-slate-200" />
+                    <Input name="last_name" required className="h-10 text-xs border-slate-200" />
                   </div>
 
                   {/* Designation */}
                   <div className="space-y-1.5 sm:col-span-6">
                     <Label className="text-xs font-medium text-slate-700">Designation</Label>
-                    <Input name="designation" defaultValue="Commercial Manager" className="h-9 text-xs border-slate-200" />
+                    <Input name="designation" defaultValue="Commercial Manager" className="h-10 text-xs border-slate-200" />
                   </div>
 
                   {/* Official Email */}
@@ -765,7 +802,7 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
                       name="email"
                       required
                       placeholder="name@company.com"
-                      className="h-9 text-xs border-slate-200"
+                      className="h-10 text-xs border-slate-200"
                     />
                   </div>
 
@@ -774,13 +811,13 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
                     <Label className="text-xs font-medium text-slate-700">
                       Mobile Number <span className="text-red-500">*</span>
                     </Label>
-                    <Input name="mobile" required className="h-9 text-xs border-slate-200" />
+                    <Input name="mobile" required className="h-10 text-xs border-slate-200" />
                   </div>
 
                   {/* Landline */}
                   <div className="space-y-1.5 sm:col-span-6">
                     <Label className="text-xs font-medium text-slate-700">Landline (Optional)</Label>
-                    <Input name="landline" className="h-9 text-xs border-slate-200" />
+                    <Input name="landline" className="h-10 text-xs border-slate-200" />
                   </div>
                 </div>
               </div>
@@ -798,29 +835,30 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
                       type="number"
                       name="credit_limit"
                       defaultValue={COMMERCIAL_DEFAULTS.DEFAULT_CREDIT_LIMIT}
-                      className="h-9 text-xs border-slate-200 font-semibold"
+                      className="h-10 text-xs border-slate-200 font-semibold"
                     />
                   </div>
                   <div className="space-y-1.5">
                     <Label className="text-xs font-medium text-slate-700">Credit Payment Terms (Days)</Label>
-                    <select
-                      name="credit_days"
-                      defaultValue={COMMERCIAL_DEFAULTS.DEFAULT_CREDIT_DAYS}
-                      className="h-9 w-full rounded-md border border-slate-200 bg-white px-2.5 text-xs text-slate-700 focus:outline-hidden"
-                    >
-                      {COMMERCIAL_DEFAULTS.CREDIT_DAYS_OPTIONS.map((days) => (
-                        <option key={days} value={days}>
-                          {days} Days Net
-                        </option>
-                      ))}
-                    </select>
+                    <Select value={formCreditDays} onValueChange={setFormCreditDays}>
+                      <SelectTrigger className="h-10 text-xs bg-white border-slate-200">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {COMMERCIAL_DEFAULTS.CREDIT_DAYS_OPTIONS.map((days) => (
+                          <SelectItem key={days} value={String(days)}>
+                            {days} Days Net
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                   <div className="space-y-1.5 sm:col-span-2">
                     <Label className="text-xs font-medium text-slate-700">Internal Account Notes</Label>
                     <Input
                       name="notes"
                       placeholder="e.g. Authorized for Grade HRC 55 tooling supplies"
-                      className="h-9 text-xs border-slate-200"
+                      className="h-10 text-xs border-slate-200"
                     />
                   </div>
                 </div>
@@ -897,23 +935,29 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
 
               <div className="flex items-center gap-2">
                 <span className="text-xs font-semibold text-slate-700">Approval:</span>
-                <select
-                  value={viewingCustomer.approval_status || APPROVAL_STATUSES.APPROVED}
-                  onChange={(e) =>
-                    handleStatusChange(viewingCustomer.id, e.target.value as ApprovalStatus)
-                  }
-                  className="h-8 rounded-md border border-slate-200 bg-white px-2 text-xs font-semibold text-slate-800"
-                >
-                  <option value={APPROVAL_STATUSES.APPROVED}>
-                    {APPROVAL_STATUS_CONFIG[APPROVAL_STATUSES.APPROVED].label}
-                  </option>
-                  <option value={APPROVAL_STATUSES.PENDING}>
-                    {APPROVAL_STATUS_CONFIG[APPROVAL_STATUSES.PENDING].label}
-                  </option>
-                  <option value={APPROVAL_STATUSES.REJECTED}>
-                    {APPROVAL_STATUS_CONFIG[APPROVAL_STATUSES.REJECTED].label}
-                  </option>
-                </select>
+                <div className="w-[150px]">
+                  <Select
+                    value={viewingCustomer.approval_status || APPROVAL_STATUSES.APPROVED}
+                    onValueChange={(val) =>
+                      handleStatusChange(viewingCustomer.id, val as ApprovalStatus)
+                    }
+                  >
+                    <SelectTrigger className="h-8 text-xs bg-white border-slate-200 font-semibold">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={APPROVAL_STATUSES.APPROVED}>
+                        {APPROVAL_STATUS_CONFIG[APPROVAL_STATUSES.APPROVED].label}
+                      </SelectItem>
+                      <SelectItem value={APPROVAL_STATUSES.PENDING}>
+                        {APPROVAL_STATUS_CONFIG[APPROVAL_STATUSES.PENDING].label}
+                      </SelectItem>
+                      <SelectItem value={APPROVAL_STATUSES.REJECTED}>
+                        {APPROVAL_STATUS_CONFIG[APPROVAL_STATUSES.REJECTED].label}
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
             </div>
 
