@@ -2,21 +2,27 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Layers, LogIn, UserPlus, Sparkles } from "lucide-react";
+import { Layers, LogIn, UserPlus } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export function Navbar() {
   const pathname = usePathname();
+
+  // Hide the global website header completely on dashboard and admin portals
+  const isDashboardRoute =
+    pathname.startsWith("/dashboard") ||
+    pathname.startsWith("/admin");
+
+  if (isDashboardRoute) {
+    return null;
+  }
 
   const navLinks = [
     { name: "Home", href: "/" },
     { name: "Products", href: "/products" },
     { name: "About Us", href: "/about" },
   ];
-
-  const isDashboard = pathname.startsWith("/dashboard") || pathname.startsWith("/admin");
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-slate-200 bg-white/95 backdrop-blur-md">
@@ -59,31 +65,22 @@ export function Navbar() {
 
         {/* Action Buttons */}
         <div className="flex items-center gap-2.5">
-          {isDashboard ? (
-            <Badge variant="green" className="gap-1 text-xs">
-              <Sparkles className="h-3 w-3" />
-              Portal Active
-            </Badge>
-          ) : (
-            <>
-              <Link href="/login">
-                <Button variant="ghost" size="sm" className="gap-1.5 text-xs sm:text-sm">
-                  <LogIn className="h-4 w-4 text-slate-500" />
-                  <span>Login</span>
-                </Button>
-              </Link>
-              <Link href="/signup">
-                <Button
-                  size="sm"
-                  variant="primary"
-                  className="gap-1.5 text-xs sm:text-sm"
-                >
-                  <UserPlus className="h-4 w-4" />
-                  <span>Sign Up</span>
-                </Button>
-              </Link>
-            </>
-          )}
+          <Link href="/login">
+            <Button variant="ghost" size="sm" className="gap-1.5 text-xs sm:text-sm">
+              <LogIn className="h-4 w-4 text-slate-500" />
+              <span>Login</span>
+            </Button>
+          </Link>
+          <Link href="/signup">
+            <Button
+              size="sm"
+              variant="primary"
+              className="gap-1.5 text-xs sm:text-sm"
+            >
+              <UserPlus className="h-4 w-4" />
+              <span>Sign Up</span>
+            </Button>
+          </Link>
         </div>
       </div>
     </header>
