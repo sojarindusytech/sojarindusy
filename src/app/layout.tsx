@@ -1,23 +1,38 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Plus_Jakarta_Sans, Inter, Outfit, Geist } from "next/font/google";
 import "./globals.css";
 import { Navbar } from "@/components/common/Navbar";
 import { Footer } from "@/components/common/Footer";
+import { ThemeProvider } from "@/components/theme/ThemeProvider";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const jakarta = Plus_Jakarta_Sans({
+  variable: "--font-jakarta",
   subsets: ["latin"],
+  display: "swap",
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+const inter = Inter({
+  variable: "--font-inter",
   subsets: ["latin"],
+  display: "swap",
+});
+
+const outfit = Outfit({
+  variable: "--font-outfit",
+  subsets: ["latin"],
+  display: "swap",
+});
+
+const geist = Geist({
+  variable: "--font-geist",
+  subsets: ["latin"],
+  display: "swap",
 });
 
 export const metadata: Metadata = {
-  title: "Sojar Indusy - Modern Next.js & Supabase Platform",
+  title: "Sojar Indusy - Industrial Manufacturing & B2B Procurement Platform",
   description:
-    "Enterprise-ready Next.js 16 application with Turbopack, Tailwind CSS, shadcn/ui, and Supabase SSR integration.",
+    "Next-generation B2B manufacturing marketplace for precision fasteners, valves, flanges, and engineered hardware.",
 };
 
 export default function RootLayout({
@@ -28,12 +43,14 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${jakarta.variable} ${inter.variable} ${outfit.variable} ${geist.variable} font-jakarta h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-50 selection:bg-blue-500 selection:text-white">
-        <Navbar />
-        <main className="flex-1">{children}</main>
-        <Footer />
+      <body className="min-h-full flex flex-col bg-white text-slate-900 selection:bg-[#024AE5] selection:text-white">
+        <ThemeProvider>
+          <Navbar />
+          <main className="flex-1 bg-white">{children}</main>
+          <Footer />
+        </ThemeProvider>
       </body>
     </html>
   );

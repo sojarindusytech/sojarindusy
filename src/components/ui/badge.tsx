@@ -8,16 +8,22 @@ const badgeVariants = cva(
     variants: {
       variant: {
         default:
-          "border-transparent bg-blue-600 text-white shadow hover:bg-blue-700",
-        secondary:
-          "border-transparent bg-slate-100 text-slate-900 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-100",
+          "border-transparent bg-[#024AE5] text-white shadow-xs",
+        primary:
+          "border-transparent bg-[#024AE5] text-white shadow-xs",
+        green:
+          "border-transparent bg-[#3C8B4F] text-white shadow-xs",
         success:
-          "border-transparent bg-emerald-500/15 text-emerald-700 border-emerald-500/20 dark:text-emerald-400 dark:bg-emerald-950/50",
+          "border-[#3C8B4F]/30 bg-[#3C8B4F]/10 text-[#3C8B4F]",
+        blue:
+          "border-[#024AE5]/30 bg-[#024AE5]/10 text-[#024AE5]",
+        secondary:
+          "border-transparent bg-slate-100 text-slate-800 hover:bg-slate-200",
         warning:
-          "border-transparent bg-amber-500/15 text-amber-700 border-amber-500/20 dark:text-amber-400 dark:bg-amber-950/50",
+          "border-amber-500/30 bg-amber-500/10 text-amber-800",
         destructive:
-          "border-transparent bg-red-500/15 text-red-700 border-red-500/20 dark:text-red-400 dark:bg-red-950/50",
-        outline: "text-slate-950 dark:text-slate-50 border-slate-300 dark:border-slate-700",
+          "border-red-500/30 bg-red-500/10 text-red-800",
+        outline: "text-slate-800 border-slate-200 bg-white",
       },
     },
     defaultVariants: {

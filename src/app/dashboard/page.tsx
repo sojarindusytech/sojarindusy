@@ -12,14 +12,9 @@ import {
   CheckCircle2,
   Clock,
   Building2,
-  User,
-  Mail,
   Phone,
-  MapPin,
-  FileText,
+  Mail,
   LogOut,
-  ArrowUpRight,
-  Sparkles,
 } from "lucide-react";
 import Link from "next/link";
 import { Order } from "@/types/database.types";
@@ -39,7 +34,7 @@ export default async function CustomerDashboardPage() {
     .eq("user_id", user.id)
     .order("created_at", { ascending: false });
 
-  // Fallback demo orders for instant visualization if no database orders exist yet
+  // Fallback demo orders for instant visualization
   const orders: Order[] =
     dbOrders && dbOrders.length > 0
       ? (dbOrders as Order[])
@@ -122,13 +117,13 @@ export default async function CustomerDashboardPage() {
     switch (status) {
       case "delivered":
         return (
-          <Badge variant="success" className="gap-1 capitalize">
+          <Badge variant="green" className="gap-1 capitalize">
             <CheckCircle2 className="h-3 w-3" /> Delivered
           </Badge>
         );
       case "shipped":
         return (
-          <Badge variant="default" className="gap-1 capitalize bg-blue-600">
+          <Badge variant="blue" className="gap-1 capitalize">
             <Truck className="h-3 w-3" /> Shipped
           </Badge>
         );
@@ -150,16 +145,16 @@ export default async function CustomerDashboardPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50/50 dark:bg-slate-950 py-8">
+    <div className="min-h-screen bg-white py-8">
       <div className="container mx-auto max-w-6xl px-4 sm:px-6 space-y-8">
         {/* Welcome Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 rounded-2xl bg-gradient-to-r from-blue-700 via-indigo-700 to-slate-900 p-6 sm:p-8 text-white shadow-xl">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 rounded-2xl bg-gradient-to-r from-[#024AE5] via-blue-700 to-[#3C8B4F] p-6 sm:p-8 text-white shadow-lg">
           <div className="space-y-2">
             <div className="flex items-center gap-2">
               <Badge className="bg-white/20 text-white hover:bg-white/30 backdrop-blur-md border-0">
                 B2B Customer Portal
               </Badge>
-              <span className="text-xs text-blue-200">
+              <span className="text-xs text-blue-100">
                 Member since {new Date(profile?.created_at || Date.now()).getFullYear()}
               </span>
             </div>
@@ -167,7 +162,7 @@ export default async function CustomerDashboardPage() {
               Welcome back, {profile?.title} {profile?.first_name} {profile?.last_name}
             </h1>
             <p className="text-sm text-blue-100 flex items-center gap-2">
-              <Building2 className="h-4 w-4 text-blue-300" />
+              <Building2 className="h-4 w-4 text-blue-200" />
               <span>{profile?.company_name}</span> &bull;
               <span>{profile?.designation} ({profile?.department})</span>
             </p>
@@ -175,7 +170,7 @@ export default async function CustomerDashboardPage() {
 
           <div className="flex items-center gap-3">
             <Link href="/products">
-              <Button variant="secondary" size="sm" className="gap-1.5 shadow-sm text-xs">
+              <Button size="sm" className="gap-1.5 bg-white text-[#024AE5] hover:bg-slate-100 shadow-sm text-xs font-semibold">
                 <ShoppingBag className="h-3.5 w-3.5" />
                 Browse Catalog
               </Button>
@@ -185,7 +180,7 @@ export default async function CustomerDashboardPage() {
                 type="submit"
                 variant="outline"
                 size="sm"
-                className="gap-1.5 bg-white/10 hover:bg-white/20 text-white border-white/30 text-xs"
+                className="gap-1.5 bg-transparent hover:bg-white/10 text-white border-white/40 text-xs"
               >
                 <LogOut className="h-3.5 w-3.5" />
                 Sign Out
@@ -196,7 +191,7 @@ export default async function CustomerDashboardPage() {
 
         {/* Metrics Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <Card>
+          <Card className="border-slate-200 bg-white">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-xs font-semibold text-slate-500 uppercase">
                 Active Orders
@@ -204,33 +199,33 @@ export default async function CustomerDashboardPage() {
               <Clock className="h-4 w-4 text-amber-500" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{activeOrdersCount}</div>
+              <div className="text-2xl font-bold text-slate-900">{activeOrdersCount}</div>
               <p className="text-xs text-slate-500 mt-1">Under fulfillment & transit</p>
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="border-slate-200 bg-white">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-xs font-semibold text-slate-500 uppercase">
                 Completed Orders
               </CardTitle>
-              <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+              <CheckCircle2 className="h-4 w-4 text-[#3C8B4F]" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{deliveredOrdersCount}</div>
+              <div className="text-2xl font-bold text-slate-900">{deliveredOrdersCount}</div>
               <p className="text-xs text-slate-500 mt-1">Successfully delivered</p>
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="border-slate-200 bg-white">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-xs font-semibold text-slate-500 uppercase">
                 Total Purchase Value
               </CardTitle>
-              <Package className="h-4 w-4 text-blue-500" />
+              <Package className="h-4 w-4 text-[#024AE5]" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">₹{totalSpent.toLocaleString("en-IN")}</div>
+              <div className="text-2xl font-bold text-slate-900">₹{totalSpent.toLocaleString("en-IN")}</div>
               <p className="text-xs text-slate-500 mt-1">Across all industrial orders</p>
             </CardContent>
           </Card>
@@ -240,15 +235,15 @@ export default async function CustomerDashboardPage() {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
           {/* Orders Section */}
           <div className="lg:col-span-8 space-y-4">
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-4">
+            <Card className="border-slate-200 bg-white">
+              <CardHeader className="flex flex-row items-center justify-between border-b border-slate-100 pb-4">
                 <div>
-                  <CardTitle className="text-lg font-bold">Your Industrial Orders</CardTitle>
+                  <CardTitle className="text-lg font-bold text-slate-900">Your Industrial Orders</CardTitle>
                   <CardDescription className="text-xs">
                     Real-time status tracking and dispatch details
                   </CardDescription>
                 </div>
-                <Badge variant="outline" className="text-xs">
+                <Badge variant="blue" className="text-xs">
                   {orders.length} Orders
                 </Badge>
               </CardHeader>
@@ -267,7 +262,7 @@ export default async function CustomerDashboardPage() {
                   <TableBody>
                     {orders.map((order) => (
                       <TableRow key={order.id}>
-                        <TableCell className="font-mono font-medium text-xs text-blue-600 dark:text-blue-400">
+                        <TableCell className="font-mono font-medium text-xs text-[#024AE5]">
                           {order.order_number}
                         </TableCell>
                         <TableCell className="text-xs text-slate-500 whitespace-nowrap">
@@ -278,7 +273,7 @@ export default async function CustomerDashboardPage() {
                           })}
                         </TableCell>
                         <TableCell className="text-xs max-w-[240px]">
-                          <div className="truncate font-medium text-slate-900 dark:text-slate-100">
+                          <div className="truncate font-medium text-slate-900">
                             {order.items[0]?.name || "Industrial Component"}
                           </div>
                           {order.items.length > 1 && (
@@ -287,7 +282,7 @@ export default async function CustomerDashboardPage() {
                             </span>
                           )}
                         </TableCell>
-                        <TableCell className="text-xs font-semibold whitespace-nowrap">
+                        <TableCell className="text-xs font-semibold whitespace-nowrap text-slate-900">
                           ₹{Number(order.total_amount).toLocaleString("en-IN")}
                         </TableCell>
                         <TableCell className="whitespace-nowrap">
@@ -303,17 +298,17 @@ export default async function CustomerDashboardPage() {
 
           {/* Company & Profile Overview Card */}
           <div className="lg:col-span-4 space-y-4">
-            <Card>
-              <CardHeader className="border-b border-slate-100 dark:border-slate-800 pb-3">
+            <Card className="border-slate-200 bg-white">
+              <CardHeader className="border-b border-slate-100 pb-3">
                 <div className="flex items-center gap-2">
-                  <Building2 className="h-4 w-4 text-blue-600" />
-                  <CardTitle className="text-base font-semibold">Registered Company Details</CardTitle>
+                  <Building2 className="h-4 w-4 text-[#024AE5]" />
+                  <CardTitle className="text-base font-semibold text-slate-900">Registered Company Details</CardTitle>
                 </div>
               </CardHeader>
               <CardContent className="space-y-3 pt-4 text-xs">
                 <div>
                   <span className="text-slate-400 font-medium">Company Name</span>
-                  <p className="font-semibold text-slate-800 dark:text-slate-200 mt-0.5">
+                  <p className="font-semibold text-slate-900 mt-0.5">
                     {profile?.company_name}
                   </p>
                 </div>
@@ -321,7 +316,7 @@ export default async function CustomerDashboardPage() {
                 {profile?.gstin && (
                   <div>
                     <span className="text-slate-400 font-medium">GSTIN</span>
-                    <p className="font-mono text-slate-700 dark:text-slate-300 mt-0.5">
+                    <p className="font-mono text-slate-700 mt-0.5">
                       {profile.gstin}
                     </p>
                   </div>
@@ -329,7 +324,7 @@ export default async function CustomerDashboardPage() {
 
                 <div>
                   <span className="text-slate-400 font-medium">Billing & Delivery Address</span>
-                  <p className="text-slate-700 dark:text-slate-300 mt-0.5 leading-relaxed">
+                  <p className="text-slate-700 mt-0.5 leading-relaxed">
                     {profile?.company_address}
                     {profile?.additional_address && `, ${profile.additional_address}`}
                     <br />
@@ -337,15 +332,15 @@ export default async function CustomerDashboardPage() {
                   </p>
                 </div>
 
-                <div className="border-t border-slate-100 dark:border-slate-800 pt-3">
+                <div className="border-t border-slate-100 pt-3">
                   <span className="text-slate-400 font-medium">Authorized Contact</span>
-                  <p className="font-medium text-slate-800 dark:text-slate-200 mt-0.5">
+                  <p className="font-medium text-slate-900 mt-0.5">
                     {profile?.title} {profile?.first_name} {profile?.last_name}
                   </p>
                   <p className="text-slate-500 mt-0.5">
                     {profile?.designation} &bull; {profile?.department}
                   </p>
-                  <div className="mt-2 space-y-1 text-slate-600 dark:text-slate-400">
+                  <div className="mt-2 space-y-1 text-slate-600">
                     <div className="flex items-center gap-2">
                       <Phone className="h-3.5 w-3.5 text-slate-400" />
                       <span>{profile?.mobile}</span>

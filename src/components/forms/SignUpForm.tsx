@@ -97,14 +97,14 @@ export function SignUpForm() {
 
   return (
     <div className="w-full max-w-4xl mx-auto py-6">
-      <Card className="border-slate-200/80 shadow-2xl dark:border-slate-800 backdrop-blur-xl">
-        <CardHeader className="space-y-2 border-b border-slate-100 bg-slate-50/50 p-6 dark:border-slate-800 dark:bg-slate-900/50">
+      <Card className="border-slate-200 bg-white shadow-xl">
+        <CardHeader className="space-y-2 border-b border-slate-100 bg-slate-50/70 p-6">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
-              <CardTitle className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
+              <CardTitle className="text-2xl font-bold tracking-tight text-slate-900">
                 B2B Client & Platform Registration
               </CardTitle>
-              <CardDescription className="text-sm text-slate-500 dark:text-slate-400">
+              <CardDescription className="text-sm text-slate-500">
                 Register your business account for streamlined industrial orders and catalog access.
               </CardDescription>
             </div>
@@ -114,7 +114,7 @@ export function SignUpForm() {
                 name="role"
                 value={formData.role}
                 onChange={handleChange}
-                className="rounded-md border border-slate-200 bg-white px-2.5 py-1 text-xs font-semibold text-blue-600 shadow-sm dark:border-slate-800 dark:bg-slate-950 dark:text-blue-400"
+                className="rounded-md border border-slate-200 bg-white px-2.5 py-1 text-xs font-semibold text-[#024AE5] shadow-xs focus:ring-1 focus:ring-[#024AE5]"
               >
                 <option value="customer">B2B Customer / Buyer</option>
                 <option value="platform_owner">Platform Owner (Admin)</option>
@@ -124,9 +124,9 @@ export function SignUpForm() {
         </CardHeader>
 
         <form onSubmit={handleSubmit}>
-          <CardContent className="space-y-8 p-6 sm:p-8">
+          <CardContent className="space-y-8 p-6 sm:p-8 bg-white">
             {error && (
-              <div className="flex items-start gap-3 rounded-lg border border-red-500/20 bg-red-500/10 p-4 text-sm text-red-700 dark:text-red-300">
+              <div className="flex items-start gap-3 rounded-lg border border-red-500/20 bg-red-50 p-4 text-sm text-red-800">
                 <AlertCircle className="h-5 w-5 shrink-0 text-red-600" />
                 <div>
                   <p className="font-semibold">Registration Error</p>
@@ -136,8 +136,8 @@ export function SignUpForm() {
             )}
 
             {success && (
-              <div className="flex items-start gap-3 rounded-lg border border-emerald-500/20 bg-emerald-500/10 p-4 text-sm text-emerald-700 dark:text-emerald-300">
-                <CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-600" />
+              <div className="flex items-start gap-3 rounded-lg border border-[#3C8B4F]/30 bg-[#3C8B4F]/10 p-4 text-sm text-[#3C8B4F]">
+                <CheckCircle2 className="h-5 w-5 shrink-0 text-[#3C8B4F]" />
                 <div>
                   <p className="font-semibold">Success!</p>
                   <p className="text-xs mt-0.5">{success} Redirecting to login...</p>
@@ -147,11 +147,11 @@ export function SignUpForm() {
 
             {/* SECTION 1: Personal & Official Details */}
             <div className="space-y-4">
-              <div className="flex items-center gap-2 border-b border-slate-100 pb-2 dark:border-slate-800">
-                <div className="flex h-7 w-7 items-center justify-center rounded-full bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300">
+              <div className="flex items-center gap-2 border-b border-slate-100 pb-2">
+                <div className="flex h-7 w-7 items-center justify-center rounded-full bg-blue-50 text-[#024AE5]">
                   <User className="h-4 w-4" />
                 </div>
-                <h3 className="text-base font-semibold text-slate-900 dark:text-slate-100">
+                <h3 className="text-base font-semibold text-slate-900">
                   1. Personal & Contact Information
                 </h3>
               </div>
@@ -204,16 +204,14 @@ export function SignUpForm() {
                 {/* Department */}
                 <div className="sm:col-span-6 space-y-1.5">
                   <Label htmlFor="department">Department *</Label>
-                  <div className="relative">
-                    <Input
-                      id="department"
-                      name="department"
-                      placeholder="e.g. Procurement / Maintenance"
-                      value={formData.department}
-                      onChange={handleChange}
-                      required
-                    />
-                  </div>
+                  <Input
+                    id="department"
+                    name="department"
+                    placeholder="e.g. Procurement / Maintenance"
+                    value={formData.department}
+                    onChange={handleChange}
+                    required
+                  />
                 </div>
 
                 {/* Designation */}
@@ -232,17 +230,15 @@ export function SignUpForm() {
                 {/* Mobile */}
                 <div className="sm:col-span-6 space-y-1.5">
                   <Label htmlFor="mobile">Mobile Number *</Label>
-                  <div className="relative">
-                    <Input
-                      id="mobile"
-                      name="mobile"
-                      type="tel"
-                      placeholder="e.g. 9876543210"
-                      value={formData.mobile}
-                      onChange={handleChange}
-                      required
-                    />
-                  </div>
+                  <Input
+                    id="mobile"
+                    name="mobile"
+                    type="tel"
+                    placeholder="e.g. 9876543210"
+                    value={formData.mobile}
+                    onChange={handleChange}
+                    required
+                  />
                 </div>
 
                 {/* Landline No (Optional) */}
@@ -264,17 +260,15 @@ export function SignUpForm() {
                 {/* Official Email */}
                 <div className="sm:col-span-12 space-y-1.5">
                   <Label htmlFor="email">Official Email ID *</Label>
-                  <div className="relative">
-                    <Input
-                      id="email"
-                      name="email"
-                      type="email"
-                      placeholder="e.g. rajesh@company.com"
-                      value={formData.email}
-                      onChange={handleChange}
-                      required
-                    />
-                  </div>
+                  <Input
+                    id="email"
+                    name="email"
+                    type="email"
+                    placeholder="e.g. rajesh@company.com"
+                    value={formData.email}
+                    onChange={handleChange}
+                    required
+                  />
                 </div>
 
                 {/* Password */}
@@ -309,11 +303,11 @@ export function SignUpForm() {
 
             {/* SECTION 2: Company Details */}
             <div className="space-y-4 pt-2">
-              <div className="flex items-center gap-2 border-b border-slate-100 pb-2 dark:border-slate-800">
-                <div className="flex h-7 w-7 items-center justify-center rounded-full bg-indigo-100 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-300">
+              <div className="flex items-center gap-2 border-b border-slate-100 pb-2">
+                <div className="flex h-7 w-7 items-center justify-center rounded-full bg-emerald-50 text-[#3C8B4F]">
                   <Building2 className="h-4 w-4" />
                 </div>
-                <h3 className="text-base font-semibold text-slate-900 dark:text-slate-100">
+                <h3 className="text-base font-semibold text-slate-900">
                   2. Company & Location Details
                 </h3>
               </div>
@@ -422,18 +416,19 @@ export function SignUpForm() {
             </div>
           </CardContent>
 
-          <CardFooter className="flex flex-col sm:flex-row items-center justify-between gap-4 border-t border-slate-100 bg-slate-50/50 p-6 dark:border-slate-800 dark:bg-slate-900/50">
+          <CardFooter className="flex flex-col sm:flex-row items-center justify-between gap-4 border-t border-slate-100 bg-slate-50/70 p-6">
             <p className="text-xs text-slate-500">
               Already registered?{" "}
-              <Link href="/login" className="font-semibold text-blue-600 hover:underline dark:text-blue-400">
+              <Link href="/login" className="font-semibold text-[#024AE5] hover:underline">
                 Log In here
               </Link>
             </p>
             <Button
               type="submit"
               size="lg"
+              variant="primary"
               disabled={loading}
-              className="w-full sm:w-auto gap-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-md shadow-blue-500/20"
+              className="w-full sm:w-auto gap-2"
             >
               {loading ? (
                 "Creating Business Account..."

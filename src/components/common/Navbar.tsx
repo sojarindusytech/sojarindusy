@@ -4,7 +4,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Layers, LogIn, UserPlus, LayoutDashboard, Sparkles } from "lucide-react";
+import { FontThemeSelector } from "@/components/theme/FontThemeSelector";
+import { Layers, LogIn, UserPlus, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export function Navbar() {
@@ -16,22 +17,21 @@ export function Navbar() {
     { name: "About Us", href: "/about" },
   ];
 
-  const isAuthPage = pathname === "/login" || pathname === "/signup";
   const isDashboard = pathname.startsWith("/dashboard") || pathname.startsWith("/admin");
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b border-slate-200/80 bg-white/85 backdrop-blur-md dark:border-slate-800/80 dark:bg-slate-950/85">
+    <header className="sticky top-0 z-50 w-full border-b border-slate-200 bg-white/95 backdrop-blur-md">
       <div className="container mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:px-6">
         {/* Brand Logo */}
         <Link href="/" className="flex items-center gap-3 transition-opacity hover:opacity-90">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 text-white shadow-md shadow-blue-500/20">
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-[#024AE5] to-[#3C8B4F] text-white shadow-sm">
             <Layers className="h-5 w-5" />
           </div>
           <div className="flex flex-col">
-            <span className="text-base sm:text-lg font-bold tracking-tight text-slate-900 dark:text-white">
+            <span className="text-base sm:text-lg font-bold tracking-tight text-slate-900">
               Sojar Indusy
             </span>
-            <span className="text-[10px] text-slate-400 font-medium tracking-wide uppercase">
+            <span className="text-[10px] text-slate-400 font-medium tracking-wider uppercase">
               Industrial Manufacturing
             </span>
           </div>
@@ -48,8 +48,8 @@ export function Navbar() {
                 className={cn(
                   "rounded-md px-3.5 py-1.5 text-sm font-medium transition-colors",
                   isActive
-                    ? "bg-slate-100 text-blue-600 dark:bg-slate-800 dark:text-blue-400 font-semibold"
-                    : "text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white"
+                    ? "bg-blue-50 text-[#024AE5] font-semibold"
+                    : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
                 )}
               >
                 {link.name}
@@ -58,15 +58,16 @@ export function Navbar() {
           })}
         </nav>
 
-        {/* Action Buttons */}
+        {/* Action Buttons & Theme/Font Customizer */}
         <div className="flex items-center gap-2.5">
+          {/* Centralized Font & Theme Switcher */}
+          <FontThemeSelector />
+
           {isDashboard ? (
-            <div className="flex items-center gap-2">
-              <Badge variant="secondary" className="gap-1 text-xs">
-                <Sparkles className="h-3 w-3 text-blue-600" />
-                Portal Active
-              </Badge>
-            </div>
+            <Badge variant="green" className="gap-1 text-xs">
+              <Sparkles className="h-3 w-3" />
+              Portal Active
+            </Badge>
           ) : (
             <>
               <Link href="/login">
@@ -78,7 +79,8 @@ export function Navbar() {
               <Link href="/signup">
                 <Button
                   size="sm"
-                  className="gap-1.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-md shadow-blue-500/20 text-xs sm:text-sm"
+                  variant="primary"
+                  className="gap-1.5 text-xs sm:text-sm"
                 >
                   <UserPlus className="h-4 w-4" />
                   <span>Sign Up</span>

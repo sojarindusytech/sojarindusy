@@ -44,30 +44,30 @@ function LoginForm() {
   };
 
   return (
-    <Card className="w-full max-w-md border-slate-200/80 shadow-2xl dark:border-slate-800 backdrop-blur-xl">
-      <CardHeader className="space-y-2 border-b border-slate-100 bg-slate-50/50 p-6 text-center dark:border-slate-800 dark:bg-slate-900/50">
-        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 text-white shadow-md shadow-blue-500/20">
+    <Card className="w-full max-w-md border-slate-200 bg-white shadow-xl">
+      <CardHeader className="space-y-2 border-b border-slate-100 bg-slate-50/70 p-6 text-center">
+        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-[#024AE5] text-white shadow-sm">
           <Lock className="h-6 w-6" />
         </div>
-        <CardTitle className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
+        <CardTitle className="text-2xl font-bold tracking-tight text-slate-900">
           Sign In to Sojar Indusy
         </CardTitle>
-        <CardDescription className="text-xs sm:text-sm text-slate-500 dark:text-slate-400">
+        <CardDescription className="text-xs sm:text-sm text-slate-500">
           Access your B2B Ecommerce Orders or Platform Owner Dashboard.
         </CardDescription>
       </CardHeader>
 
       <form onSubmit={handleSubmit}>
-        <CardContent className="space-y-4 p-6 sm:p-8">
+        <CardContent className="space-y-4 p-6 sm:p-8 bg-white">
           {registered && (
-            <div className="flex items-start gap-2.5 rounded-lg border border-emerald-500/20 bg-emerald-500/10 p-3 text-xs text-emerald-700 dark:text-emerald-300">
-              <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600" />
+            <div className="flex items-start gap-2.5 rounded-lg border border-[#3C8B4F]/30 bg-[#3C8B4F]/10 p-3 text-xs text-[#3C8B4F]">
+              <CheckCircle2 className="h-4 w-4 shrink-0 text-[#3C8B4F]" />
               <p>Registration complete! Please enter your credentials to log in.</p>
             </div>
           )}
 
           {error && (
-            <div className="flex items-start gap-2.5 rounded-lg border border-red-500/20 bg-red-500/10 p-3 text-xs text-red-700 dark:text-red-300">
+            <div className="flex items-start gap-2.5 rounded-lg border border-red-500/20 bg-red-50 p-3 text-xs text-red-800">
               <AlertCircle className="h-4 w-4 shrink-0 text-red-600" />
               <p>{error}</p>
             </div>
@@ -97,8 +97,8 @@ function LoginForm() {
             />
           </div>
 
-          <div className="rounded-lg border border-slate-100 bg-slate-50/60 p-3 text-xs text-slate-500 dark:border-slate-800 dark:bg-slate-900/60">
-            <p className="font-semibold text-slate-700 dark:text-slate-300 mb-1">
+          <div className="rounded-lg border border-slate-100 bg-slate-50 p-3 text-xs text-slate-600">
+            <p className="font-semibold text-slate-800 mb-1">
               Role-Based Landing:
             </p>
             <ul className="list-disc list-inside space-y-0.5 text-[11px]">
@@ -108,12 +108,13 @@ function LoginForm() {
           </div>
         </CardContent>
 
-        <CardFooter className="flex flex-col gap-4 border-t border-slate-100 bg-slate-50/50 p-6 dark:border-slate-800 dark:bg-slate-900/50">
+        <CardFooter className="flex flex-col gap-4 border-t border-slate-100 bg-slate-50/70 p-6">
           <Button
             type="submit"
             size="lg"
+            variant="primary"
             disabled={loading}
-            className="w-full gap-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-md shadow-blue-500/20"
+            className="w-full gap-2"
           >
             {loading ? (
               "Authenticating..."
@@ -129,7 +130,7 @@ function LoginForm() {
             Don&apos;t have a business account?{" "}
             <Link
               href="/signup"
-              className="font-semibold text-blue-600 hover:underline dark:text-blue-400"
+              className="font-semibold text-[#024AE5] hover:underline"
             >
               Register your Company
             </Link>
@@ -142,7 +143,7 @@ function LoginForm() {
 
 export default function LoginPage() {
   return (
-    <div className="container mx-auto flex min-h-[calc(100vh-140px)] items-center justify-center px-4 py-12">
+    <div className="container mx-auto flex min-h-[calc(100vh-140px)] items-center justify-center px-4 py-12 bg-white">
       <Suspense fallback={<div className="p-8 text-center text-sm text-slate-500">Loading sign in...</div>}>
         <LoginForm />
       </Suspense>
