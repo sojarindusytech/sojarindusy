@@ -29,7 +29,7 @@ export function AdminComingSoon({
   icon: Icon = Layers,
 }: AdminComingSoonProps) {
   return (
-    <div className="space-y-6 max-w-5xl">
+    <div className="space-y-6 w-full">
       {/* Header */}
       <div className="border-b border-slate-200 pb-4">
         <div className="flex items-center gap-3">
@@ -43,9 +43,9 @@ export function AdminComingSoon({
         <p className="text-sm text-slate-500 mt-1">{description}</p>
       </div>
 
-      {/* Coming Soon Card */}
-      <Card className="border border-slate-200 bg-white shadow-none rounded-2xl overflow-hidden p-8 sm:p-12 text-center">
-        <CardContent className="flex flex-col items-center justify-center max-w-lg mx-auto space-y-6 p-0">
+      {/* Coming Soon Full Width Card */}
+      <Card className="border border-slate-200 bg-white shadow-none rounded-2xl overflow-hidden p-8 sm:p-12 text-center w-full">
+        <CardContent className="flex flex-col items-center justify-center max-w-2xl mx-auto space-y-6 p-0">
           <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-[#024AE5]/10 text-[#024AE5]">
             <Icon className="h-8 w-8" />
           </div>
@@ -60,7 +60,7 @@ export function AdminComingSoon({
           </div>
 
           {/* Planned Features List */}
-          <div className="w-full text-left bg-slate-50 rounded-xl p-4 border border-slate-100 space-y-2">
+          <div className="w-full text-left bg-slate-50 rounded-xl p-5 border border-slate-100 space-y-2.5">
             <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-800 mb-2">
               <Sparkles className="h-3.5 w-3.5 text-[#024AE5]" />
               <span>Upcoming Capabilities:</span>

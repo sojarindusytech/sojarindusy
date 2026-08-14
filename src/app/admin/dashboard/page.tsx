@@ -195,7 +195,7 @@ export default async function AdminDashboardPage() {
   };
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto">
+    <div className="space-y-6 w-full">
       {/* Admin Welcome Banner */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 rounded-2xl bg-gradient-to-r from-[#024AE5] to-[#013bb8] p-6 text-white shadow-none">
         <div className="space-y-1.5">
