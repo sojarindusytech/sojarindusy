@@ -85,7 +85,7 @@ export default function ProductsPage() {
           </div>
 
           <Link href="/signup">
-            <Button variant="primary" className="gap-2 shadow-sm">
+            <Button variant="primary" className="gap-2 shadow-none">
               <Sparkles className="h-4 w-4" />
               <span>Register for B2B Pricing</span>
             </Button>
@@ -95,7 +95,7 @@ export default function ProductsPage() {
         {/* Products Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {products.map((item, idx) => (
-            <Card key={idx} className="flex flex-col justify-between transition-all hover:shadow-md hover:border-[#024AE5]/40 bg-white">
+            <Card key={idx} className="flex flex-col justify-between transition-all hover:border-[#024AE5]/40 bg-white shadow-none">
               <CardHeader className="pb-3">
                 <div className="flex items-center justify-between gap-2">
                   <Badge variant="secondary" className="text-[10px] font-semibold">

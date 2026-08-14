@@ -62,7 +62,7 @@ export default function AboutPage() {
             </p>
           </div>
 
-          <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-md space-y-4">
+          <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-none space-y-4">
             <h3 className="text-lg font-semibold text-slate-900">
               Operational Standards
             </h3>

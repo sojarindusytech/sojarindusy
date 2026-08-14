@@ -145,7 +145,7 @@ export function SignUpForm() {
 
   return (
     <div className="w-full max-w-xl mx-auto py-2">
-      <Card className="border border-slate-200 bg-white shadow-xl rounded-2xl overflow-hidden">
+      <Card className="border border-slate-200 bg-white shadow-none rounded-2xl overflow-hidden">
         {/* Centered Sign Up Header */}
         <CardHeader className="bg-white p-6 pb-2 border-0 text-center">
           <CardTitle className="text-2xl font-bold tracking-tight text-slate-900">

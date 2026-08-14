@@ -108,7 +108,7 @@ export default function HomePage() {
 
         {/* Highlights Bar */}
         <div className="pt-8 max-w-3xl mx-auto">
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-none">
             <div className="text-center p-2">
               <div className="text-2xl font-bold text-[#024AE5]">10,000+</div>
               <div className="text-[11px] text-slate-500 font-medium mt-0.5">SKUs in Pipeline</div>
@@ -144,7 +144,7 @@ export default function HomePage() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {categories.map((cat, idx) => (
-              <Card key={idx} className="group transition-all hover:shadow-md hover:border-[#024AE5]/40 bg-white">
+              <Card key={idx} className="group transition-all hover:border-[#024AE5]/40 bg-white shadow-none">
                 <CardHeader className="p-6 pb-3">
                   <div className="flex items-center justify-between">
                     <Badge variant="secondary" className="text-[10px] font-mono">

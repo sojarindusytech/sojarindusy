@@ -44,9 +44,9 @@ function LoginForm() {
   };
 
   return (
-    <Card className="w-full max-w-md border border-slate-200 bg-white shadow-xl rounded-2xl">
+    <Card className="w-full max-w-md border border-slate-200 bg-white shadow-none rounded-2xl">
       <CardHeader className="space-y-3 bg-white p-6 pb-2 text-center border-0">
-        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-[#024AE5] text-white shadow-sm">
+        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-[#024AE5] text-white">
           <Lock className="h-6 w-6" />
         </div>
         <CardTitle className="text-2xl font-bold tracking-tight text-slate-900">
