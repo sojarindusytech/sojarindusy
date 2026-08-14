@@ -158,17 +158,8 @@ export function AdminSidebar() {
         </Link>
       </div>
 
-      {/* Navigation Label */}
-      {!collapsed && (
-        <div className="px-4 pt-4 pb-1">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-            NAVIGATION
-          </span>
-        </div>
-      )}
-
       {/* Scrollable Nav List */}
-      <div className="flex-1 overflow-y-auto px-3 py-2 space-y-1.5">
+      <div className="flex-1 overflow-y-auto px-3 py-3 space-y-1.5">
         {navItems.map((item) => {
           const Icon = item.icon;
           const hasSubItems = item.subItems && item.subItems.length > 0;
