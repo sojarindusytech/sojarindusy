@@ -18,15 +18,16 @@ export default async function AdminLayout({
   const fullName = profile ? `${profile.first_name} ${profile.last_name}` : "Admin User";
 
   return (
-    <div className="flex min-h-screen bg-slate-50">
+    <div className="flex min-h-screen bg-white">
       {/* Sidebar Navigation */}
       <AdminSidebar />
 
       {/* Main Content Viewport */}
-      <div className="flex flex-1 flex-col overflow-x-hidden">
+      <div className="flex flex-1 flex-col overflow-x-hidden bg-white">
         <AdminHeader userName={fullName} userEmail={user.email} />
+        {/* Dynamic shadcn Breadcrumbs */}
         <AdminBreadcrumbs />
-        <main className="flex-1 p-4 sm:p-6 pt-3 sm:pt-4">
+        <main className="flex-1 px-8 pb-8 pt-0">
           {children}
         </main>
       </div>

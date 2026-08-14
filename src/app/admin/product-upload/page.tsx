@@ -82,11 +82,11 @@ export default function ProductUploadPage() {
       </div>
 
       {/* 4-Step Process Stepper */}
-      <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-none">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="bg-white rounded-xl border border-slate-200/80 p-5 shadow-none">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           {/* Step 1 */}
           <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#024AE5] text-white text-xs font-bold">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#024AE5] text-white text-xs font-bold shadow-xs">
               1
             </div>
             <div>
@@ -95,9 +95,11 @@ export default function ProductUploadPage() {
             </div>
           </div>
 
+          <div className="hidden md:block flex-1 h-[1px] bg-slate-200 mx-4" />
+
           {/* Step 2 */}
           <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#024AE5] text-white text-xs font-bold">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#024AE5] text-white text-xs font-bold shadow-xs">
               2
             </div>
             <div>
@@ -106,16 +108,20 @@ export default function ProductUploadPage() {
             </div>
           </div>
 
+          <div className="hidden md:block flex-1 h-[1px] bg-slate-200 mx-4" />
+
           {/* Step 3 (Active in Image) */}
           <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#024AE5] text-white text-xs font-bold shadow-sm ring-2 ring-[#024AE5]/20">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#024AE5] text-white text-xs font-bold shadow-xs ring-4 ring-[#024AE5]/15">
               3
             </div>
             <div>
-              <div className="text-xs font-bold text-[#024AE5]">Validate Data</div>
+              <div className="text-xs font-bold text-slate-900">Validate Data</div>
               <div className="text-[11px] text-slate-500">Validate and preview data</div>
             </div>
           </div>
+
+          <div className="hidden md:block flex-1 h-[1px] bg-slate-200 mx-4" />
 
           {/* Step 4 */}
           <div className="flex items-center gap-3 opacity-60">

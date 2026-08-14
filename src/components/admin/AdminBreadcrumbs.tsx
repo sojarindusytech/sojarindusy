@@ -140,7 +140,7 @@ export function AdminBreadcrumbs() {
   };
 
   return (
-    <div className="w-full bg-transparent px-4 sm:px-6 pt-4 pb-1">
+    <div className="w-full bg-transparent px-8 pt-6 pb-2">
       <Breadcrumb>
         <BreadcrumbList className="text-xs">
           <BreadcrumbItem>
@@ -158,7 +158,7 @@ export function AdminBreadcrumbs() {
                     <Link href={current.sectionHref}>{current.section}</Link>
                   </BreadcrumbLink>
                 ) : (
-                  <span className="text-slate-500">{current.section}</span>
+                  <span className="text-slate-500 font-medium">{current.section}</span>
                 )}
               </BreadcrumbItem>
             </>
@@ -173,7 +173,7 @@ export function AdminBreadcrumbs() {
                     <Link href={current.subSectionHref}>{current.subSection}</Link>
                   </BreadcrumbLink>
                 ) : (
-                  <span className="text-slate-500">{current.subSection}</span>
+                  <span className="text-slate-500 font-medium">{current.subSection}</span>
                 )}
               </BreadcrumbItem>
             </>
@@ -183,7 +183,9 @@ export function AdminBreadcrumbs() {
             <>
               <BreadcrumbSeparator />
               <BreadcrumbItem>
-                <BreadcrumbPage>{current.title}</BreadcrumbPage>
+                <BreadcrumbPage className="font-semibold text-slate-900">
+                  {current.title}
+                </BreadcrumbPage>
               </BreadcrumbItem>
             </>
           )}
