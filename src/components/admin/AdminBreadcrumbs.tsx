@@ -20,11 +20,7 @@ interface RouteMeta {
 }
 
 const routeMap: Record<string, RouteMeta> = {
-  "/admin/dashboard": {
-    title: "Dashboard",
-  },
   "/admin/customers": {
-    section: "Directory",
     title: "Customers",
   },
   "/admin/products": {
@@ -135,23 +131,22 @@ const routeMap: Record<string, RouteMeta> = {
 
 export function AdminBreadcrumbs() {
   const pathname = usePathname();
+
+  // Hide breadcrumbs entirely on the dashboard home page
+  if (pathname === "/admin/dashboard") {
+    return null;
+  }
+
   const current = routeMap[pathname] || {
-    title: pathname.split("/").filter(Boolean).pop()?.replace(/-/g, " ") || "Admin",
+    title: pathname.split("/").filter(Boolean).pop()?.replace(/-/g, " ") || "Page",
   };
 
   return (
     <div className="w-full bg-transparent px-8 pt-3 pb-1">
       <Breadcrumb>
         <BreadcrumbList className="text-xs">
-          <BreadcrumbItem>
-            <BreadcrumbLink asChild>
-              <Link href="/admin/dashboard">Dashboard</Link>
-            </BreadcrumbLink>
-          </BreadcrumbItem>
-
-          {current.section && pathname !== "/admin/dashboard" && (
+          {current.section && (
             <>
-              <BreadcrumbSeparator />
               <BreadcrumbItem>
                 {current.sectionHref ? (
                   <BreadcrumbLink asChild>
@@ -161,12 +156,12 @@ export function AdminBreadcrumbs() {
                   <span className="text-slate-500 font-medium">{current.section}</span>
                 )}
               </BreadcrumbItem>
+              <BreadcrumbSeparator />
             </>
           )}
 
           {current.subSection && (
             <>
-              <BreadcrumbSeparator />
               <BreadcrumbItem>
                 {current.subSectionHref ? (
                   <BreadcrumbLink asChild>
@@ -176,19 +171,15 @@ export function AdminBreadcrumbs() {
                   <span className="text-slate-500 font-medium">{current.subSection}</span>
                 )}
               </BreadcrumbItem>
+              <BreadcrumbSeparator />
             </>
           )}
 
-          {pathname !== "/admin/dashboard" && (
-            <>
-              <BreadcrumbSeparator />
-              <BreadcrumbItem>
-                <BreadcrumbPage className="font-semibold text-slate-900">
-                  {current.title}
-                </BreadcrumbPage>
-              </BreadcrumbItem>
-            </>
-          )}
+          <BreadcrumbItem>
+            <BreadcrumbPage className="font-semibold text-slate-900">
+              {current.title}
+            </BreadcrumbPage>
+          </BreadcrumbItem>
         </BreadcrumbList>
       </Breadcrumb>
     </div>

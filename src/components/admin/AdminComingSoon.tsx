@@ -4,14 +4,13 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
   Clock,
-  ArrowLeft,
   Sparkles,
   Layers,
   CheckCircle2,
 } from "lucide-react";
 
 interface AdminComingSoonProps {
-  section: string;
+  section?: string;
   title: string;
   description: string;
   features?: string[];
@@ -32,25 +31,16 @@ export function AdminComingSoon({
   return (
     <div className="space-y-6 max-w-5xl">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-slate-200 pb-4">
-        <div>
-          <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-bold tracking-tight text-slate-900">
-              {title}
-            </h1>
-            <Badge variant="warning" className="gap-1 text-[11px] font-semibold">
-              <Clock className="h-3 w-3" /> Coming Soon
-            </Badge>
-          </div>
-          <p className="text-sm text-slate-500 mt-1">{description}</p>
+      <div className="border-b border-slate-200 pb-4">
+        <div className="flex items-center gap-3">
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900">
+            {title}
+          </h1>
+          <Badge variant="warning" className="gap-1 text-[11px] font-semibold">
+            <Clock className="h-3 w-3" /> Coming Soon
+          </Badge>
         </div>
-
-        <Link href="/admin/dashboard">
-          <Button variant="outline" size="sm" className="gap-2 text-xs">
-            <ArrowLeft className="h-3.5 w-3.5" />
-            <span>Back to Dashboard</span>
-          </Button>
-        </Link>
+        <p className="text-sm text-slate-500 mt-1">{description}</p>
       </div>
 
       {/* Coming Soon Card */}
@@ -87,11 +77,6 @@ export function AdminComingSoon({
             <Link href="/admin/product-upload">
               <Button variant="primary" size="sm" className="text-xs">
                 Go to Product Upload
-              </Button>
-            </Link>
-            <Link href="/admin/dashboard">
-              <Button variant="outline" size="sm" className="text-xs">
-                Return to Overview
               </Button>
             </Link>
           </div>
