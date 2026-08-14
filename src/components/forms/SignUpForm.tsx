@@ -23,6 +23,7 @@ import {
   Check,
 } from "lucide-react";
 import Link from "next/link";
+import { cn } from "@/lib/utils";
 
 export function SignUpForm() {
   const router = useRouter();
@@ -144,39 +145,65 @@ export function SignUpForm() {
   };
 
   return (
-    <div className="w-full max-w-xl mx-auto py-4">
+    <div className="w-full max-w-xl mx-auto py-2">
       <Card className="border border-slate-200 bg-white shadow-xl rounded-2xl overflow-hidden">
-        {/* Step Indicator Header */}
-        <CardHeader className="bg-white p-6 pb-4 border-b border-slate-100">
-          <div className="flex items-center justify-between mb-3">
-            <CardTitle className="text-xl font-bold tracking-tight text-slate-900">
-              Sign Up
-            </CardTitle>
-            <span className="text-xs font-semibold text-slate-500">
-              Step {step} of 2
-            </span>
-          </div>
+        {/* Centered Header & Sleek Stepper */}
+        <CardHeader className="bg-white p-6 pb-5 border-b border-slate-100 text-center">
+          <CardTitle className="text-2xl font-bold tracking-tight text-slate-900">
+            Sign Up
+          </CardTitle>
 
-          {/* Progress Bar */}
-          <div className="grid grid-cols-2 gap-2">
-            <div className="flex items-center gap-2">
+          {/* Stepper UI */}
+          <div className="flex items-center justify-center max-w-xs mx-auto pt-4">
+            {/* Step 1 */}
+            <div className="flex flex-col items-center">
               <div
-                className={`h-2 flex-1 rounded-full transition-all duration-300 ${
-                  step >= 1 ? "bg-[#024AE5]" : "bg-slate-100"
-                }`}
-              />
-              <span className="text-[11px] font-medium text-slate-700 whitespace-nowrap">
-                1. User Details
+                className={cn(
+                  "flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold transition-all",
+                  step === 1
+                    ? "bg-[#024AE5] text-white ring-4 ring-blue-100 shadow-xs"
+                    : "bg-[#3C8B4F] text-white"
+                )}
+              >
+                {step > 1 ? <Check className="h-4 w-4 stroke-[3]" /> : "1"}
+              </div>
+              <span
+                className={cn(
+                  "mt-1.5 text-[11px] font-semibold tracking-tight whitespace-nowrap",
+                  step === 1 ? "text-[#024AE5]" : "text-slate-700"
+                )}
+              >
+                User Details
               </span>
             </div>
-            <div className="flex items-center gap-2">
+
+            {/* Connecting Bar */}
+            <div
+              className={cn(
+                "h-0.5 w-24 mx-2 mb-5 transition-colors duration-300",
+                step === 2 ? "bg-[#024AE5]" : "bg-slate-200"
+              )}
+            />
+
+            {/* Step 2 */}
+            <div className="flex flex-col items-center">
               <div
-                className={`h-2 flex-1 rounded-full transition-all duration-300 ${
-                  step === 2 ? "bg-[#024AE5]" : "bg-slate-100"
-                }`}
-              />
-              <span className="text-[11px] font-medium text-slate-700 whitespace-nowrap">
-                2. Company Details
+                className={cn(
+                  "flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold transition-all",
+                  step === 2
+                    ? "bg-[#024AE5] text-white ring-4 ring-blue-100 shadow-xs"
+                    : "bg-slate-100 text-slate-400 border border-slate-200"
+                )}
+              >
+                2
+              </div>
+              <span
+                className={cn(
+                  "mt-1.5 text-[11px] font-semibold tracking-tight whitespace-nowrap",
+                  step === 2 ? "text-[#024AE5]" : "text-slate-400"
+                )}
+              >
+                Company Details
               </span>
             </div>
           </div>
