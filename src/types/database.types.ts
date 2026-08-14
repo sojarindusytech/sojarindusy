@@ -1,8 +1,12 @@
-export type UserRole = "platform_owner" | "customer";
-export type UserTitle = "Mr" | "Mrs" | "Miss" | "Ms";
-export type OrderStatus = "pending" | "processing" | "shipped" | "delivered" | "cancelled";
-export type ApprovalStatus = "pending" | "approved" | "rejected";
-export type UserType = "platform_user" | "offline_user";
+import {
+  UserRole,
+  UserTitle,
+  OrderStatus,
+  ApprovalStatus,
+  UserType,
+} from "@/lib/constants";
+
+export type { UserRole, UserTitle, OrderStatus, ApprovalStatus, UserType };
 
 export interface Profile {
   id: string;

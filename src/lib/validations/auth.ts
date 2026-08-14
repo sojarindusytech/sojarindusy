@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { USER_TITLES } from "@/lib/constants";
 
 /**
  * Standard Strong Password Regex:
@@ -25,7 +26,7 @@ export const passwordValidation = z
 // Step 1: User & Contact Information Schema
 export const step1Schema = z
   .object({
-    title: z.enum(["Mr", "Mrs", "Miss", "Ms"] as const),
+    title: z.enum(USER_TITLES),
     first_name: z
       .string()
       .trim()

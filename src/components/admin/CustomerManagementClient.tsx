@@ -1,9 +1,22 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Profile, ApprovalStatus, UserType, UserTitle } from "@/types/database.types";
+import { Profile } from "@/types/database.types";
+import {
+  USER_TYPES,
+  USER_TYPE_CONFIG,
+  APPROVAL_STATUSES,
+  APPROVAL_STATUS_CONFIG,
+  USER_TITLES,
+  COMMERCIAL_DEFAULTS,
+  DEPARTMENT_OPTIONS,
+  INDIAN_STATES,
+  ApprovalStatus,
+  UserType,
+  UserTitle,
+} from "@/lib/constants";
 import { updateCustomerApprovalStatus, createOfflineCustomer } from "@/actions/customer";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -32,7 +45,6 @@ import {
   Phone,
   Mail,
   MapPin,
-  FileText,
   X,
   CreditCard,
   Check,
@@ -56,11 +68,17 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
   const [formError, setFormError] = useState<string | null>(null);
   const [formSuccess, setFormSuccess] = useState<string | null>(null);
 
-  // Statistics calculation
+  // Statistics calculation based on single source of truth enums
   const totalCount = customers.length;
-  const platformCount = customers.filter((c) => (c.user_type || "platform_user") === "platform_user").length;
-  const offlineCount = customers.filter((c) => c.user_type === "offline_user").length;
-  const pendingCount = customers.filter((c) => (c.approval_status || "pending") === "pending" && c.role !== "platform_owner").length;
+  const platformCount = customers.filter(
+    (c) => (c.user_type || USER_TYPES.PLATFORM_USER) === USER_TYPES.PLATFORM_USER
+  ).length;
+  const offlineCount = customers.filter(
+    (c) => c.user_type === USER_TYPES.OFFLINE_USER
+  ).length;
+  const pendingCount = customers.filter(
+    (c) => (c.approval_status || APPROVAL_STATUSES.PENDING) === APPROVAL_STATUSES.PENDING && c.role !== "platform_owner"
+  ).length;
 
   // Filtered List
   const filteredCustomers = customers.filter((c) => {
@@ -81,11 +99,11 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
       c.state?.toLowerCase().includes(query);
 
     // User Type filter
-    const userType = c.user_type || "platform_user";
+    const userType = c.user_type || USER_TYPES.PLATFORM_USER;
     const matchesType = selectedUserType === "all" || userType === selectedUserType;
 
     // Approval Status filter
-    const status = c.approval_status || "approved";
+    const status = c.approval_status || APPROVAL_STATUSES.APPROVED;
     const matchesStatus = selectedStatus === "all" || status === selectedStatus;
 
     return matchesSearch && matchesType && matchesStatus;
@@ -121,27 +139,27 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
         setTimeout(() => {
           setIsAddModalOpen(false);
           setFormSuccess(null);
-          // Reload local state
+          // Update local state with typed fields
           const newCust: Profile = {
             id: `off-${Date.now()}`,
             role: "customer",
-            title: (formData.get("title") as UserTitle) || "Mr",
+            title: (formData.get("title") as UserTitle) || USER_TITLES[0],
             first_name: (formData.get("first_name") as string) || "",
             last_name: (formData.get("last_name") as string) || "",
             company_name: (formData.get("company_name") as string) || "",
             email: (formData.get("email") as string) || "",
             mobile: (formData.get("mobile") as string) || "",
             designation: (formData.get("designation") as string) || "Commercial Contact",
-            department: (formData.get("department") as string) || "Procurement",
+            department: (formData.get("department") as string) || DEPARTMENT_OPTIONS[0],
             company_address: (formData.get("company_address") as string) || "",
             city: (formData.get("city") as string) || "",
-            state: (formData.get("state") as string) || "",
+            state: (formData.get("state") as string) || INDIAN_STATES[0],
             pincode: (formData.get("pincode") as string) || "",
             gstin: (formData.get("gstin") as string) || null,
-            approval_status: "approved",
-            user_type: "offline_user",
-            credit_limit: Number(formData.get("credit_limit")) || 500000,
-            credit_days: Number(formData.get("credit_days")) || 30,
+            approval_status: APPROVAL_STATUSES.APPROVED,
+            user_type: USER_TYPES.OFFLINE_USER,
+            credit_limit: Number(formData.get("credit_limit")) || COMMERCIAL_DEFAULTS.DEFAULT_CREDIT_LIMIT,
+            credit_days: Number(formData.get("credit_days")) || COMMERCIAL_DEFAULTS.DEFAULT_CREDIT_DAYS,
             created_at: new Date().toISOString(),
           };
           setCustomers((prev) => [newCust, ...prev]);
@@ -169,14 +187,14 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
             variant="outline"
             size="sm"
             onClick={() => {
-              // Quick CSV export
+              // CSV export
               const csvContent =
                 "data:text/csv;charset=utf-8," +
                 ["Company,Name,Email,Mobile,GSTIN,City,Type,Status"]
                   .concat(
                     filteredCustomers.map(
                       (c) =>
-                        `"${c.company_name}","${c.title} ${c.first_name} ${c.last_name}","${c.email}","${c.mobile}","${c.gstin || "-"}","${c.city}","${c.user_type || "platform_user"}","${c.approval_status || "approved"}"`
+                        `"${c.company_name}","${c.title} ${c.first_name} ${c.last_name}","${c.email}","${c.mobile}","${c.gstin || "-"}","${c.city}","${c.user_type || USER_TYPES.PLATFORM_USER}","${c.approval_status || APPROVAL_STATUSES.APPROVED}"`
                     )
                   )
                   .join("\n");
@@ -237,11 +255,11 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
         {/* Platform Users */}
         <Card
           onClick={() => {
-            setSelectedUserType("platform_user");
+            setSelectedUserType(USER_TYPES.PLATFORM_USER);
             setSelectedStatus("all");
           }}
           className={`border-slate-200/80 bg-white shadow-none rounded-xl p-4 cursor-pointer transition-colors ${
-            selectedUserType === "platform_user" ? "border-[#024AE5] ring-1 ring-[#024AE5]" : "hover:border-[#024AE5]/40"
+            selectedUserType === USER_TYPES.PLATFORM_USER ? "border-[#024AE5] ring-1 ring-[#024AE5]" : "hover:border-[#024AE5]/40"
           }`}
         >
           <div className="flex items-center justify-between">
@@ -261,11 +279,11 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
         {/* Offline Users */}
         <Card
           onClick={() => {
-            setSelectedUserType("offline_user");
+            setSelectedUserType(USER_TYPES.OFFLINE_USER);
             setSelectedStatus("all");
           }}
           className={`border-slate-200/80 bg-white shadow-none rounded-xl p-4 cursor-pointer transition-colors ${
-            selectedUserType === "offline_user" ? "border-[#3C8B4F] ring-1 ring-[#3C8B4F]" : "hover:border-[#3C8B4F]/40"
+            selectedUserType === USER_TYPES.OFFLINE_USER ? "border-[#3C8B4F] ring-1 ring-[#3C8B4F]" : "hover:border-[#3C8B4F]/40"
           }`}
         >
           <div className="flex items-center justify-between">
@@ -279,17 +297,17 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
               <Store className="h-5 w-5" />
             </div>
           </div>
-          <p className="text-[11px] text-slate-500 mt-2">ERP billing & dispatch clients</p>
+          <p className="text-[11px] text-slate-500 mt-2">Direct ERP & billing accounts</p>
         </Card>
 
         {/* Pending Approvals */}
         <Card
           onClick={() => {
-            setSelectedStatus("pending");
+            setSelectedStatus(APPROVAL_STATUSES.PENDING);
             setSelectedUserType("all");
           }}
           className={`border-slate-200/80 bg-white shadow-none rounded-xl p-4 cursor-pointer transition-colors ${
-            selectedStatus === "pending" ? "border-amber-500 ring-1 ring-amber-500" : "hover:border-amber-400"
+            selectedStatus === APPROVAL_STATUSES.PENDING ? "border-amber-500 ring-1 ring-amber-500" : "hover:border-amber-400"
           }`}
         >
           <div className="flex items-center justify-between">
@@ -335,8 +353,8 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
               className="h-9 rounded-lg border border-slate-200 bg-white px-2.5 text-xs text-slate-700 focus:border-[#024AE5] focus:outline-hidden"
             >
               <option value="all">All Types</option>
-              <option value="platform_user">Platform User (Online)</option>
-              <option value="offline_user">Offline User (Billing)</option>
+              <option value={USER_TYPES.PLATFORM_USER}>{USER_TYPE_CONFIG[USER_TYPES.PLATFORM_USER].label}</option>
+              <option value={USER_TYPES.OFFLINE_USER}>{USER_TYPE_CONFIG[USER_TYPES.OFFLINE_USER].label}</option>
             </select>
           </div>
 
@@ -349,9 +367,9 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
               className="h-9 rounded-lg border border-slate-200 bg-white px-2.5 text-xs text-slate-700 focus:border-[#024AE5] focus:outline-hidden"
             >
               <option value="all">All Statuses</option>
-              <option value="approved">Approved</option>
-              <option value="pending">Pending Approval</option>
-              <option value="rejected">Rejected</option>
+              <option value={APPROVAL_STATUSES.APPROVED}>{APPROVAL_STATUS_CONFIG[APPROVAL_STATUSES.APPROVED].label}</option>
+              <option value={APPROVAL_STATUSES.PENDING}>{APPROVAL_STATUS_CONFIG[APPROVAL_STATUSES.PENDING].label}</option>
+              <option value={APPROVAL_STATUSES.REJECTED}>{APPROVAL_STATUS_CONFIG[APPROVAL_STATUSES.REJECTED].label}</option>
             </select>
           </div>
 
@@ -395,15 +413,17 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
                     <Users className="h-8 w-8 text-slate-300" />
                     <p className="text-sm font-medium text-slate-700">No customers found</p>
                     <p className="text-xs text-slate-400">
-                      Try adjusting your search criteria or add an offline customer.
+                      Try adjusting your search criteria or register an offline customer.
                     </p>
                   </div>
                 </TableCell>
               </TableRow>
             ) : (
               filteredCustomers.map((customer) => {
-                const userType = customer.user_type || "platform_user";
-                const approvalStatus = customer.approval_status || "approved";
+                const userType = customer.user_type || USER_TYPES.PLATFORM_USER;
+                const approvalStatus = customer.approval_status || APPROVAL_STATUSES.APPROVED;
+                const typeConfig = USER_TYPE_CONFIG[userType as UserType] || USER_TYPE_CONFIG[USER_TYPES.PLATFORM_USER];
+                const statusConfig = APPROVAL_STATUS_CONFIG[approvalStatus as ApprovalStatus] || APPROVAL_STATUS_CONFIG[APPROVAL_STATUSES.APPROVED];
 
                 return (
                   <TableRow key={customer.id} className="hover:bg-slate-50/60 transition-colors">
@@ -447,32 +467,32 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
 
                     {/* User Type */}
                     <TableCell className="py-3">
-                      {userType === "platform_user" ? (
-                        <Badge className="bg-[#024AE5]/10 text-[#024AE5] border-0 gap-1 text-[10px] font-semibold py-0.5">
-                          <Globe className="h-3 w-3" /> Platform User
+                      {userType === USER_TYPES.PLATFORM_USER ? (
+                        <Badge className={`${typeConfig.badgeBg} ${typeConfig.badgeText} border-0 gap-1 text-[10px] font-semibold py-0.5`}>
+                          <Globe className="h-3 w-3" /> {typeConfig.shortLabel}
                         </Badge>
                       ) : (
-                        <Badge className="bg-[#3C8B4F]/10 text-[#3C8B4F] border-0 gap-1 text-[10px] font-semibold py-0.5">
-                          <Store className="h-3 w-3" /> Offline User
+                        <Badge className={`${typeConfig.badgeBg} ${typeConfig.badgeText} border-0 gap-1 text-[10px] font-semibold py-0.5`}>
+                          <Store className="h-3 w-3" /> {typeConfig.shortLabel}
                         </Badge>
                       )}
                     </TableCell>
 
                     {/* Approval Status */}
                     <TableCell className="py-3">
-                      {approvalStatus === "approved" && (
+                      {approvalStatus === APPROVAL_STATUSES.APPROVED && (
                         <Badge className="bg-emerald-50 text-emerald-700 border-emerald-200 gap-1 text-[10px] font-semibold py-0.5">
-                          <CheckCircle2 className="h-3 w-3 text-emerald-600" /> Approved
+                          <CheckCircle2 className="h-3 w-3 text-emerald-600" /> {statusConfig.label}
                         </Badge>
                       )}
-                      {approvalStatus === "pending" && (
+                      {approvalStatus === APPROVAL_STATUSES.PENDING && (
                         <Badge className="bg-amber-50 text-amber-700 border-amber-200 gap-1 text-[10px] font-semibold py-0.5 animate-pulse">
-                          <Clock className="h-3 w-3 text-amber-600" /> Pending Review
+                          <Clock className="h-3 w-3 text-amber-600" /> {statusConfig.label}
                         </Badge>
                       )}
-                      {approvalStatus === "rejected" && (
+                      {approvalStatus === APPROVAL_STATUSES.REJECTED && (
                         <Badge className="bg-rose-50 text-rose-700 border-rose-200 gap-1 text-[10px] font-semibold py-0.5">
-                          <XCircle className="h-3 w-3 text-rose-600" /> Rejected
+                          <XCircle className="h-3 w-3 text-rose-600" /> {statusConfig.label}
                         </Badge>
                       )}
                     </TableCell>
@@ -481,10 +501,10 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
                     <TableCell className="py-3">
                       <div className="text-xs">
                         <div className="font-semibold text-slate-900">
-                          ₹{(customer.credit_limit || 500000).toLocaleString("en-IN")}
+                          ₹{(customer.credit_limit || COMMERCIAL_DEFAULTS.DEFAULT_CREDIT_LIMIT).toLocaleString("en-IN")}
                         </div>
                         <div className="text-[10px] text-slate-400">
-                          {customer.credit_days || 30} Days Net Credit
+                          {customer.credit_days || COMMERCIAL_DEFAULTS.DEFAULT_CREDIT_DAYS} Days Net Credit
                         </div>
                       </div>
                     </TableCell>
@@ -503,14 +523,14 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
                     <TableCell className="py-3 text-right">
                       <div className="flex items-center justify-end gap-1.5">
                         {/* Quick Approve / Reject for Pending Accounts */}
-                        {approvalStatus === "pending" && (
+                        {approvalStatus === APPROVAL_STATUSES.PENDING && (
                           <>
                             <Button
                               type="button"
                               size="icon"
                               title="Approve Customer"
                               disabled={isPending}
-                              onClick={() => handleStatusChange(customer.id, "approved")}
+                              onClick={() => handleStatusChange(customer.id, APPROVAL_STATUSES.APPROVED)}
                               className="h-7 w-7 bg-emerald-600 text-white hover:bg-emerald-700 cursor-pointer shadow-none"
                             >
                               <Check className="h-3.5 w-3.5" />
@@ -520,7 +540,7 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
                               size="icon"
                               title="Reject Customer"
                               disabled={isPending}
-                              onClick={() => handleStatusChange(customer.id, "rejected")}
+                              onClick={() => handleStatusChange(customer.id, APPROVAL_STATUSES.REJECTED)}
                               className="h-7 w-7 bg-rose-600 text-white hover:bg-rose-700 cursor-pointer shadow-none"
                             >
                               <X className="h-3.5 w-3.5" />
@@ -548,7 +568,7 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
         </Table>
       </div>
 
-      {/* MODAL 1: ADD OFFLINE CUSTOMER (Exact same registration form fields, no auth account created) */}
+      {/* MODAL 1: ADD OFFLINE CUSTOMER */}
       {isAddModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-xs p-4 overflow-y-auto">
           <div className="relative w-full max-w-3xl rounded-2xl bg-white p-6 shadow-2xl border border-slate-200 my-8 max-h-[90vh] overflow-y-auto animate-in fade-in zoom-in-95 duration-150">
@@ -619,7 +639,7 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
                     </Label>
                     <Input
                       name="gstin"
-                      className="h-9 text-xs border-slate-200 font-mono"
+                      className="h-9 text-xs border-slate-200 font-mono uppercase"
                     />
                   </div>
 
@@ -627,11 +647,16 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
                     <Label className="text-xs font-medium text-slate-700">
                       Department / Industry Sector
                     </Label>
-                    <Input
+                    <select
                       name="department"
-                      defaultValue="Procurement & Fabrication"
-                      className="h-9 text-xs border-slate-200"
-                    />
+                      className="h-9 w-full rounded-md border border-slate-200 bg-white px-2.5 text-xs text-slate-700 focus:outline-hidden"
+                    >
+                      {DEPARTMENT_OPTIONS.map((dept) => (
+                        <option key={dept} value={dept}>
+                          {dept}
+                        </option>
+                      ))}
+                    </select>
                   </div>
 
                   <div className="space-y-1.5 sm:col-span-2">
@@ -661,11 +686,16 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
                       <Label className="text-xs font-medium text-slate-700">
                         State <span className="text-red-500">*</span>
                       </Label>
-                      <Input
+                      <select
                         name="state"
-                        required
-                        className="h-9 text-xs border-slate-200"
-                      />
+                        className="h-9 w-full rounded-md border border-slate-200 bg-white px-2 text-xs text-slate-700 focus:outline-hidden"
+                      >
+                        {INDIAN_STATES.map((st) => (
+                          <option key={st} value={st}>
+                            {st}
+                          </option>
+                        ))}
+                      </select>
                     </div>
                     <div className="space-y-1.5">
                       <Label className="text-xs font-medium text-slate-700">
@@ -695,10 +725,11 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
                       name="title"
                       className="h-9 w-full rounded-md border border-slate-200 bg-white px-2 text-xs text-slate-700 focus:outline-hidden"
                     >
-                      <option value="Mr">Mr</option>
-                      <option value="Mrs">Mrs</option>
-                      <option value="Miss">Miss</option>
-                      <option value="Ms">Ms</option>
+                      {USER_TITLES.map((t) => (
+                        <option key={t} value={t}>
+                          {t}
+                        </option>
+                      ))}
                     </select>
                   </div>
 
@@ -766,23 +797,29 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
                     <Input
                       type="number"
                       name="credit_limit"
-                      defaultValue="500000"
+                      defaultValue={COMMERCIAL_DEFAULTS.DEFAULT_CREDIT_LIMIT}
                       className="h-9 text-xs border-slate-200 font-semibold"
                     />
                   </div>
                   <div className="space-y-1.5">
                     <Label className="text-xs font-medium text-slate-700">Credit Payment Terms (Days)</Label>
-                    <Input
-                      type="number"
+                    <select
                       name="credit_days"
-                      defaultValue="30"
-                      className="h-9 text-xs border-slate-200"
-                    />
+                      defaultValue={COMMERCIAL_DEFAULTS.DEFAULT_CREDIT_DAYS}
+                      className="h-9 w-full rounded-md border border-slate-200 bg-white px-2.5 text-xs text-slate-700 focus:outline-hidden"
+                    >
+                      {COMMERCIAL_DEFAULTS.CREDIT_DAYS_OPTIONS.map((days) => (
+                        <option key={days} value={days}>
+                          {days} Days Net
+                        </option>
+                      ))}
+                    </select>
                   </div>
                   <div className="space-y-1.5 sm:col-span-2">
                     <Label className="text-xs font-medium text-slate-700">Internal Account Notes</Label>
                     <Input
                       name="notes"
+                      placeholder="e.g. Authorized for Grade HRC 55 tooling supplies"
                       className="h-9 text-xs border-slate-200"
                     />
                   </div>
@@ -847,25 +884,35 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
             <div className="flex flex-wrap items-center justify-between gap-3 bg-slate-50 p-3.5 rounded-xl border border-slate-100 mb-4">
               <div className="flex items-center gap-2">
                 <span className="text-xs font-semibold text-slate-700">Account Type:</span>
-                {viewingCustomer.user_type === "offline_user" ? (
-                  <Badge className="bg-[#3C8B4F]/10 text-[#3C8B4F] border-0 text-[10px]">Offline Account</Badge>
+                {viewingCustomer.user_type === USER_TYPES.OFFLINE_USER ? (
+                  <Badge className="bg-[#3C8B4F]/10 text-[#3C8B4F] border-0 text-[10px]">
+                    {USER_TYPE_CONFIG[USER_TYPES.OFFLINE_USER].shortLabel}
+                  </Badge>
                 ) : (
-                  <Badge className="bg-[#024AE5]/10 text-[#024AE5] border-0 text-[10px]">Platform Portal User</Badge>
+                  <Badge className="bg-[#024AE5]/10 text-[#024AE5] border-0 text-[10px]">
+                    {USER_TYPE_CONFIG[USER_TYPES.PLATFORM_USER].shortLabel}
+                  </Badge>
                 )}
               </div>
 
               <div className="flex items-center gap-2">
                 <span className="text-xs font-semibold text-slate-700">Approval:</span>
                 <select
-                  value={viewingCustomer.approval_status || "approved"}
+                  value={viewingCustomer.approval_status || APPROVAL_STATUSES.APPROVED}
                   onChange={(e) =>
                     handleStatusChange(viewingCustomer.id, e.target.value as ApprovalStatus)
                   }
                   className="h-8 rounded-md border border-slate-200 bg-white px-2 text-xs font-semibold text-slate-800"
                 >
-                  <option value="approved">Approved</option>
-                  <option value="pending">Pending Review</option>
-                  <option value="rejected">Rejected</option>
+                  <option value={APPROVAL_STATUSES.APPROVED}>
+                    {APPROVAL_STATUS_CONFIG[APPROVAL_STATUSES.APPROVED].label}
+                  </option>
+                  <option value={APPROVAL_STATUSES.PENDING}>
+                    {APPROVAL_STATUS_CONFIG[APPROVAL_STATUSES.PENDING].label}
+                  </option>
+                  <option value={APPROVAL_STATUSES.REJECTED}>
+                    {APPROVAL_STATUS_CONFIG[APPROVAL_STATUSES.REJECTED].label}
+                  </option>
                 </select>
               </div>
             </div>
@@ -897,12 +944,12 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
               <div className="space-y-1">
                 <span className="text-slate-400 font-medium">Credit Limit</span>
                 <p className="font-bold text-slate-900 text-sm">
-                  ₹{(viewingCustomer.credit_limit || 500000).toLocaleString("en-IN")}
+                  ₹{(viewingCustomer.credit_limit || COMMERCIAL_DEFAULTS.DEFAULT_CREDIT_LIMIT).toLocaleString("en-IN")}
                 </p>
               </div>
               <div className="space-y-1">
                 <span className="text-slate-400 font-medium">Credit Payment Terms</span>
-                <p className="font-semibold text-slate-800">{viewingCustomer.credit_days || 30} Days Net</p>
+                <p className="font-semibold text-slate-800">{viewingCustomer.credit_days || COMMERCIAL_DEFAULTS.DEFAULT_CREDIT_DAYS} Days Net</p>
               </div>
               {viewingCustomer.notes && (
                 <div className="space-y-1 sm:col-span-2 bg-slate-50 p-3 rounded-lg border border-slate-100">

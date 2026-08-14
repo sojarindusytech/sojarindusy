@@ -1,7 +1,16 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
-import { Profile, UserRole, UserTitle } from "@/types/database.types";
+import { Profile } from "@/types/database.types";
+import {
+  USER_ROLES,
+  USER_TYPES,
+  APPROVAL_STATUSES,
+  USER_TITLES,
+  COMMERCIAL_DEFAULTS,
+  UserRole,
+  UserTitle,
+} from "@/lib/constants";
 import { fullSignUpSchema, loginSchema } from "@/lib/validations/auth";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
@@ -17,7 +26,7 @@ export async function signUpUser(formData: FormData): Promise<SignUpState> {
 
   // Extract raw fields
   const rawData = {
-    title: (formData.get("title") as string) || "Mr",
+    title: (formData.get("title") as string) || USER_TITLES[0],
     first_name: (formData.get("first_name") as string)?.trim(),
     last_name: (formData.get("last_name") as string)?.trim(),
     department: (formData.get("department") as string)?.trim(),
@@ -36,7 +45,7 @@ export async function signUpUser(formData: FormData): Promise<SignUpState> {
     pincode: (formData.get("pincode") as string)?.trim(),
   };
 
-  const role: UserRole = (formData.get("role") as UserRole) || "customer";
+  const role: UserRole = (formData.get("role") as UserRole) || USER_ROLES.CUSTOMER;
 
   // Zod Server Validation
   const validationResult = fullSignUpSchema.safeParse(rawData);
@@ -63,8 +72,9 @@ export async function signUpUser(formData: FormData): Promise<SignUpState> {
     gstin: validated.gstin || null,
     city: validated.city,
     state: validated.state,
-    approval_status: "pending",
-    user_type: "platform_user",
+    pincode: validated.pincode,
+    approval_status: APPROVAL_STATUSES.PENDING,
+    user_type: USER_TYPES.PLATFORM_USER,
   };
 
   // 1. Sign up user with Supabase Auth
@@ -103,10 +113,10 @@ export async function signUpUser(formData: FormData): Promise<SignUpState> {
     city: validated.city,
     state: validated.state,
     pincode: validated.pincode,
-    approval_status: "pending",
-    user_type: "platform_user",
-    credit_limit: 500000,
-    credit_days: 30,
+    approval_status: APPROVAL_STATUSES.PENDING,
+    user_type: USER_TYPES.PLATFORM_USER,
+    credit_limit: COMMERCIAL_DEFAULTS.DEFAULT_CREDIT_LIMIT,
+    credit_days: COMMERCIAL_DEFAULTS.DEFAULT_CREDIT_DAYS,
   };
 
   const { error: profileError } = await supabase
@@ -162,11 +172,11 @@ export async function signInUser(
     .single();
 
   const profileData = profile as { role?: UserRole } | null;
-  const userRole = profileData?.role || (data.user.user_metadata?.role as UserRole) || "customer";
+  const userRole = profileData?.role || (data.user.user_metadata?.role as UserRole) || USER_ROLES.CUSTOMER;
 
   revalidatePath("/", "layout");
 
-  if (userRole === "platform_owner") {
+  if (userRole === USER_ROLES.PLATFORM_OWNER) {
     return { redirectUrl: "/admin/dashboard" };
   }
 
@@ -204,8 +214,8 @@ export async function getCurrentUserProfile(): Promise<{
     const meta = user.user_metadata || {};
     const fallbackProfile: Profile = {
       id: user.id,
-      role: (meta.role as UserRole) || "customer",
-      title: (meta.title as UserTitle) || "Mr",
+      role: (meta.role as UserRole) || USER_ROLES.CUSTOMER,
+      title: (meta.title as UserTitle) || USER_TITLES[0],
       first_name: meta.first_name || "User",
       last_name: meta.last_name || "",
       department: meta.department || "Operations",
@@ -220,6 +230,10 @@ export async function getCurrentUserProfile(): Promise<{
       city: meta.city || "Mumbai",
       state: meta.state || "Maharashtra",
       pincode: meta.pincode || "400001",
+      approval_status: (meta.approval_status as typeof APPROVAL_STATUSES[keyof typeof APPROVAL_STATUSES]) || APPROVAL_STATUSES.APPROVED,
+      user_type: (meta.user_type as typeof USER_TYPES[keyof typeof USER_TYPES]) || USER_TYPES.PLATFORM_USER,
+      credit_limit: COMMERCIAL_DEFAULTS.DEFAULT_CREDIT_LIMIT,
+      credit_days: COMMERCIAL_DEFAULTS.DEFAULT_CREDIT_DAYS,
       created_at: user.created_at,
       updated_at: user.created_at,
     };

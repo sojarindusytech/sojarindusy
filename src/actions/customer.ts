@@ -1,7 +1,16 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
-import { Profile, ApprovalStatus, UserTitle } from "@/types/database.types";
+import { Profile } from "@/types/database.types";
+import {
+  USER_ROLES,
+  USER_TYPES,
+  APPROVAL_STATUSES,
+  USER_TITLES,
+  COMMERCIAL_DEFAULTS,
+  ApprovalStatus,
+  UserTitle,
+} from "@/lib/constants";
 import { revalidatePath } from "next/cache";
 
 export async function fetchCustomersList(): Promise<Profile[]> {
@@ -11,7 +20,7 @@ export async function fetchCustomersList(): Promise<Profile[]> {
   const { data: dbProfiles, error } = await supabase
     .from("profiles")
     .select("*")
-    .neq("role", "platform_owner") // Exclude admin accounts from customer list
+    .neq("role", USER_ROLES.PLATFORM_OWNER) // Exclude admin accounts from customer list
     .order("created_at", { ascending: false });
 
   if (error) {
@@ -26,10 +35,10 @@ export async function fetchCustomersList(): Promise<Profile[]> {
   // Normalize real profile records
   return (dbProfiles as Profile[]).map((p) => ({
     ...p,
-    approval_status: p.approval_status || "pending",
-    user_type: p.user_type || "platform_user",
-    credit_limit: p.credit_limit || 0,
-    credit_days: p.credit_days || 30,
+    approval_status: p.approval_status || APPROVAL_STATUSES.PENDING,
+    user_type: p.user_type || USER_TYPES.PLATFORM_USER,
+    credit_limit: p.credit_limit || COMMERCIAL_DEFAULTS.DEFAULT_CREDIT_LIMIT,
+    credit_days: p.credit_days || COMMERCIAL_DEFAULTS.DEFAULT_CREDIT_DAYS,
   }));
 }
 
@@ -69,7 +78,7 @@ export async function createOfflineCustomer(formData: FormData): Promise<{
 }> {
   const supabase = await createClient();
 
-  const title = (formData.get("title") as UserTitle) || "Mr";
+  const title = (formData.get("title") as UserTitle) || USER_TITLES[0];
   const firstName = (formData.get("first_name") as string)?.trim();
   const lastName = (formData.get("last_name") as string)?.trim();
   const companyName = (formData.get("company_name") as string)?.trim();
@@ -84,8 +93,8 @@ export async function createOfflineCustomer(formData: FormData): Promise<{
   const city = (formData.get("city") as string)?.trim();
   const state = (formData.get("state") as string)?.trim();
   const pincode = (formData.get("pincode") as string)?.trim();
-  const creditLimit = Number(formData.get("credit_limit")) || 0;
-  const creditDays = Number(formData.get("credit_days")) || 30;
+  const creditLimit = Number(formData.get("credit_limit")) || COMMERCIAL_DEFAULTS.DEFAULT_CREDIT_LIMIT;
+  const creditDays = Number(formData.get("credit_days")) || COMMERCIAL_DEFAULTS.DEFAULT_CREDIT_DAYS;
   const notes = (formData.get("notes") as string)?.trim() || null;
 
   if (!companyName || !firstName || !lastName || !email || !mobile || !companyAddress || !city || !state || !pincode) {
@@ -94,7 +103,7 @@ export async function createOfflineCustomer(formData: FormData): Promise<{
 
   const newOfflineProfile: Profile = {
     id: `off-${Date.now().toString(36)}-${Math.random().toString(36).substring(2, 6)}`,
-    role: "customer",
+    role: USER_ROLES.CUSTOMER,
     title,
     first_name: firstName,
     last_name: lastName,
@@ -110,8 +119,8 @@ export async function createOfflineCustomer(formData: FormData): Promise<{
     city,
     state,
     pincode,
-    approval_status: "approved", // Offline clients added directly by admin are pre-approved
-    user_type: "offline_user", // Marked as offline ERP billing account
+    approval_status: APPROVAL_STATUSES.APPROVED, // Offline clients added directly by admin are pre-approved
+    user_type: USER_TYPES.OFFLINE_USER, // Marked as offline ERP billing account
     credit_limit: creditLimit,
     credit_days: creditDays,
     notes,

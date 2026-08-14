@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { Order } from "@/types/database.types";
+import { ORDER_STATUSES, ORDER_STATUS_CONFIG } from "@/lib/constants";
 
 export default async function CustomerDashboardPage() {
   const { user, profile } = await getCurrentUserProfile();
@@ -115,28 +116,28 @@ export default async function CustomerDashboardPage() {
 
   const getStatusBadge = (status: Order["status"]) => {
     switch (status) {
-      case "delivered":
+      case ORDER_STATUSES.DELIVERED:
         return (
           <Badge variant="green" className="gap-1 capitalize">
-            <CheckCircle2 className="h-3 w-3" /> Delivered
+            <CheckCircle2 className="h-3 w-3" /> {ORDER_STATUS_CONFIG[ORDER_STATUSES.DELIVERED].label}
           </Badge>
         );
-      case "shipped":
+      case ORDER_STATUSES.SHIPPED:
         return (
           <Badge variant="blue" className="gap-1 capitalize">
-            <Truck className="h-3 w-3" /> Shipped
+            <Truck className="h-3 w-3" /> {ORDER_STATUS_CONFIG[ORDER_STATUSES.SHIPPED].label}
           </Badge>
         );
-      case "processing":
+      case ORDER_STATUSES.PROCESSING:
         return (
           <Badge variant="warning" className="gap-1 capitalize">
-            <Clock className="h-3 w-3" /> Processing
+            <Clock className="h-3 w-3" /> {ORDER_STATUS_CONFIG[ORDER_STATUSES.PROCESSING].label}
           </Badge>
         );
-      case "pending":
+      case ORDER_STATUSES.PENDING:
         return (
           <Badge variant="secondary" className="gap-1 capitalize">
-            Pending
+            {ORDER_STATUS_CONFIG[ORDER_STATUSES.PENDING].label}
           </Badge>
         );
       default:
