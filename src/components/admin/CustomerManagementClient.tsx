@@ -71,6 +71,9 @@ import {
   ChevronRight,
   ShieldCheck,
   AlertTriangle,
+  ArrowRight,
+  ArrowLeft,
+  CheckCircle2,
 } from "lucide-react";
 
 interface CustomerManagementClientProps {
@@ -95,8 +98,9 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [itemsPerPage, setItemsPerPage] = useState<number>(10);
 
-  // Modal & Form State
+  // Modal State
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [addModalStep, setAddModalStep] = useState<1 | 2>(1);
   const [viewingCustomer, setViewingCustomer] = useState<Profile | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const [formSuccess, setFormSuccess] = useState<string | null>(null);
@@ -107,13 +111,155 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
     targetStatus: ApprovalStatus;
   } | null>(null);
 
-  // Form select values
-  const [formTitle, setFormTitle] = useState<UserTitle>(USER_TITLES[0]);
-  const [formDept, setFormDept] = useState<string>(DEPARTMENT_OPTIONS[0]);
-  const [formState, setFormState] = useState<string>("Maharashtra");
-  const [formCreditDays, setFormCreditDays] = useState<string>(
-    String(COMMERCIAL_DEFAULTS.DEFAULT_CREDIT_DAYS)
-  );
+  // Add Customer Form State (Reusing SignUp Form fields)
+  const [formValues, setFormValues] = useState({
+    title: USER_TITLES[0] as UserTitle,
+    first_name: "",
+    last_name: "",
+    department: "Procurement",
+    designation: "Commercial Manager",
+    mobile: "",
+    landline: "",
+    email: "",
+    company_name: "",
+    company_address: "",
+    additional_address: "",
+    gstin: "",
+    city: "",
+    state: "Maharashtra",
+    pincode: "",
+    credit_limit: String(COMMERCIAL_DEFAULTS.DEFAULT_CREDIT_LIMIT),
+    credit_days: String(COMMERCIAL_DEFAULTS.DEFAULT_CREDIT_DAYS),
+    notes: "",
+  });
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setFormValues((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+  };
+
+  const handleSelectChange = (name: string, value: string) => {
+    setFormValues((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+  };
+
+  const resetAddForm = () => {
+    setFormValues({
+      title: USER_TITLES[0],
+      first_name: "",
+      last_name: "",
+      department: "Procurement",
+      designation: "Commercial Manager",
+      mobile: "",
+      landline: "",
+      email: "",
+      company_name: "",
+      company_address: "",
+      additional_address: "",
+      gstin: "",
+      city: "",
+      state: "Maharashtra",
+      pincode: "",
+      credit_limit: String(COMMERCIAL_DEFAULTS.DEFAULT_CREDIT_LIMIT),
+      credit_days: String(COMMERCIAL_DEFAULTS.DEFAULT_CREDIT_DAYS),
+      notes: "",
+    });
+    setAddModalStep(1);
+    setFormError(null);
+    setFormSuccess(null);
+  };
+
+  // Step 1 Validation
+  const handleNextStep = (e: React.MouseEvent) => {
+    e.preventDefault();
+    setFormError(null);
+
+    if (
+      !formValues.first_name.trim() ||
+      !formValues.last_name.trim() ||
+      !formValues.email.trim() ||
+      !formValues.mobile.trim() ||
+      !formValues.department.trim() ||
+      !formValues.designation.trim()
+    ) {
+      setFormError("Please fill in all required user fields marked with an asterisk (*).");
+      return;
+    }
+
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formValues.email.trim())) {
+      setFormError("Please enter a valid official email address.");
+      return;
+    }
+
+    setAddModalStep(2);
+  };
+
+  // Step 2 Submission
+  const handleSaveCustomer = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setFormError(null);
+    setFormSuccess(null);
+
+    if (
+      !formValues.company_name.trim() ||
+      !formValues.company_address.trim() ||
+      !formValues.city.trim() ||
+      !formValues.state.trim() ||
+      !formValues.pincode.trim()
+    ) {
+      setFormError("Please fill in all required company fields marked with an asterisk (*).");
+      return;
+    }
+
+    const formData = new FormData();
+    Object.entries(formValues).forEach(([key, val]) => {
+      formData.append(key, val);
+    });
+
+    startTransition(async () => {
+      const res = await createOfflineCustomer(formData);
+      if (res.error) {
+        setFormError(res.error);
+      } else {
+        setFormSuccess(res.message || "Customer account added successfully.");
+        setTimeout(() => {
+          setIsAddModalOpen(false);
+          resetAddForm();
+          const newCust: Profile = {
+            id: `off-${Date.now()}`,
+            role: "customer",
+            title: formValues.title,
+            first_name: formValues.first_name,
+            last_name: formValues.last_name,
+            company_name: formValues.company_name,
+            email: formValues.email,
+            mobile: formValues.mobile,
+            landline: formValues.landline || null,
+            designation: formValues.designation,
+            department: formValues.department,
+            company_address: formValues.company_address,
+            additional_address: formValues.additional_address || null,
+            city: formValues.city,
+            state: formValues.state,
+            pincode: formValues.pincode,
+            gstin: formValues.gstin || null,
+            approval_status: APPROVAL_STATUSES.APPROVED,
+            user_type: USER_TYPES.OFFLINE_USER,
+            credit_limit: Number(formValues.credit_limit) || COMMERCIAL_DEFAULTS.DEFAULT_CREDIT_LIMIT,
+            credit_days: Number(formValues.credit_days) || COMMERCIAL_DEFAULTS.DEFAULT_CREDIT_DAYS,
+            notes: formValues.notes || null,
+            created_at: new Date().toISOString(),
+          };
+          setCustomers((prev) => [newCust, ...prev]);
+        }, 800);
+      }
+    });
+  };
 
   // Statistics calculation
   const totalCount = customers.length;
@@ -244,54 +390,6 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
     });
   };
 
-  // Handle Add Offline Customer Form Submission
-  const handleAddOfflineCustomer = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    setFormError(null);
-    setFormSuccess(null);
-    const formData = new FormData(e.currentTarget);
-    formData.set("title", formTitle);
-    formData.set("department", formDept);
-    formData.set("state", formState);
-    formData.set("credit_days", formCreditDays);
-
-    startTransition(async () => {
-      const res = await createOfflineCustomer(formData);
-      if (res.error) {
-        setFormError(res.error);
-      } else {
-        setFormSuccess(res.message || "Customer added successfully!");
-        setTimeout(() => {
-          setIsAddModalOpen(false);
-          setFormSuccess(null);
-          const newCust: Profile = {
-            id: `off-${Date.now()}`,
-            role: "customer",
-            title: formTitle,
-            first_name: (formData.get("first_name") as string) || "",
-            last_name: (formData.get("last_name") as string) || "",
-            company_name: (formData.get("company_name") as string) || "",
-            email: (formData.get("email") as string) || "",
-            mobile: (formData.get("mobile") as string) || "",
-            designation: (formData.get("designation") as string) || "Commercial Contact",
-            department: formDept,
-            company_address: (formData.get("company_address") as string) || "",
-            city: (formData.get("city") as string) || "",
-            state: formState,
-            pincode: (formData.get("pincode") as string) || "",
-            gstin: (formData.get("gstin") as string) || null,
-            approval_status: APPROVAL_STATUSES.APPROVED,
-            user_type: USER_TYPES.OFFLINE_USER,
-            credit_limit: Number(formData.get("credit_limit")) || COMMERCIAL_DEFAULTS.DEFAULT_CREDIT_LIMIT,
-            credit_days: Number(formCreditDays) || COMMERCIAL_DEFAULTS.DEFAULT_CREDIT_DAYS,
-            created_at: new Date().toISOString(),
-          };
-          setCustomers((prev) => [newCust, ...prev]);
-        }, 800);
-      }
-    });
-  };
-
   return (
     <div className="space-y-6 w-full max-w-full">
       {/* Page Header */}
@@ -339,14 +437,13 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
             type="button"
             size="sm"
             onClick={() => {
-              setFormError(null);
-              setFormSuccess(null);
+              resetAddForm();
               setIsAddModalOpen(true);
             }}
             className="gap-1.5 text-xs bg-[#024AE5] text-white hover:bg-[#023ecc] shadow-none cursor-pointer font-medium"
           >
             <UserPlus className="h-3.5 w-3.5" />
-            <span>+ Add Offline Customer</span>
+            <span>+ Add Customer</span>
           </Button>
         </div>
       </div>
@@ -963,297 +1060,362 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* MODAL 1: ADD OFFLINE CUSTOMER */}
+      {/* ADD CUSTOMER MODAL (Reusing SignUp Form Design & Removing Unwanted Text) */}
       {isAddModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-xs p-4 overflow-y-auto">
-          <div className="relative w-full max-w-3xl rounded-2xl bg-white p-6 shadow-2xl border border-slate-200 my-8 max-h-[90vh] overflow-y-auto animate-in fade-in zoom-in-95 duration-150">
+          <div className="relative w-full max-w-xl rounded-2xl bg-white p-6 shadow-2xl border border-slate-200 my-8 animate-in fade-in zoom-in-95 duration-150">
             {/* Modal Header */}
-            <div className="flex items-center justify-between border-b border-slate-200 pb-4 mb-5">
-              <div>
-                <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-                  <Store className="h-5 w-5 text-slate-700" />
-                  Add Offline Customer Profile
-                </h2>
-                <p className="text-xs text-slate-500 mt-0.5">
-                  Register a direct / offline business account for ERP invoicing, dispatch, billing, and ledger.
-                </p>
+            <div className="flex items-center justify-between border-b border-slate-100 pb-4 mb-4">
+              <div className="flex items-center gap-3">
+                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-slate-100 text-slate-700 border border-slate-200/80">
+                  <UserPlus className="h-4 w-4 text-slate-600" />
+                </div>
+                <div>
+                  <h2 className="text-base font-bold text-slate-900">Add Customer</h2>
+                  <p className="text-xs text-slate-500">
+                    Step {addModalStep} of 2 • {addModalStep === 1 ? "User Details" : "Company & Billing Details"}
+                  </p>
+                </div>
               </div>
+
               <button
                 type="button"
-                onClick={() => setIsAddModalOpen(false)}
+                onClick={() => {
+                  setIsAddModalOpen(false);
+                  resetAddForm();
+                }}
                 className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700 cursor-pointer"
               >
                 <X className="h-5 w-5" />
               </button>
             </div>
 
-            {/* Offline Account Notice Banner */}
-            <div className="mb-5 rounded-xl bg-slate-50 p-3.5 border border-slate-200 flex items-start gap-3 text-xs text-slate-700">
-              <AlertCircle className="h-4 w-4 text-slate-500 shrink-0 mt-0.5" />
-              <div>
-                <span className="font-semibold text-slate-900">ERP & Commercial Account Note: </span>
-                This profile is created directly in the customer database for quotes, invoices, and ledger tracking.
-                No website portal password or login credentials will be generated.
-              </div>
-            </div>
-
+            {/* Error & Success Messages */}
             {formError && (
-              <div className="mb-4 rounded-xl bg-rose-50 p-3 text-xs text-rose-700 border border-rose-200">
-                {formError}
+              <div className="mb-4 flex items-start gap-2.5 rounded-lg border border-red-500/20 bg-red-50 p-3 text-xs text-red-800">
+                <AlertCircle className="h-4 w-4 shrink-0 text-red-600 mt-0.5" />
+                <p>{formError}</p>
               </div>
             )}
             {formSuccess && (
-              <div className="mb-4 rounded-xl bg-emerald-50 p-3 text-xs text-emerald-700 border border-emerald-200">
-                {formSuccess}
+              <div className="mb-4 flex items-start gap-2.5 rounded-lg border border-emerald-500/20 bg-emerald-50 p-3 text-xs text-emerald-800">
+                <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600 mt-0.5" />
+                <p>{formSuccess}</p>
               </div>
             )}
 
-            {/* Same Registration Form with shadcn Components */}
-            <form onSubmit={handleAddOfflineCustomer} className="space-y-6">
-              {/* Section 1: Company Profile */}
-              <div>
-                <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700 mb-3 flex items-center gap-2">
-                  <Building2 className="h-4 w-4 text-slate-600" />
-                  1. Company & Tax Details
-                </h3>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="space-y-1.5 sm:col-span-2">
-                    <Label className="text-xs font-medium text-slate-700">
-                      Company Name <span className="text-red-500">*</span>
-                    </Label>
-                    <Input
-                      name="company_name"
-                      required
-                      className="h-10 text-xs border-slate-200"
-                    />
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-medium text-slate-700">
-                      GSTIN (Optional)
-                    </Label>
-                    <Input
-                      name="gstin"
-                      className="h-10 text-xs border-slate-200 font-mono uppercase"
-                    />
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-medium text-slate-700">
-                      Department / Industry Sector
-                    </Label>
-                    <Select value={formDept} onValueChange={setFormDept}>
-                      <SelectTrigger className="h-10 text-xs bg-white border-slate-200">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {DEPARTMENT_OPTIONS.map((dept) => (
-                          <SelectItem key={dept} value={dept}>
-                            {dept}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="space-y-1.5 sm:col-span-2">
-                    <Label className="text-xs font-medium text-slate-700">
-                      Registered Billing Address <span className="text-red-500">*</span>
-                    </Label>
-                    <Input
-                      name="company_address"
-                      required
-                      className="h-10 text-xs border-slate-200"
-                    />
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-medium text-slate-700">
-                      City <span className="text-red-500">*</span>
-                    </Label>
-                    <Input
-                      name="city"
-                      required
-                      className="h-10 text-xs border-slate-200"
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-2">
-                    <div className="space-y-1.5">
-                      <Label className="text-xs font-medium text-slate-700">
-                        State <span className="text-red-500">*</span>
-                      </Label>
-                      <Select value={formState} onValueChange={setFormState}>
-                        <SelectTrigger className="h-10 text-xs bg-white border-slate-200">
-                          <SelectValue />
+            <form onSubmit={handleSaveCustomer}>
+              {/* STEP 1: USER DETAILS */}
+              {addModalStep === 1 && (
+                <div className="space-y-3 animate-in fade-in-50 duration-200">
+                  {/* Title & Name */}
+                  <div className="grid grid-cols-1 sm:grid-cols-12 gap-3">
+                    <div className="sm:col-span-3 space-y-1">
+                      <Label className="text-xs">Title *</Label>
+                      <Select
+                        value={formValues.title}
+                        onValueChange={(val) => handleSelectChange("title", val)}
+                      >
+                        <SelectTrigger className="h-9 text-xs bg-white border-slate-200">
+                          <SelectValue placeholder="Title" />
                         </SelectTrigger>
-                        <SelectContent className="max-h-60">
-                          {INDIAN_STATES.map((st) => (
-                            <SelectItem key={st} value={st}>
-                              {st}
+                        <SelectContent>
+                          {USER_TITLES.map((t) => (
+                            <SelectItem key={t} value={t}>
+                              {t}
                             </SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
                     </div>
-                    <div className="space-y-1.5">
-                      <Label className="text-xs font-medium text-slate-700">
-                        PIN Code <span className="text-red-500">*</span>
-                      </Label>
+
+                    <div className="sm:col-span-4 space-y-1">
+                      <Label className="text-xs">First Name *</Label>
                       <Input
-                        name="pincode"
+                        name="first_name"
+                        value={formValues.first_name}
+                        onChange={handleInputChange}
                         required
-                        className="h-10 text-xs border-slate-200"
+                        className="h-9 text-xs border-slate-200"
+                      />
+                    </div>
+
+                    <div className="sm:col-span-5 space-y-1">
+                      <Label className="text-xs">Last Name *</Label>
+                      <Input
+                        name="last_name"
+                        value={formValues.last_name}
+                        onChange={handleInputChange}
+                        required
+                        className="h-9 text-xs border-slate-200"
                       />
                     </div>
                   </div>
-                </div>
-              </div>
 
-              {/* Section 2: Contact Person */}
-              <div className="border-t border-slate-100 pt-4">
-                <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700 mb-3 flex items-center gap-2">
-                  <Users className="h-4 w-4 text-slate-600" />
-                  2. Primary Contact Person
-                </h3>
-                <div className="grid grid-cols-1 sm:grid-cols-12 gap-4">
-                  {/* Title (shadcn Select) */}
-                  <div className="space-y-1.5 sm:col-span-3">
-                    <Label className="text-xs font-medium text-slate-700">Title</Label>
-                    <Select value={formTitle} onValueChange={(val) => setFormTitle(val as UserTitle)}>
-                      <SelectTrigger className="h-10 text-xs bg-white border-slate-200">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {USER_TITLES.map((t) => (
-                          <SelectItem key={t} value={t}>
-                            {t}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                  {/* Department & Designation */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <Label className="text-xs">Department *</Label>
+                      <Select
+                        value={formValues.department}
+                        onValueChange={(val) => handleSelectChange("department", val)}
+                      >
+                        <SelectTrigger className="h-9 text-xs bg-white border-slate-200">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {DEPARTMENT_OPTIONS.map((d) => (
+                            <SelectItem key={d} value={d}>
+                              {d}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-1">
+                      <Label className="text-xs">Designation *</Label>
+                      <Input
+                        name="designation"
+                        value={formValues.designation}
+                        onChange={handleInputChange}
+                        required
+                        className="h-9 text-xs border-slate-200"
+                      />
+                    </div>
                   </div>
 
-                  {/* First Name */}
-                  <div className="space-y-1.5 sm:col-span-4">
-                    <Label className="text-xs font-medium text-slate-700">
-                      First Name <span className="text-red-500">*</span>
-                    </Label>
-                    <Input name="first_name" required className="h-10 text-xs border-slate-200" />
+                  {/* Mobile & Landline */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <Label className="text-xs">Mobile *</Label>
+                      <Input
+                        name="mobile"
+                        type="tel"
+                        value={formValues.mobile}
+                        onChange={handleInputChange}
+                        required
+                        className="h-9 text-xs border-slate-200"
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <div className="flex items-center justify-between">
+                        <Label className="text-xs">Landline</Label>
+                        <span className="text-[10px] text-slate-400">Optional</span>
+                      </div>
+                      <Input
+                        name="landline"
+                        type="tel"
+                        value={formValues.landline}
+                        onChange={handleInputChange}
+                        className="h-9 text-xs border-slate-200"
+                      />
+                    </div>
                   </div>
 
-                  {/* Last Name */}
-                  <div className="space-y-1.5 sm:col-span-5">
-                    <Label className="text-xs font-medium text-slate-700">
-                      Last Name <span className="text-red-500">*</span>
-                    </Label>
-                    <Input name="last_name" required className="h-10 text-xs border-slate-200" />
-                  </div>
-
-                  {/* Designation */}
-                  <div className="space-y-1.5 sm:col-span-6">
-                    <Label className="text-xs font-medium text-slate-700">Designation</Label>
-                    <Input name="designation" defaultValue="Commercial Manager" className="h-10 text-xs border-slate-200" />
-                  </div>
-
-                  {/* Official Email */}
-                  <div className="space-y-1.5 sm:col-span-6">
-                    <Label className="text-xs font-medium text-slate-700">
-                      Official Email ID <span className="text-red-500">*</span>
-                    </Label>
+                  {/* Email */}
+                  <div className="space-y-1">
+                    <Label className="text-xs">Official Email ID *</Label>
                     <Input
-                      type="email"
                       name="email"
-                      required
+                      type="email"
                       placeholder="name@company.com"
-                      className="h-10 text-xs border-slate-200"
+                      value={formValues.email}
+                      onChange={handleInputChange}
+                      required
+                      className="h-9 text-xs border-slate-200"
                     />
                   </div>
 
-                  {/* Mobile */}
-                  <div className="space-y-1.5 sm:col-span-6">
-                    <Label className="text-xs font-medium text-slate-700">
-                      Mobile Number <span className="text-red-500">*</span>
-                    </Label>
-                    <Input name="mobile" required className="h-10 text-xs border-slate-200" />
-                  </div>
-
-                  {/* Landline */}
-                  <div className="space-y-1.5 sm:col-span-6">
-                    <Label className="text-xs font-medium text-slate-700">Landline (Optional)</Label>
-                    <Input name="landline" className="h-10 text-xs border-slate-200" />
+                  {/* Footer 1 */}
+                  <div className="flex items-center justify-between pt-4 border-t border-slate-100 mt-4">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setIsAddModalOpen(false);
+                        resetAddForm();
+                      }}
+                      className="h-8 text-xs border-slate-200"
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      onClick={handleNextStep}
+                      className="h-8 text-xs bg-[#024AE5] text-white hover:bg-[#023ecc] gap-1.5"
+                    >
+                      <span>Next Step</span>
+                      <ArrowRight className="h-3.5 w-3.5" />
+                    </Button>
                   </div>
                 </div>
-              </div>
+              )}
 
-              {/* Section 3: Commercial & Credit Terms */}
-              <div className="border-t border-slate-100 pt-4">
-                <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700 mb-3 flex items-center gap-2">
-                  <CreditCard className="h-4 w-4 text-slate-600" />
-                  3. Commercial & Credit Parameters
-                </h3>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-medium text-slate-700">Credit Limit (₹)</Label>
+              {/* STEP 2: COMPANY & COMMERCIAL DETAILS */}
+              {addModalStep === 2 && (
+                <div className="space-y-3 animate-in fade-in-50 duration-200">
+                  {/* Company Name */}
+                  <div className="space-y-1">
+                    <Label className="text-xs">Company Name *</Label>
                     <Input
-                      type="number"
-                      name="credit_limit"
-                      defaultValue={COMMERCIAL_DEFAULTS.DEFAULT_CREDIT_LIMIT}
-                      className="h-10 text-xs border-slate-200 font-semibold"
+                      name="company_name"
+                      value={formValues.company_name}
+                      onChange={handleInputChange}
+                      required
+                      className="h-9 text-xs border-slate-200"
                     />
                   </div>
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-medium text-slate-700">Credit Payment Terms (Days)</Label>
-                    <Select value={formCreditDays} onValueChange={setFormCreditDays}>
-                      <SelectTrigger className="h-10 text-xs bg-white border-slate-200">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {COMMERCIAL_DEFAULTS.CREDIT_DAYS_OPTIONS.map((days) => (
-                          <SelectItem key={days} value={String(days)}>
-                            {days} Days Net
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-1.5 sm:col-span-2">
-                    <Label className="text-xs font-medium text-slate-700">Internal Account Notes</Label>
+
+                  {/* GSTIN */}
+                  <div className="space-y-1">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-xs">GSTIN</Label>
+                      <span className="text-[10px] text-slate-400">Optional</span>
+                    </div>
                     <Input
-                      name="notes"
-                      placeholder="e.g. Authorized for Grade HRC 55 tooling supplies"
-                      className="h-10 text-xs border-slate-200"
+                      name="gstin"
+                      value={formValues.gstin}
+                      onChange={handleInputChange}
+                      className="h-9 text-xs border-slate-200 font-mono uppercase"
                     />
+                  </div>
+
+                  {/* Company Address */}
+                  <div className="space-y-1">
+                    <Label className="text-xs">Company Address *</Label>
+                    <Input
+                      name="company_address"
+                      value={formValues.company_address}
+                      onChange={handleInputChange}
+                      required
+                      className="h-9 text-xs border-slate-200"
+                    />
+                  </div>
+
+                  {/* Additional Address */}
+                  <div className="space-y-1">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-xs">Additional Address</Label>
+                      <span className="text-[10px] text-slate-400">Optional</span>
+                    </div>
+                    <Input
+                      name="additional_address"
+                      value={formValues.additional_address}
+                      onChange={handleInputChange}
+                      className="h-9 text-xs border-slate-200"
+                    />
+                  </div>
+
+                  {/* City, State, PIN */}
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div className="space-y-1">
+                      <Label className="text-xs">City *</Label>
+                      <Input
+                        name="city"
+                        value={formValues.city}
+                        onChange={handleInputChange}
+                        required
+                        className="h-9 text-xs border-slate-200"
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <Label className="text-xs">State *</Label>
+                      <Select
+                        value={formValues.state}
+                        onValueChange={(val) => handleSelectChange("state", val)}
+                      >
+                        <SelectTrigger className="h-9 text-xs bg-white border-slate-200">
+                          <SelectValue placeholder="State" />
+                        </SelectTrigger>
+                        <SelectContent className="max-h-60">
+                          {INDIAN_STATES.map((s) => (
+                            <SelectItem key={s} value={s}>
+                              {s}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-1">
+                      <Label className="text-xs">PIN Code *</Label>
+                      <Input
+                        name="pincode"
+                        value={formValues.pincode}
+                        onChange={handleInputChange}
+                        required
+                        className="h-9 text-xs border-slate-200"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Commercial Credit Terms */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                    <div className="space-y-1">
+                      <Label className="text-xs">Credit Limit (₹)</Label>
+                      <Input
+                        name="credit_limit"
+                        type="number"
+                        value={formValues.credit_limit}
+                        onChange={handleInputChange}
+                        className="h-9 text-xs border-slate-200 font-semibold"
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <Label className="text-xs">Credit Terms</Label>
+                      <Select
+                        value={formValues.credit_days}
+                        onValueChange={(val) => handleSelectChange("credit_days", val)}
+                      >
+                        <SelectTrigger className="h-9 text-xs bg-white border-slate-200">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {COMMERCIAL_DEFAULTS.CREDIT_DAYS_OPTIONS.map((days) => (
+                            <SelectItem key={days} value={String(days)}>
+                              {days} Days Net
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
+                  {/* Footer 2 */}
+                  <div className="flex items-center justify-between pt-4 border-t border-slate-100 mt-4">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setAddModalStep(1)}
+                      className="h-8 text-xs border-slate-200 gap-1.5"
+                    >
+                      <ArrowLeft className="h-3.5 w-3.5" />
+                      <span>Previous</span>
+                    </Button>
+                    <Button
+                      type="submit"
+                      size="sm"
+                      disabled={isPending}
+                      className="h-8 text-xs bg-[#024AE5] text-white hover:bg-[#023ecc] font-medium"
+                    >
+                      {isPending ? "Saving..." : "Save Customer"}
+                    </Button>
                   </div>
                 </div>
-              </div>
-
-              {/* Submit Buttons */}
-              <div className="flex items-center justify-end gap-3 border-t border-slate-200 pt-4">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setIsAddModalOpen(false)}
-                  className="text-xs border-slate-200"
-                >
-                  Cancel
-                </Button>
-                <Button
-                  type="submit"
-                  size="sm"
-                  disabled={isPending}
-                  className="text-xs bg-[#024AE5] text-white hover:bg-[#023ecc] font-medium"
-                >
-                  {isPending ? "Saving Account..." : "Save Offline Customer"}
-                </Button>
-              </div>
+              )}
             </form>
           </div>
         </div>
       )}
 
-      {/* MODAL 2: VIEW / MANAGE CUSTOMER DETAILS */}
+      {/* VIEW CUSTOMER DETAILS MODAL */}
       {viewingCustomer && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-xs p-4 overflow-y-auto">
           <div className="relative w-full max-w-2xl rounded-2xl bg-white p-6 shadow-2xl border border-slate-200 animate-in fade-in zoom-in-95 duration-150">
