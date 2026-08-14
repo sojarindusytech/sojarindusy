@@ -16,11 +16,19 @@ import {
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { INDIAN_STATES, TITLES } from "@/data/states";
 import {
+  step1Schema,
+  step2Schema,
+  type Step1FormData,
+  type Step2FormData,
+} from "@/lib/validations/auth";
+import {
   AlertCircle,
   CheckCircle2,
   ArrowRight,
   ArrowLeft,
   Check,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -29,12 +37,17 @@ export function SignUpForm() {
   const [step, setStep] = useState<1 | 2>(1);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [success, setSuccess] = useState<string | null>(null);
+
+  // Password visibility states
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   // Form State
   const [formData, setFormData] = useState({
     role: "customer",
-    title: "Mr",
+    title: "Mr" as "Mr" | "Mrs" | "Miss" | "Ms",
     first_name: "",
     last_name: "",
     department: "",
@@ -54,10 +67,19 @@ export function SignUpForm() {
   });
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
     setFormData((prev) => ({
       ...prev,
-      [e.target.name]: e.target.value,
+      [name]: value,
     }));
+    // Clear field-specific error upon typing
+    if (fieldErrors[name]) {
+      setFieldErrors((prev) => {
+        const next = { ...prev };
+        delete next[name];
+        return next;
+      });
+    }
   };
 
   const handleSelectChange = (name: string, value: string) => {
@@ -65,43 +87,54 @@ export function SignUpForm() {
       ...prev,
       [name]: value,
     }));
-  };
-
-  const validateStep1 = () => {
-    if (!formData.first_name.trim()) return "First name is required.";
-    if (!formData.last_name.trim()) return "Last name is required.";
-    if (!formData.department.trim()) return "Department is required.";
-    if (!formData.designation.trim()) return "Designation is required.";
-    if (!formData.mobile.trim()) return "Mobile number is required.";
-    if (!formData.email.trim()) return "Official email is required.";
-    if (!formData.password) return "Password is required.";
-    if (formData.password.length < 6) return "Password must be at least 6 characters.";
-    if (formData.password !== formData.confirm_password) return "Passwords do not match.";
-    return null;
-  };
-
-  const validateStep2 = () => {
-    if (!formData.company_name.trim()) return "Company name is required.";
-    if (!formData.company_address.trim()) return "Company address is required.";
-    if (!formData.city.trim()) return "City is required.";
-    if (!formData.state.trim()) return "State is required.";
-    if (!formData.pincode.trim()) return "Pincode is required.";
-    return null;
+    if (fieldErrors[name]) {
+      setFieldErrors((prev) => {
+        const next = { ...prev };
+        delete next[name];
+        return next;
+      });
+    }
   };
 
   const handleNextStep = (e: React.MouseEvent) => {
     e.preventDefault();
     setError(null);
-    const step1Error = validateStep1();
-    if (step1Error) {
-      setError(step1Error);
+    setFieldErrors({});
+
+    const step1Data: Step1FormData = {
+      title: formData.title,
+      first_name: formData.first_name,
+      last_name: formData.last_name,
+      department: formData.department,
+      designation: formData.designation,
+      mobile: formData.mobile,
+      landline: formData.landline || undefined,
+      email: formData.email,
+      password: formData.password,
+      confirm_password: formData.confirm_password,
+    };
+
+    const result = step1Schema.safeParse(step1Data);
+
+    if (!result.success) {
+      const formattedErrors: Record<string, string> = {};
+      result.error.issues.forEach((issue) => {
+        const fieldName = issue.path[0]?.toString();
+        if (fieldName && !formattedErrors[fieldName]) {
+          formattedErrors[fieldName] = issue.message;
+        }
+      });
+      setFieldErrors(formattedErrors);
+      setError(result.error.issues[0]?.message || "Please resolve the errors above.");
       return;
     }
+
     setStep(2);
   };
 
   const handlePrevStep = () => {
     setError(null);
+    setFieldErrors({});
     setStep(1);
   };
 
@@ -109,10 +142,30 @@ export function SignUpForm() {
     e.preventDefault();
     setError(null);
     setSuccess(null);
+    setFieldErrors({});
 
-    const step2Error = validateStep2();
-    if (step2Error) {
-      setError(step2Error);
+    const step2Data: Step2FormData = {
+      company_name: formData.company_name,
+      gstin: formData.gstin || undefined,
+      company_address: formData.company_address,
+      additional_address: formData.additional_address || undefined,
+      city: formData.city,
+      state: formData.state,
+      pincode: formData.pincode,
+    };
+
+    const result = step2Schema.safeParse(step2Data);
+
+    if (!result.success) {
+      const formattedErrors: Record<string, string> = {};
+      result.error.issues.forEach((issue) => {
+        const fieldName = issue.path[0]?.toString();
+        if (fieldName && !formattedErrors[fieldName]) {
+          formattedErrors[fieldName] = issue.message;
+        }
+      });
+      setFieldErrors(formattedErrors);
+      setError(result.error.issues[0]?.message || "Please resolve the errors above.");
       return;
     }
 
@@ -143,6 +196,15 @@ export function SignUpForm() {
     }
   };
 
+  // Live password validation checklist
+  const passwordChecks = {
+    length: formData.password.length >= 8,
+    upper: /[A-Z]/.test(formData.password),
+    lower: /[a-z]/.test(formData.password),
+    number: /\d/.test(formData.password),
+    special: /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(formData.password),
+  };
+
   return (
     <div className="w-full max-w-xl mx-auto py-2">
       <Card className="border border-slate-200 bg-white shadow-none rounded-2xl overflow-hidden">
@@ -154,7 +216,7 @@ export function SignUpForm() {
         </CardHeader>
 
         <form onSubmit={handleSubmit}>
-          <CardContent className="p-6 pt-2 bg-white min-h-[420px] flex flex-col justify-start">
+          <CardContent className="p-6 pt-2 bg-white min-h-[440px] flex flex-col justify-start">
             {error && (
               <div className="mb-4 flex items-start gap-2.5 rounded-lg border border-red-500/20 bg-red-50 p-3 text-xs text-red-800">
                 <AlertCircle className="h-4 w-4 shrink-0 text-red-600 mt-0.5" />
@@ -171,8 +233,8 @@ export function SignUpForm() {
 
             {/* STEP 1: User Details Heading & Form */}
             {step === 1 && (
-              <div className="space-y-3.5 animate-in fade-in-50 duration-200">
-                <div className="border-b border-slate-100 pb-2 mb-3">
+              <div className="space-y-3 animate-in fade-in-50 duration-200">
+                <div className="border-b border-slate-100 pb-2 mb-2">
                   <h2 className="text-sm font-bold uppercase tracking-wider text-slate-800">
                     User Details
                   </h2>
@@ -208,8 +270,12 @@ export function SignUpForm() {
                       placeholder="First Name"
                       value={formData.first_name}
                       onChange={handleInputChange}
+                      className={fieldErrors.first_name ? "border-red-500 focus-visible:ring-red-500" : ""}
                       required
                     />
+                    {fieldErrors.first_name && (
+                      <p className="text-[11px] text-red-600">{fieldErrors.first_name}</p>
+                    )}
                   </div>
 
                   {/* Last Name */}
@@ -221,8 +287,12 @@ export function SignUpForm() {
                       placeholder="Last Name"
                       value={formData.last_name}
                       onChange={handleInputChange}
+                      className={fieldErrors.last_name ? "border-red-500 focus-visible:ring-red-500" : ""}
                       required
                     />
+                    {fieldErrors.last_name && (
+                      <p className="text-[11px] text-red-600">{fieldErrors.last_name}</p>
+                    )}
                   </div>
                 </div>
 
@@ -236,8 +306,12 @@ export function SignUpForm() {
                       placeholder="Department"
                       value={formData.department}
                       onChange={handleInputChange}
+                      className={fieldErrors.department ? "border-red-500 focus-visible:ring-red-500" : ""}
                       required
                     />
+                    {fieldErrors.department && (
+                      <p className="text-[11px] text-red-600">{fieldErrors.department}</p>
+                    )}
                   </div>
 
                   {/* Designation */}
@@ -249,8 +323,12 @@ export function SignUpForm() {
                       placeholder="Designation"
                       value={formData.designation}
                       onChange={handleInputChange}
+                      className={fieldErrors.designation ? "border-red-500 focus-visible:ring-red-500" : ""}
                       required
                     />
+                    {fieldErrors.designation && (
+                      <p className="text-[11px] text-red-600">{fieldErrors.designation}</p>
+                    )}
                   </div>
                 </div>
 
@@ -262,11 +340,15 @@ export function SignUpForm() {
                       id="mobile"
                       name="mobile"
                       type="tel"
-                      placeholder="Mobile number"
+                      placeholder="10-digit mobile"
                       value={formData.mobile}
                       onChange={handleInputChange}
+                      className={fieldErrors.mobile ? "border-red-500 focus-visible:ring-red-500" : ""}
                       required
                     />
+                    {fieldErrors.mobile && (
+                      <p className="text-[11px] text-red-600">{fieldErrors.mobile}</p>
+                    )}
                   </div>
 
                   {/* Landline */}
@@ -296,46 +378,112 @@ export function SignUpForm() {
                     placeholder="name@company.com"
                     value={formData.email}
                     onChange={handleInputChange}
+                    className={fieldErrors.email ? "border-red-500 focus-visible:ring-red-500" : ""}
                     required
                   />
+                  {fieldErrors.email && (
+                    <p className="text-[11px] text-red-600">{fieldErrors.email}</p>
+                  )}
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {/* Password */}
+                  {/* Password with View Toggle */}
                   <div className="space-y-1">
                     <Label htmlFor="password">Password *</Label>
-                    <Input
-                      id="password"
-                      name="password"
-                      type="password"
-                      placeholder="Min 6 characters"
-                      value={formData.password}
-                      onChange={handleInputChange}
-                      required
-                    />
+                    <div className="relative">
+                      <Input
+                        id="password"
+                        name="password"
+                        type={showPassword ? "text" : "password"}
+                        placeholder="Min 8 chars, A-Z, 0-9, @"
+                        value={formData.password}
+                        onChange={handleInputChange}
+                        className={`pr-10 ${fieldErrors.password ? "border-red-500 focus-visible:ring-red-500" : ""}`}
+                        required
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 transition-colors"
+                        aria-label={showPassword ? "Hide password" : "Show password"}
+                      >
+                        {showPassword ? (
+                          <EyeOff className="h-4 w-4" />
+                        ) : (
+                          <Eye className="h-4 w-4" />
+                        )}
+                      </button>
+                    </div>
+                    {fieldErrors.password && (
+                      <p className="text-[11px] text-red-600">{fieldErrors.password}</p>
+                    )}
                   </div>
 
-                  {/* Confirm Password */}
+                  {/* Confirm Password with View Toggle */}
                   <div className="space-y-1">
                     <Label htmlFor="confirm_password">Confirm Password *</Label>
-                    <Input
-                      id="confirm_password"
-                      name="confirm_password"
-                      type="password"
-                      placeholder="Re-enter password"
-                      value={formData.confirm_password}
-                      onChange={handleInputChange}
-                      required
-                    />
+                    <div className="relative">
+                      <Input
+                        id="confirm_password"
+                        name="confirm_password"
+                        type={showConfirmPassword ? "text" : "password"}
+                        placeholder="Re-enter password"
+                        value={formData.confirm_password}
+                        onChange={handleInputChange}
+                        className={`pr-10 ${fieldErrors.confirm_password ? "border-red-500 focus-visible:ring-red-500" : ""}`}
+                        required
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 transition-colors"
+                        aria-label={showConfirmPassword ? "Hide password" : "Show password"}
+                      >
+                        {showConfirmPassword ? (
+                          <EyeOff className="h-4 w-4" />
+                        ) : (
+                          <Eye className="h-4 w-4" />
+                        )}
+                      </button>
+                    </div>
+                    {fieldErrors.confirm_password && (
+                      <p className="text-[11px] text-red-600">{fieldErrors.confirm_password}</p>
+                    )}
                   </div>
                 </div>
+
+                {/* Password Criteria Helper */}
+                {formData.password.length > 0 && (
+                  <div className="p-2.5 rounded-lg bg-slate-50 border border-slate-100 space-y-1 text-[11px]">
+                    <p className="font-semibold text-slate-700 text-[11px] mb-1">
+                      Password Requirements:
+                    </p>
+                    <div className="grid grid-cols-2 gap-x-2 gap-y-0.5 text-[10px]">
+                      <span className={passwordChecks.length ? "text-[#3C8B4F] font-medium" : "text-slate-400"}>
+                        {passwordChecks.length ? "✓" : "•"} Min 8 characters
+                      </span>
+                      <span className={passwordChecks.upper ? "text-[#3C8B4F] font-medium" : "text-slate-400"}>
+                        {passwordChecks.upper ? "✓" : "•"} 1 Uppercase (A-Z)
+                      </span>
+                      <span className={passwordChecks.lower ? "text-[#3C8B4F] font-medium" : "text-slate-400"}>
+                        {passwordChecks.lower ? "✓" : "•"} 1 Lowercase (a-z)
+                      </span>
+                      <span className={passwordChecks.number ? "text-[#3C8B4F] font-medium" : "text-slate-400"}>
+                        {passwordChecks.number ? "✓" : "•"} 1 Number (0-9)
+                      </span>
+                      <span className={passwordChecks.special ? "text-[#3C8B4F] font-medium" : "text-slate-400"}>
+                        {passwordChecks.special ? "✓" : "•"} 1 Special char (@#$%)
+                      </span>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 
             {/* STEP 2: Company Details Heading & Form */}
             {step === 2 && (
               <div className="space-y-3.5 animate-in fade-in-50 duration-200">
-                <div className="border-b border-slate-100 pb-2 mb-3">
+                <div className="border-b border-slate-100 pb-2 mb-2">
                   <h2 className="text-sm font-bold uppercase tracking-wider text-slate-800">
                     Company Details
                   </h2>
@@ -350,8 +498,12 @@ export function SignUpForm() {
                     placeholder="Company Name"
                     value={formData.company_name}
                     onChange={handleInputChange}
+                    className={fieldErrors.company_name ? "border-red-500 focus-visible:ring-red-500" : ""}
                     required
                   />
+                  {fieldErrors.company_name && (
+                    <p className="text-[11px] text-red-600">{fieldErrors.company_name}</p>
+                  )}
                 </div>
 
                 {/* GSTIN */}
@@ -363,10 +515,14 @@ export function SignUpForm() {
                   <Input
                     id="gstin"
                     name="gstin"
-                    placeholder="GSTIN Number"
+                    placeholder="e.g. 27AAAAA0000A1Z5"
                     value={formData.gstin}
                     onChange={handleInputChange}
+                    className={fieldErrors.gstin ? "border-red-500 focus-visible:ring-red-500" : ""}
                   />
+                  {fieldErrors.gstin && (
+                    <p className="text-[11px] text-red-600">{fieldErrors.gstin}</p>
+                  )}
                 </div>
 
                 {/* Company Address */}
@@ -378,8 +534,12 @@ export function SignUpForm() {
                     placeholder="Plot / Street / Area"
                     value={formData.company_address}
                     onChange={handleInputChange}
+                    className={fieldErrors.company_address ? "border-red-500 focus-visible:ring-red-500" : ""}
                     required
                   />
+                  {fieldErrors.company_address && (
+                    <p className="text-[11px] text-red-600">{fieldErrors.company_address}</p>
+                  )}
                 </div>
 
                 {/* Additional Address */}
@@ -407,8 +567,12 @@ export function SignUpForm() {
                       placeholder="City"
                       value={formData.city}
                       onChange={handleInputChange}
+                      className={fieldErrors.city ? "border-red-500 focus-visible:ring-red-500" : ""}
                       required
                     />
+                    {fieldErrors.city && (
+                      <p className="text-[11px] text-red-600">{fieldErrors.city}</p>
+                    )}
                   </div>
 
                   {/* State */}
@@ -437,11 +601,15 @@ export function SignUpForm() {
                     <Input
                       id="pincode"
                       name="pincode"
-                      placeholder="Pincode"
+                      placeholder="6-digit Pincode"
                       value={formData.pincode}
                       onChange={handleInputChange}
+                      className={fieldErrors.pincode ? "border-red-500 focus-visible:ring-red-500" : ""}
                       required
                     />
+                    {fieldErrors.pincode && (
+                      <p className="text-[11px] text-red-600">{fieldErrors.pincode}</p>
+                    )}
                   </div>
                 </div>
               </div>

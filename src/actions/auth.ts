@@ -2,6 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { Profile, UserRole, UserTitle } from "@/types/database.types";
+import { fullSignUpSchema, loginSchema } from "@/lib/validations/auth";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
@@ -14,67 +15,61 @@ export interface SignUpState {
 export async function signUpUser(formData: FormData): Promise<SignUpState> {
   const supabase = await createClient();
 
-  // Extract personal/contact fields
-  const title = (formData.get("title") as UserTitle) || "Mr";
-  const firstName = (formData.get("first_name") as string)?.trim();
-  const lastName = (formData.get("last_name") as string)?.trim();
-  const department = (formData.get("department") as string)?.trim();
-  const designation = (formData.get("designation") as string)?.trim();
-  const mobile = (formData.get("mobile") as string)?.trim();
-  const landline = (formData.get("landline") as string)?.trim() || null;
-  const email = (formData.get("email") as string)?.trim().toLowerCase();
-  const password = formData.get("password") as string;
-  const confirmPassword = formData.get("confirm_password") as string;
+  // Extract raw fields
+  const rawData = {
+    title: (formData.get("title") as string) || "Mr",
+    first_name: (formData.get("first_name") as string)?.trim(),
+    last_name: (formData.get("last_name") as string)?.trim(),
+    department: (formData.get("department") as string)?.trim(),
+    designation: (formData.get("designation") as string)?.trim(),
+    mobile: (formData.get("mobile") as string)?.trim(),
+    landline: (formData.get("landline") as string)?.trim() || undefined,
+    email: (formData.get("email") as string)?.trim().toLowerCase(),
+    password: formData.get("password") as string,
+    confirm_password: formData.get("confirm_password") as string,
+    company_name: (formData.get("company_name") as string)?.trim(),
+    company_address: (formData.get("company_address") as string)?.trim(),
+    additional_address: (formData.get("additional_address") as string)?.trim() || undefined,
+    gstin: (formData.get("gstin") as string)?.trim() || undefined,
+    city: (formData.get("city") as string)?.trim(),
+    state: (formData.get("state") as string)?.trim(),
+    pincode: (formData.get("pincode") as string)?.trim(),
+  };
+
   const role: UserRole = (formData.get("role") as UserRole) || "customer";
 
-  // Extract company fields
-  const companyName = (formData.get("company_name") as string)?.trim();
-  const companyAddress = (formData.get("company_address") as string)?.trim();
-  const additionalAddress = (formData.get("additional_address") as string)?.trim() || null;
-  const gstin = (formData.get("gstin") as string)?.trim() || null;
-  const city = (formData.get("city") as string)?.trim();
-  const state = (formData.get("state") as string)?.trim();
-  const pincode = (formData.get("pincode") as string)?.trim();
-
-  // Validations
-  if (!firstName || !lastName || !email || !password || !companyName || !companyAddress || !city || !state || !pincode) {
-    return { error: "Please fill in all mandatory fields." };
+  // Zod Server Validation
+  const validationResult = fullSignUpSchema.safeParse(rawData);
+  if (!validationResult.success) {
+    return {
+      error: validationResult.error.issues[0]?.message || "Validation failed.",
+    };
   }
 
-  if (password.length < 6) {
-    return { error: "Password must be at least 6 characters." };
-  }
-
-  if (password !== confirmPassword) {
-    return { error: "Passwords do not match." };
-  }
-
-  if (mobile.length < 10) {
-    return { error: "Please enter a valid 10-digit mobile number." };
-  }
+  const validated = validationResult.data;
 
   const userMetadata = {
     role,
-    title,
-    first_name: firstName,
-    last_name: lastName,
-    department,
-    designation,
-    mobile,
-    landline,
-    company_name: companyName,
-    company_address: companyAddress,
-    additional_address: additionalAddress,
-    gstin,
-    city,
-    state,
-    pincode,
+    title: validated.title as UserTitle,
+    first_name: validated.first_name,
+    last_name: validated.last_name,
+    department: validated.department,
+    designation: validated.designation,
+    mobile: validated.mobile,
+    landline: validated.landline || null,
+    company_name: validated.company_name,
+    company_address: validated.company_address,
+    additional_address: validated.additional_address || null,
+    gstin: validated.gstin || null,
+    city: validated.city,
+    state: validated.state,
+    pincode: validated.pincode,
   };
 
   // 1. Sign up user with Supabase Auth
   const { data: authData, error: authError } = await supabase.auth.signUp({
-    email,
-    password,
+    email: validated.email,
+    password: validated.password,
     options: {
       data: userMetadata,
     },
@@ -92,21 +87,21 @@ export async function signUpUser(formData: FormData): Promise<SignUpState> {
   const profileRecord: Profile = {
     id: authData.user.id,
     role,
-    title,
-    first_name: firstName,
-    last_name: lastName,
-    department,
-    designation,
-    mobile,
-    landline,
-    email,
-    company_name: companyName,
-    company_address: companyAddress,
-    additional_address: additionalAddress,
-    gstin,
-    city,
-    state,
-    pincode,
+    title: validated.title as UserTitle,
+    first_name: validated.first_name,
+    last_name: validated.last_name,
+    department: validated.department,
+    designation: validated.designation,
+    mobile: validated.mobile,
+    landline: validated.landline || null,
+    email: validated.email,
+    company_name: validated.company_name,
+    company_address: validated.company_address,
+    additional_address: validated.additional_address || null,
+    gstin: validated.gstin || null,
+    city: validated.city,
+    state: validated.state,
+    pincode: validated.pincode,
   };
 
   const { error: profileError } = await supabase
@@ -129,15 +124,21 @@ export async function signInUser(
   passwordInput: string
 ): Promise<{ error?: string; redirectUrl?: string }> {
   const supabase = await createClient();
-  const email = emailInput?.trim().toLowerCase();
 
-  if (!email || !passwordInput) {
-    return { error: "Please provide both email and password." };
+  const validationResult = loginSchema.safeParse({
+    email: emailInput?.trim().toLowerCase(),
+    password: passwordInput,
+  });
+
+  if (!validationResult.success) {
+    return { error: validationResult.error.issues[0]?.message || "Invalid credentials." };
   }
+
+  const { email, password } = validationResult.data;
 
   const { data, error } = await supabase.auth.signInWithPassword({
     email,
-    password: passwordInput,
+    password,
   });
 
   if (error) {
