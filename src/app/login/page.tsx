@@ -6,7 +6,7 @@ import { signInUser } from "@/actions/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Lock, AlertCircle, CheckCircle2, ArrowRight } from "lucide-react";
 import Link from "next/link";
 
@@ -44,21 +44,18 @@ function LoginForm() {
   };
 
   return (
-    <Card className="w-full max-w-md border-slate-200 bg-white shadow-xl">
-      <CardHeader className="space-y-2 border-b border-slate-100 bg-slate-50/70 p-6 text-center">
+    <Card className="w-full max-w-md border border-slate-200 bg-white shadow-xl rounded-2xl">
+      <CardHeader className="space-y-3 bg-white p-6 pb-2 text-center border-0">
         <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-[#024AE5] text-white shadow-sm">
           <Lock className="h-6 w-6" />
         </div>
         <CardTitle className="text-2xl font-bold tracking-tight text-slate-900">
-          Sign In to Sojar Indusy
+          Sign In
         </CardTitle>
-        <CardDescription className="text-xs sm:text-sm text-slate-500">
-          Access your B2B Ecommerce Orders or Platform Owner Dashboard.
-        </CardDescription>
       </CardHeader>
 
       <form onSubmit={handleSubmit}>
-        <CardContent className="space-y-4 p-6 sm:p-8 bg-white">
+        <CardContent className="space-y-4 p-6 pt-2 bg-white">
           {registered && (
             <div className="flex items-start gap-2.5 rounded-lg border border-[#3C8B4F]/30 bg-[#3C8B4F]/10 p-3 text-xs text-[#3C8B4F]">
               <CheckCircle2 className="h-4 w-4 shrink-0 text-[#3C8B4F]" />
@@ -74,7 +71,7 @@ function LoginForm() {
           )}
 
           <div className="space-y-1.5">
-            <Label htmlFor="email">Official Email ID</Label>
+            <Label htmlFor="email">Email</Label>
             <Input
               id="email"
               type="email"
@@ -96,19 +93,9 @@ function LoginForm() {
               required
             />
           </div>
-
-          <div className="rounded-lg border border-slate-100 bg-slate-50 p-3 text-xs text-slate-600">
-            <p className="font-semibold text-slate-800 mb-1">
-              Role-Based Landing:
-            </p>
-            <ul className="list-disc list-inside space-y-0.5 text-[11px]">
-              <li><strong>Platform Owner:</strong> Directs to Admin Platform Dashboard</li>
-              <li><strong>Customer / B2B Buyer:</strong> Directs to Ecommerce Orders Dashboard</li>
-            </ul>
-          </div>
         </CardContent>
 
-        <CardFooter className="flex flex-col gap-4 border-t border-slate-100 bg-slate-50/70 p-6">
+        <CardFooter className="flex flex-col gap-4 bg-white p-6 pt-2 border-0">
           <Button
             type="submit"
             size="lg"
@@ -117,7 +104,7 @@ function LoginForm() {
             className="w-full gap-2"
           >
             {loading ? (
-              "Authenticating..."
+              "Signing In..."
             ) : (
               <>
                 <span>Sign In</span>
@@ -127,12 +114,12 @@ function LoginForm() {
           </Button>
 
           <p className="text-center text-xs text-slate-500">
-            Don&apos;t have a business account?{" "}
+            Don&apos;t have an account?{" "}
             <Link
               href="/signup"
               className="font-semibold text-[#024AE5] hover:underline"
             >
-              Register your Company
+              Sign Up
             </Link>
           </p>
         </CardFooter>

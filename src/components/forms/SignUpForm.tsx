@@ -6,24 +6,21 @@ import { signUpUser } from "@/actions/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select } from "@/components/ui/select";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { INDIAN_STATES, TITLES } from "@/data/states";
 import {
   User,
   Building2,
-  Lock,
-  Mail,
-  Phone,
-  Briefcase,
-  MapPin,
-  FileText,
   AlertCircle,
   CheckCircle2,
   ArrowRight,
-  ShieldCheck,
-  Sparkles,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -55,12 +52,17 @@ export function SignUpForm() {
     pincode: "",
   });
 
-  const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
-  ) => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData((prev) => ({
       ...prev,
       [e.target.name]: e.target.value,
+    }));
+  };
+
+  const handleSelectChange = (name: string, value: string) => {
+    setFormData((prev) => ({
+      ...prev,
+      [name]: value,
     }));
   };
 
@@ -81,7 +83,7 @@ export function SignUpForm() {
       if (res.error) {
         setError(res.error);
       } else if (res.success) {
-        setSuccess(res.message || "Account registered successfully!");
+        setSuccess(res.message || "Account created successfully!");
         setTimeout(() => {
           router.push("/login?registered=true");
         }, 2000);
@@ -97,34 +99,15 @@ export function SignUpForm() {
 
   return (
     <div className="w-full max-w-4xl mx-auto py-6">
-      <Card className="border-slate-200 bg-white shadow-xl">
-        <CardHeader className="space-y-2 border-b border-slate-100 bg-slate-50/70 p-6">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <div>
-              <CardTitle className="text-2xl font-bold tracking-tight text-slate-900">
-                B2B Client & Platform Registration
-              </CardTitle>
-              <CardDescription className="text-sm text-slate-500">
-                Register your business account for streamlined industrial orders and catalog access.
-              </CardDescription>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-slate-500 font-medium">Account Type:</span>
-              <select
-                name="role"
-                value={formData.role}
-                onChange={handleChange}
-                className="rounded-md border border-slate-200 bg-white px-2.5 py-1 text-xs font-semibold text-[#024AE5] shadow-xs focus:ring-1 focus:ring-[#024AE5]"
-              >
-                <option value="customer">B2B Customer / Buyer</option>
-                <option value="platform_owner">Platform Owner (Admin)</option>
-              </select>
-            </div>
-          </div>
+      <Card className="border border-slate-200 bg-white shadow-xl rounded-2xl">
+        <CardHeader className="bg-white p-6 pb-2 border-0">
+          <CardTitle className="text-2xl font-bold tracking-tight text-slate-900">
+            Sign Up
+          </CardTitle>
         </CardHeader>
 
         <form onSubmit={handleSubmit}>
-          <CardContent className="space-y-8 p-6 sm:p-8 bg-white">
+          <CardContent className="space-y-8 p-6 pt-4 bg-white">
             {error && (
               <div className="flex items-start gap-3 rounded-lg border border-red-500/20 bg-red-50 p-4 text-sm text-red-800">
                 <AlertCircle className="h-5 w-5 shrink-0 text-red-600" />
@@ -145,33 +128,35 @@ export function SignUpForm() {
               </div>
             )}
 
-            {/* SECTION 1: Personal & Official Details */}
+            {/* SECTION 1: Personal & Contact Information */}
             <div className="space-y-4">
               <div className="flex items-center gap-2 border-b border-slate-100 pb-2">
                 <div className="flex h-7 w-7 items-center justify-center rounded-full bg-blue-50 text-[#024AE5]">
                   <User className="h-4 w-4" />
                 </div>
-                <h3 className="text-base font-semibold text-slate-900">
-                  1. Personal & Contact Information
+                <h3 className="text-sm font-bold uppercase tracking-wider text-slate-800">
+                  1. Contact Information
                 </h3>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-12 gap-4">
-                {/* Title */}
+                {/* Title (shadcn Select) */}
                 <div className="sm:col-span-3 space-y-1.5">
-                  <Label htmlFor="title">Title *</Label>
+                  <Label>Title *</Label>
                   <Select
-                    id="title"
-                    name="title"
                     value={formData.title}
-                    onChange={handleChange}
-                    required
+                    onValueChange={(val) => handleSelectChange("title", val)}
                   >
-                    {TITLES.map((t) => (
-                      <option key={t} value={t}>
-                        {t}
-                      </option>
-                    ))}
+                    <SelectTrigger>
+                      <SelectValue placeholder="Title" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {TITLES.map((t) => (
+                        <SelectItem key={t} value={t}>
+                          {t}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
                   </Select>
                 </div>
 
@@ -181,9 +166,9 @@ export function SignUpForm() {
                   <Input
                     id="first_name"
                     name="first_name"
-                    placeholder="e.g. Rajesh"
+                    placeholder="First Name"
                     value={formData.first_name}
-                    onChange={handleChange}
+                    onChange={handleInputChange}
                     required
                   />
                 </div>
@@ -194,9 +179,9 @@ export function SignUpForm() {
                   <Input
                     id="last_name"
                     name="last_name"
-                    placeholder="e.g. Sharma"
+                    placeholder="Last Name"
                     value={formData.last_name}
-                    onChange={handleChange}
+                    onChange={handleInputChange}
                     required
                   />
                 </div>
@@ -207,9 +192,9 @@ export function SignUpForm() {
                   <Input
                     id="department"
                     name="department"
-                    placeholder="e.g. Procurement / Maintenance"
+                    placeholder="e.g. Procurement"
                     value={formData.department}
-                    onChange={handleChange}
+                    onChange={handleInputChange}
                     required
                   />
                 </div>
@@ -220,23 +205,23 @@ export function SignUpForm() {
                   <Input
                     id="designation"
                     name="designation"
-                    placeholder="e.g. Senior Purchase Manager"
+                    placeholder="e.g. Purchase Manager"
                     value={formData.designation}
-                    onChange={handleChange}
+                    onChange={handleInputChange}
                     required
                   />
                 </div>
 
                 {/* Mobile */}
                 <div className="sm:col-span-6 space-y-1.5">
-                  <Label htmlFor="mobile">Mobile Number *</Label>
+                  <Label htmlFor="mobile">Mobile *</Label>
                   <Input
                     id="mobile"
                     name="mobile"
                     type="tel"
-                    placeholder="e.g. 9876543210"
+                    placeholder="10-digit mobile"
                     value={formData.mobile}
-                    onChange={handleChange}
+                    onChange={handleInputChange}
                     required
                   />
                 </div>
@@ -251,9 +236,9 @@ export function SignUpForm() {
                     id="landline"
                     name="landline"
                     type="tel"
-                    placeholder="e.g. 022-28471234"
+                    placeholder="Landline number"
                     value={formData.landline}
-                    onChange={handleChange}
+                    onChange={handleInputChange}
                   />
                 </div>
 
@@ -264,9 +249,9 @@ export function SignUpForm() {
                     id="email"
                     name="email"
                     type="email"
-                    placeholder="e.g. rajesh@company.com"
+                    placeholder="name@company.com"
                     value={formData.email}
-                    onChange={handleChange}
+                    onChange={handleInputChange}
                     required
                   />
                 </div>
@@ -280,7 +265,7 @@ export function SignUpForm() {
                     type="password"
                     placeholder="Minimum 6 characters"
                     value={formData.password}
-                    onChange={handleChange}
+                    onChange={handleInputChange}
                     required
                   />
                 </div>
@@ -294,7 +279,7 @@ export function SignUpForm() {
                     type="password"
                     placeholder="Re-enter password"
                     value={formData.confirm_password}
-                    onChange={handleChange}
+                    onChange={handleInputChange}
                     required
                   />
                 </div>
@@ -307,8 +292,8 @@ export function SignUpForm() {
                 <div className="flex h-7 w-7 items-center justify-center rounded-full bg-emerald-50 text-[#3C8B4F]">
                   <Building2 className="h-4 w-4" />
                 </div>
-                <h3 className="text-base font-semibold text-slate-900">
-                  2. Company & Location Details
+                <h3 className="text-sm font-bold uppercase tracking-wider text-slate-800">
+                  2. Company Details
                 </h3>
               </div>
 
@@ -319,9 +304,9 @@ export function SignUpForm() {
                   <Input
                     id="company_name"
                     name="company_name"
-                    placeholder="e.g. Apex Precision Engineering Pvt Ltd"
+                    placeholder="Company Name"
                     value={formData.company_name}
-                    onChange={handleChange}
+                    onChange={handleInputChange}
                     required
                   />
                 </div>
@@ -335,9 +320,9 @@ export function SignUpForm() {
                   <Input
                     id="gstin"
                     name="gstin"
-                    placeholder="e.g. 27AAAAA0000A1Z5"
+                    placeholder="GSTIN Number"
                     value={formData.gstin}
-                    onChange={handleChange}
+                    onChange={handleInputChange}
                   />
                 </div>
 
@@ -347,9 +332,9 @@ export function SignUpForm() {
                   <Input
                     id="company_address"
                     name="company_address"
-                    placeholder="Plot No, Industrial Estate, Main Road"
+                    placeholder="Plot / Street / Area"
                     value={formData.company_address}
-                    onChange={handleChange}
+                    onChange={handleInputChange}
                     required
                   />
                 </div>
@@ -357,15 +342,15 @@ export function SignUpForm() {
                 {/* Additional Address (Optional) */}
                 <div className="sm:col-span-12 space-y-1.5">
                   <div className="flex items-center justify-between">
-                    <Label htmlFor="additional_address">Additional Address / Unit No.</Label>
+                    <Label htmlFor="additional_address">Additional Address</Label>
                     <span className="text-[10px] text-slate-400 font-medium">Optional</span>
                   </div>
                   <Input
                     id="additional_address"
                     name="additional_address"
-                    placeholder="Floor, Block, Warehouse Number"
+                    placeholder="Building / Floor / Unit"
                     value={formData.additional_address}
-                    onChange={handleChange}
+                    onChange={handleInputChange}
                   />
                 </div>
 
@@ -375,28 +360,30 @@ export function SignUpForm() {
                   <Input
                     id="city"
                     name="city"
-                    placeholder="e.g. Pune"
+                    placeholder="City"
                     value={formData.city}
-                    onChange={handleChange}
+                    onChange={handleInputChange}
                     required
                   />
                 </div>
 
-                {/* State Dropdown */}
+                {/* State Dropdown (shadcn Select) */}
                 <div className="sm:col-span-4 space-y-1.5">
-                  <Label htmlFor="state">State *</Label>
+                  <Label>State *</Label>
                   <Select
-                    id="state"
-                    name="state"
                     value={formData.state}
-                    onChange={handleChange}
-                    required
+                    onValueChange={(val) => handleSelectChange("state", val)}
                   >
-                    {INDIAN_STATES.map((s) => (
-                      <option key={s} value={s}>
-                        {s}
-                      </option>
-                    ))}
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select State" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {INDIAN_STATES.map((s) => (
+                        <SelectItem key={s} value={s}>
+                          {s}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
                   </Select>
                 </div>
 
@@ -406,9 +393,9 @@ export function SignUpForm() {
                   <Input
                     id="pincode"
                     name="pincode"
-                    placeholder="e.g. 411001"
+                    placeholder="Pincode"
                     value={formData.pincode}
-                    onChange={handleChange}
+                    onChange={handleInputChange}
                     required
                   />
                 </div>
@@ -416,11 +403,11 @@ export function SignUpForm() {
             </div>
           </CardContent>
 
-          <CardFooter className="flex flex-col sm:flex-row items-center justify-between gap-4 border-t border-slate-100 bg-slate-50/70 p-6">
+          <CardFooter className="flex flex-col sm:flex-row items-center justify-between gap-4 bg-white p-6 pt-2 border-0">
             <p className="text-xs text-slate-500">
               Already registered?{" "}
               <Link href="/login" className="font-semibold text-[#024AE5] hover:underline">
-                Log In here
+                Sign In
               </Link>
             </p>
             <Button
@@ -431,7 +418,7 @@ export function SignUpForm() {
               className="w-full sm:w-auto gap-2"
             >
               {loading ? (
-                "Creating Business Account..."
+                "Creating Account..."
               ) : (
                 <>
                   <span>Create Account</span>
