@@ -173,14 +173,14 @@ export function AdminSidebar() {
                 href={item.href}
                 title={collapsed ? item.title : undefined}
                 className={cn(
-                  "flex items-center gap-3 rounded-lg px-3 py-2 text-xs font-medium transition-colors",
+                  "flex items-center gap-3.5 rounded-lg px-3.5 py-2.5 text-sm font-medium transition-colors",
                   isActive
                     ? "bg-[#024AE5]/10 text-[#024AE5] font-semibold"
                     : "text-slate-700 hover:bg-slate-50 hover:text-slate-900",
                   collapsed && "justify-center px-2"
                 )}
               >
-                <Icon className={cn("h-4 w-4 shrink-0", isActive ? "text-[#024AE5]" : "text-slate-500")} />
+                <Icon className={cn("h-5 w-5 shrink-0", isActive ? "text-[#024AE5]" : "text-slate-500")} />
                 {!collapsed && <span className="truncate">{item.title}</span>}
               </Link>
             );
@@ -198,21 +198,21 @@ export function AdminSidebar() {
                 onClick={() => toggleSection(item.id)}
                 title={collapsed ? item.title : undefined}
                 className={cn(
-                  "flex w-full items-center justify-between rounded-lg px-3 py-2 text-xs font-semibold transition-colors cursor-pointer",
+                  "flex w-full items-center justify-between rounded-lg px-3.5 py-2.5 text-sm font-medium transition-colors cursor-pointer",
                   isSectionActive && !isOpen
-                    ? "bg-[#024AE5]/10 text-[#024AE5]"
+                    ? "bg-[#024AE5]/10 text-[#024AE5] font-semibold"
                     : "text-slate-800 hover:bg-slate-50 hover:text-slate-900",
                   collapsed && "justify-center px-2"
                 )}
               >
-                <div className="flex items-center gap-3">
-                  <Icon className={cn("h-4 w-4 shrink-0", isSectionActive ? "text-[#024AE5]" : "text-slate-600")} />
+                <div className="flex items-center gap-3.5">
+                  <Icon className={cn("h-5 w-5 shrink-0", isSectionActive ? "text-[#024AE5]" : "text-slate-600")} />
                   {!collapsed && <span className="truncate">{item.title}</span>}
                 </div>
                 {!collapsed && (
                   <ChevronDown
                     className={cn(
-                      "h-3.5 w-3.5 text-slate-400 transition-transform duration-200",
+                      "h-4 w-4 text-slate-400 transition-transform duration-200",
                       isOpen && "rotate-180 text-slate-700"
                     )}
                   />
@@ -221,7 +221,7 @@ export function AdminSidebar() {
 
               {/* Dropdown Children */}
               {!collapsed && isOpen && item.subItems && (
-                <div className="pl-7 pr-2 space-y-0.5 border-l-2 border-slate-100 ml-4 py-0.5 animate-in fade-in-50 duration-150">
+                <div className="pl-8 pr-2 space-y-0.5 border-l-2 border-slate-100 ml-5 py-1 animate-in fade-in-50 duration-150">
                   {item.subItems.map((sub) => {
                     const isChildActive = pathname === sub.href || pathname.startsWith(sub.href + "/");
                     return (
@@ -229,7 +229,7 @@ export function AdminSidebar() {
                         key={sub.href}
                         href={sub.href}
                         className={cn(
-                          "flex items-center rounded-md px-2.5 py-1.5 text-[11px] font-medium transition-colors",
+                          "flex items-center rounded-md px-3 py-1.5 text-xs font-medium transition-colors",
                           isChildActive
                             ? "bg-[#024AE5]/10 text-[#024AE5] font-semibold"
                             : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"

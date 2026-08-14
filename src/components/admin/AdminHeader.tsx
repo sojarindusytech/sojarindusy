@@ -1,10 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { Search, Bell, Headphones, User, LogOut, Menu } from "lucide-react";
+import { Search, Bell, User, ChevronDown, Menu } from "lucide-react";
 import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { signOutUser } from "@/actions/auth";
 
 interface AdminHeaderProps {
   userEmail?: string;
@@ -13,7 +11,7 @@ interface AdminHeaderProps {
 }
 
 export function AdminHeader({
-  userName = "Admin User",
+  userName = "Super Admin",
   onToggleSidebar,
 }: AdminHeaderProps) {
   const [searchValue, setSearchValue] = useState("");
@@ -43,8 +41,8 @@ export function AdminHeader({
         </div>
       </div>
 
-      {/* Right Action Icons & User Profile */}
-      <div className="flex items-center gap-4">
+      {/* Right: Notification Bell + Sojar Indusy Super Admin Profile with Dropdown */}
+      <div className="flex items-center gap-5">
         {/* Notification Bell with Badge */}
         <button
           type="button"
@@ -57,42 +55,24 @@ export function AdminHeader({
           </span>
         </button>
 
-        {/* Support Link */}
+        {/* Sojar Indusy Super Admin Profile Pill with Dropdown indicator */}
         <button
           type="button"
-          className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-50 rounded-lg transition-colors cursor-pointer"
+          className="flex items-center gap-2.5 pl-3 py-1 text-left rounded-lg hover:bg-slate-50 transition-colors cursor-pointer"
         >
-          <Headphones className="h-4 w-4 text-slate-500" />
-          <span>Support</span>
-        </button>
-
-        {/* User Pill */}
-        <div className="flex items-center gap-3 pl-2 border-l border-slate-200">
-          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-100 text-slate-600 font-semibold">
+          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-100 text-slate-600">
             <User className="h-4 w-4" />
           </div>
-          <div className="hidden md:flex flex-col text-left">
+          <div className="flex flex-col">
             <span className="text-xs font-semibold text-slate-900 leading-tight">
-              {userName}
+              Sojar Indusy
             </span>
             <span className="text-[10px] font-medium text-slate-400 leading-tight">
               Super Admin
             </span>
           </div>
-
-          {/* Quick Sign Out */}
-          <form action={signOutUser}>
-            <Button
-              type="submit"
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8 text-slate-400 hover:text-red-600 hover:bg-red-50"
-              title="Sign Out"
-            >
-              <LogOut className="h-4 w-4" />
-            </Button>
-          </form>
-        </div>
+          <ChevronDown className="h-3.5 w-3.5 text-slate-400 ml-1" />
+        </button>
       </div>
     </header>
   );
