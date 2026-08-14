@@ -7,24 +7,10 @@ import {
   LayoutDashboard,
   Users,
   Package,
-  Tags,
-  UploadCloud,
-  ShoppingCart,
   ShoppingBag,
-  ListOrdered,
-  RotateCcw,
-  Truck,
   FileSpreadsheet,
-  MessageSquareQuote,
-  FileMinus,
-  FilePlus,
-  FileCheck,
-  DollarSign,
-  ClipboardCheck,
   BookOpen,
-  BookMarked,
   BarChart3,
-  ShieldAlert,
   ChevronLeft,
   ChevronRight,
   ChevronDown,
@@ -37,78 +23,79 @@ interface SubItem {
   href: string;
 }
 
-interface NavItem {
+interface NavSectionItem {
+  id: string;
   title: string;
-  href: string;
+  href?: string;
   icon: React.ComponentType<{ className?: string }>;
   subItems?: SubItem[];
 }
 
-interface NavGroup {
-  groupTitle?: string;
-  items: NavItem[];
-}
-
-const navGroups: NavGroup[] = [
+const navItems: NavSectionItem[] = [
   {
-    items: [
-      { title: "Dashboard", href: "/admin/dashboard", icon: LayoutDashboard },
-      { title: "Customers", href: "/admin/customers", icon: Users },
+    id: "dashboard",
+    title: "Dashboard",
+    href: "/admin/dashboard",
+    icon: LayoutDashboard,
+  },
+  {
+    id: "customers",
+    title: "Customers",
+    href: "/admin/customers",
+    icon: Users,
+  },
+  {
+    id: "products",
+    title: "Product Management",
+    icon: Package,
+    subItems: [
+      { title: "Products", href: "/admin/products" },
+      { title: "Categories / Variants", href: "/admin/categories" },
+      { title: "Product Upload", href: "/admin/product-upload" },
     ],
   },
   {
-    groupTitle: "Product Management",
-    items: [
-      { title: "Products", href: "/admin/products", icon: Package },
-      {
-        title: "Categories / Variants",
-        href: "/admin/categories",
-        icon: Tags,
-        subItems: [
-          { title: "Overview", href: "/admin/categories" },
-          { title: "Tool Types", href: "/admin/categories/tool-types" },
-          { title: "Flute Configurations", href: "/admin/categories/flute-types" },
-          { title: "Material Grades & HRC", href: "/admin/categories/material-grades" },
-          { title: "Coatings & Treatments", href: "/admin/categories/coatings" },
-        ],
-      },
-      { title: "Product Upload", href: "/admin/product-upload", icon: UploadCloud },
+    id: "orders",
+    title: "Orders",
+    icon: ShoppingBag,
+    subItems: [
+      { title: "Sales Orders", href: "/admin/sales-orders" },
+      { title: "Purchase Orders", href: "/admin/purchase-orders" },
+      { title: "Order List", href: "/admin/orders" },
+      { title: "Order Returns", href: "/admin/order-returns" },
+      { title: "Dispatch / Delivery", href: "/admin/dispatch" },
     ],
   },
   {
-    groupTitle: "Orders",
-    items: [
-      { title: "Sales Orders", href: "/admin/sales-orders", icon: ShoppingCart },
-      { title: "Purchase Orders", href: "/admin/purchase-orders", icon: ShoppingBag },
-      { title: "Order List", href: "/admin/orders", icon: ListOrdered },
-      { title: "Order Returns", href: "/admin/order-returns", icon: RotateCcw },
-      { title: "Dispatch / Delivery", href: "/admin/dispatch", icon: Truck },
+    id: "sales",
+    title: "Sales",
+    icon: FileSpreadsheet,
+    subItems: [
+      { title: "Invoice", href: "/admin/invoices" },
+      { title: "Quotes", href: "/admin/quotes" },
+      { title: "Debit Note", href: "/admin/debit-notes" },
+      { title: "Credit Note", href: "/admin/credit-notes" },
+      { title: "E-Way Bill", href: "/admin/eway-bills" },
+      { title: "Expense", href: "/admin/expenses" },
+      { title: "Delivery (Challan)", href: "/admin/delivery-challans" },
     ],
   },
   {
-    groupTitle: "Sales",
-    items: [
-      { title: "Invoice", href: "/admin/invoices", icon: FileSpreadsheet },
-      { title: "Quotes", href: "/admin/quotes", icon: MessageSquareQuote },
-      { title: "Debit Note", href: "/admin/debit-notes", icon: FileMinus },
-      { title: "Credit Note", href: "/admin/credit-notes", icon: FilePlus },
-      { title: "E-Way Bill", href: "/admin/eway-bills", icon: FileCheck },
-      { title: "Expense", href: "/admin/expenses", icon: DollarSign },
-      { title: "Delivery (Challan)", href: "/admin/delivery-challans", icon: ClipboardCheck },
+    id: "ledger",
+    title: "Ledger",
+    icon: BookOpen,
+    subItems: [
+      { title: "General Ledger", href: "/admin/general-ledger" },
+      { title: "Party Ledger", href: "/admin/party-ledger" },
     ],
   },
   {
-    groupTitle: "Ledger",
-    items: [
-      { title: "General Ledger", href: "/admin/general-ledger", icon: BookOpen },
-      { title: "Party Ledger", href: "/admin/party-ledger", icon: BookMarked },
-    ],
-  },
-  {
-    groupTitle: "Analytics & Logs",
-    items: [
-      { title: "Reports", href: "/admin/reports", icon: BarChart3 },
-      { title: "Audit Log", href: "/admin/audit-logs", icon: ShieldAlert },
+    id: "analytics",
+    title: "Analytics & Logs",
+    icon: BarChart3,
+    subItems: [
+      { title: "Reports", href: "/admin/reports" },
+      { title: "Audit Log", href: "/admin/audit-logs" },
     ],
   },
 ];
@@ -116,28 +103,39 @@ const navGroups: NavGroup[] = [
 export function AdminSidebar() {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
-  const [openDropdowns, setOpenDropdowns] = useState<Record<string, boolean>>({
-    "/admin/categories": true,
+
+  // Maintain open/closed state for each dropdown section
+  const [openSections, setOpenSections] = useState<Record<string, boolean>>({
+    products: true,
+    orders: true,
+    sales: true,
+    ledger: true,
+    analytics: true,
   });
 
-  // Auto-expand category dropdown if user is on any category sub-route
+  // Automatically expand the section that contains the current active route
   useEffect(() => {
-    if (pathname.startsWith("/admin/categories")) {
-      setOpenDropdowns((prev) => ({ ...prev, "/admin/categories": true }));
-    }
+    navItems.forEach((item) => {
+      if (item.subItems) {
+        const isChildActive = item.subItems.some((sub) => pathname.startsWith(sub.href));
+        if (isChildActive) {
+          setOpenSections((prev) => ({ ...prev, [item.id]: true }));
+        }
+      }
+    });
   }, [pathname]);
 
-  const toggleDropdown = (href: string) => {
-    setOpenDropdowns((prev) => ({
+  const toggleSection = (id: string) => {
+    setOpenSections((prev) => ({
       ...prev,
-      [href]: !prev[href],
+      [id]: !prev[id],
     }));
   };
 
   return (
     <aside
       className={cn(
-        "relative flex flex-col border-r border-slate-200 bg-white transition-all duration-300 z-30 shrink-0",
+        "relative flex flex-col border-r border-slate-200 bg-white transition-all duration-300 z-30 shrink-0 select-none",
         collapsed ? "w-16" : "w-64"
       )}
     >
@@ -170,93 +168,91 @@ export function AdminSidebar() {
       )}
 
       {/* Scrollable Nav List */}
-      <div className="flex-1 overflow-y-auto px-3 py-2 space-y-4">
-        {navGroups.map((group, idx) => (
-          <div key={idx} className="space-y-1">
-            {group.groupTitle && !collapsed && (
-              <div className="px-3 pt-2 pb-1 text-[11px] font-bold text-slate-500 uppercase tracking-wide">
-                {group.groupTitle}
-              </div>
-            )}
-            {group.items.map((item) => {
-              const hasSubItems = item.subItems && item.subItems.length > 0;
-              const isParentActive = hasSubItems
-                ? pathname.startsWith(item.href)
-                : pathname === item.href;
-              const isDropdownOpen = !!openDropdowns[item.href];
-              const Icon = item.icon;
+      <div className="flex-1 overflow-y-auto px-3 py-2 space-y-1.5">
+        {navItems.map((item) => {
+          const Icon = item.icon;
+          const hasSubItems = item.subItems && item.subItems.length > 0;
 
-              if (hasSubItems && !collapsed) {
-                return (
-                  <div key={item.href} className="space-y-1">
-                    <button
-                      type="button"
-                      onClick={() => toggleDropdown(item.href)}
-                      className={cn(
-                        "flex w-full items-center justify-between rounded-lg px-3 py-2 text-xs font-medium transition-colors cursor-pointer",
-                        isParentActive
-                          ? "bg-[#024AE5]/10 text-[#024AE5] font-semibold"
-                          : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
-                      )}
-                    >
-                      <div className="flex items-center gap-3">
-                        <Icon className={cn("h-4 w-4 shrink-0", isParentActive ? "text-[#024AE5]" : "text-slate-500")} />
-                        <span className="truncate">{item.title}</span>
-                      </div>
-                      <ChevronDown
-                        className={cn(
-                          "h-3.5 w-3.5 text-slate-400 transition-transform duration-200",
-                          isDropdownOpen && "rotate-180 text-slate-700"
-                        )}
-                      />
-                    </button>
+          // Single Direct Route (Dashboard, Customers)
+          if (!hasSubItems && item.href) {
+            const isActive = pathname === item.href;
+            return (
+              <Link
+                key={item.id}
+                href={item.href}
+                title={collapsed ? item.title : undefined}
+                className={cn(
+                  "flex items-center gap-3 rounded-lg px-3 py-2 text-xs font-medium transition-colors",
+                  isActive
+                    ? "bg-[#024AE5]/10 text-[#024AE5] font-semibold"
+                    : "text-slate-700 hover:bg-slate-50 hover:text-slate-900",
+                  collapsed && "justify-center px-2"
+                )}
+              >
+                <Icon className={cn("h-4 w-4 shrink-0", isActive ? "text-[#024AE5]" : "text-slate-500")} />
+                {!collapsed && <span className="truncate">{item.title}</span>}
+              </Link>
+            );
+          }
 
-                    {/* Collapsible Sub Items */}
-                    {isDropdownOpen && (
-                      <div className="pl-7 pr-2 space-y-0.5 animate-in fade-in-50 duration-150 border-l border-slate-200 ml-4">
-                        {item.subItems?.map((sub) => {
-                          const isSubActive = pathname === sub.href;
-                          return (
-                            <Link
-                              key={sub.href}
-                              href={sub.href}
-                              className={cn(
-                                "flex items-center rounded-md px-2.5 py-1.5 text-[11px] font-medium transition-colors",
-                                isSubActive
-                                  ? "bg-[#024AE5] text-white font-semibold shadow-xs"
-                                  : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
-                              )}
-                            >
-                              <span className="truncate">{sub.title}</span>
-                            </Link>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </div>
-                );
-              }
+          // Dropdown Section (Product Management, Orders, Sales, Ledger, Analytics & Logs)
+          const isOpen = !!openSections[item.id];
+          const isSectionActive = item.subItems?.some((sub) => pathname === sub.href || pathname.startsWith(sub.href + "/"));
 
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  title={collapsed ? item.title : undefined}
-                  className={cn(
-                    "flex items-center gap-3 rounded-lg px-3 py-2 text-xs font-medium transition-colors",
-                    isParentActive
-                      ? "bg-[#024AE5]/10 text-[#024AE5] font-semibold"
-                      : "text-slate-600 hover:bg-slate-50 hover:text-slate-900",
-                    collapsed && "justify-center px-2"
-                  )}
-                >
-                  <Icon className={cn("h-4 w-4 shrink-0", isParentActive ? "text-[#024AE5]" : "text-slate-500")} />
+          return (
+            <div key={item.id} className="space-y-0.5">
+              {/* Dropdown Header Row */}
+              <button
+                type="button"
+                onClick={() => toggleSection(item.id)}
+                title={collapsed ? item.title : undefined}
+                className={cn(
+                  "flex w-full items-center justify-between rounded-lg px-3 py-2 text-xs font-semibold transition-colors cursor-pointer",
+                  isSectionActive && !isOpen
+                    ? "bg-[#024AE5]/10 text-[#024AE5]"
+                    : "text-slate-800 hover:bg-slate-50 hover:text-slate-900",
+                  collapsed && "justify-center px-2"
+                )}
+              >
+                <div className="flex items-center gap-3">
+                  <Icon className={cn("h-4 w-4 shrink-0", isSectionActive ? "text-[#024AE5]" : "text-slate-600")} />
                   {!collapsed && <span className="truncate">{item.title}</span>}
-                </Link>
-              );
-            })}
-          </div>
-        ))}
+                </div>
+                {!collapsed && (
+                  <ChevronDown
+                    className={cn(
+                      "h-3.5 w-3.5 text-slate-400 transition-transform duration-200",
+                      isOpen && "rotate-180 text-slate-700"
+                    )}
+                  />
+                )}
+              </button>
+
+              {/* Dropdown Children */}
+              {!collapsed && isOpen && item.subItems && (
+                <div className="pl-7 pr-2 space-y-0.5 border-l-2 border-slate-100 ml-4 py-0.5 animate-in fade-in-50 duration-150">
+                  {item.subItems.map((sub) => {
+                    const isChildActive = pathname === sub.href || pathname.startsWith(sub.href + "/");
+                    return (
+                      <Link
+                        key={sub.href}
+                        href={sub.href}
+                        className={cn(
+                          "flex items-center rounded-md px-2.5 py-1.5 text-[11px] font-medium transition-colors",
+                          isChildActive
+                            ? "bg-[#024AE5]/10 text-[#024AE5] font-semibold"
+                            : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+                        )}
+                      >
+                        <span className="truncate">{sub.title}</span>
+                      </Link>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          );
+        })}
       </div>
 
       {/* Collapse Toggle Footer */}
