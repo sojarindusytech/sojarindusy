@@ -9,7 +9,6 @@ import {
   APPROVAL_STATUS_CONFIG,
   USER_TITLES,
   COMMERCIAL_DEFAULTS,
-  DEPARTMENT_OPTIONS,
   INDIAN_STATES,
   ApprovalStatus,
   UserType,
@@ -111,13 +110,13 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
     targetStatus: ApprovalStatus;
   } | null>(null);
 
-  // Add Customer Form State (Reusing SignUp Form fields)
+  // Add Customer Form State (Reusing SignUp Form fields with plain text inputs)
   const [formValues, setFormValues] = useState({
     title: USER_TITLES[0] as UserTitle,
     first_name: "",
     last_name: "",
-    department: "Procurement",
-    designation: "Commercial Manager",
+    department: "",
+    designation: "",
     mobile: "",
     landline: "",
     email: "",
@@ -153,8 +152,8 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
       title: USER_TITLES[0],
       first_name: "",
       last_name: "",
-      department: "Procurement",
-      designation: "Commercial Manager",
+      department: "",
+      designation: "",
       mobile: "",
       landline: "",
       email: "",
@@ -1060,20 +1059,20 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* ADD CUSTOMER MODAL (Reusing SignUp Form Design & Removing Unwanted Text) */}
+      {/* ADD CUSTOMER MODAL (Compact 2-Step Wizard with Text Inputs & Offline Credit Fields) */}
       {isAddModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-xs p-4 overflow-y-auto">
-          <div className="relative w-full max-w-xl rounded-2xl bg-white p-6 shadow-2xl border border-slate-200 my-8 animate-in fade-in zoom-in-95 duration-150">
+          <div className="relative w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl border border-slate-200 my-8 max-h-[90vh] overflow-y-auto animate-in fade-in zoom-in-95 duration-150">
             {/* Modal Header */}
-            <div className="flex items-center justify-between border-b border-slate-100 pb-4 mb-4">
-              <div className="flex items-center gap-3">
-                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-slate-100 text-slate-700 border border-slate-200/80">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3.5 mb-4">
+              <div className="flex items-center gap-2.5">
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-slate-700 border border-slate-200/80">
                   <UserPlus className="h-4 w-4 text-slate-600" />
                 </div>
                 <div>
                   <h2 className="text-base font-bold text-slate-900">Add Customer</h2>
-                  <p className="text-xs text-slate-500">
-                    Step {addModalStep} of 2 • {addModalStep === 1 ? "User Details" : "Company & Billing Details"}
+                  <p className="text-[11px] text-slate-500">
+                    Step {addModalStep} of 2 • {addModalStep === 1 ? "User Details" : "Company & Credit Terms"}
                   </p>
                 </div>
               </div>
@@ -1086,19 +1085,19 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
                 }}
                 className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700 cursor-pointer"
               >
-                <X className="h-5 w-5" />
+                <X className="h-4 w-4" />
               </button>
             </div>
 
             {/* Error & Success Messages */}
             {formError && (
-              <div className="mb-4 flex items-start gap-2.5 rounded-lg border border-red-500/20 bg-red-50 p-3 text-xs text-red-800">
+              <div className="mb-3.5 flex items-start gap-2.5 rounded-lg border border-red-500/20 bg-red-50 p-2.5 text-xs text-red-800">
                 <AlertCircle className="h-4 w-4 shrink-0 text-red-600 mt-0.5" />
                 <p>{formError}</p>
               </div>
             )}
             {formSuccess && (
-              <div className="mb-4 flex items-start gap-2.5 rounded-lg border border-emerald-500/20 bg-emerald-50 p-3 text-xs text-emerald-800">
+              <div className="mb-3.5 flex items-start gap-2.5 rounded-lg border border-emerald-500/20 bg-emerald-50 p-2.5 text-xs text-emerald-800">
                 <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600 mt-0.5" />
                 <p>{formSuccess}</p>
               </div>
@@ -1109,7 +1108,7 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
               {addModalStep === 1 && (
                 <div className="space-y-3 animate-in fade-in-50 duration-200">
                   {/* Title & Name */}
-                  <div className="grid grid-cols-1 sm:grid-cols-12 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-12 gap-2.5">
                     <div className="sm:col-span-3 space-y-1">
                       <Label className="text-xs">Title *</Label>
                       <Select
@@ -1152,25 +1151,18 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
                     </div>
                   </div>
 
-                  {/* Department & Designation */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {/* Department & Designation (Plain Inputs matching SignUpForm) */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                     <div className="space-y-1">
                       <Label className="text-xs">Department *</Label>
-                      <Select
+                      <Input
+                        name="department"
                         value={formValues.department}
-                        onValueChange={(val) => handleSelectChange("department", val)}
-                      >
-                        <SelectTrigger className="h-9 text-xs bg-white border-slate-200">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {DEPARTMENT_OPTIONS.map((d) => (
-                            <SelectItem key={d} value={d}>
-                              {d}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                        onChange={handleInputChange}
+                        placeholder="Procurement / Machining"
+                        required
+                        className="h-9 text-xs border-slate-200"
+                      />
                     </div>
 
                     <div className="space-y-1">
@@ -1179,6 +1171,7 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
                         name="designation"
                         value={formValues.designation}
                         onChange={handleInputChange}
+                        placeholder="Commercial Manager"
                         required
                         className="h-9 text-xs border-slate-200"
                       />
@@ -1186,7 +1179,7 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
                   </div>
 
                   {/* Mobile & Landline */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                     <div className="space-y-1">
                       <Label className="text-xs">Mobile *</Label>
                       <Input
@@ -1229,7 +1222,7 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
                   </div>
 
                   {/* Footer 1 */}
-                  <div className="flex items-center justify-between pt-4 border-t border-slate-100 mt-4">
+                  <div className="flex items-center justify-between pt-3.5 border-t border-slate-100 mt-4">
                     <Button
                       type="button"
                       variant="outline"
@@ -1255,7 +1248,7 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
                 </div>
               )}
 
-              {/* STEP 2: COMPANY & COMMERCIAL DETAILS */}
+              {/* STEP 2: COMPANY & CREDIT DETAILS */}
               {addModalStep === 2 && (
                 <div className="space-y-3 animate-in fade-in-50 duration-200">
                   {/* Company Name */}
@@ -1311,7 +1304,7 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
                   </div>
 
                   {/* City, State, PIN */}
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
                     <div className="space-y-1">
                       <Label className="text-xs">City *</Label>
                       <Input
@@ -1332,7 +1325,7 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
                         <SelectTrigger className="h-9 text-xs bg-white border-slate-200">
                           <SelectValue placeholder="State" />
                         </SelectTrigger>
-                        <SelectContent className="max-h-60">
+                        <SelectContent className="max-h-56">
                           {INDIAN_STATES.map((s) => (
                             <SelectItem key={s} value={s}>
                               {s}
@@ -1354,41 +1347,40 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
                     </div>
                   </div>
 
-                  {/* Commercial Credit Terms */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
-                    <div className="space-y-1">
-                      <Label className="text-xs">Credit Limit (₹)</Label>
-                      <Input
-                        name="credit_limit"
-                        type="number"
-                        value={formValues.credit_limit}
-                        onChange={handleInputChange}
-                        className="h-9 text-xs border-slate-200 font-semibold"
-                      />
-                    </div>
+                  {/* Credit Terms for Offline Customers */}
+                  <div className="pt-2 border-t border-slate-100 space-y-2">
+                    <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-600 block">
+                      Credit Parameters (Offline Account)
+                    </span>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                      <div className="space-y-1">
+                        <Label className="text-xs">Credit Limit (₹) *</Label>
+                        <Input
+                          name="credit_limit"
+                          type="number"
+                          value={formValues.credit_limit}
+                          onChange={handleInputChange}
+                          required
+                          className="h-9 text-xs border-slate-200 font-semibold"
+                        />
+                      </div>
 
-                    <div className="space-y-1">
-                      <Label className="text-xs">Credit Terms</Label>
-                      <Select
-                        value={formValues.credit_days}
-                        onValueChange={(val) => handleSelectChange("credit_days", val)}
-                      >
-                        <SelectTrigger className="h-9 text-xs bg-white border-slate-200">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {COMMERCIAL_DEFAULTS.CREDIT_DAYS_OPTIONS.map((days) => (
-                            <SelectItem key={days} value={String(days)}>
-                              {days} Days Net
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <div className="space-y-1">
+                        <Label className="text-xs">Payment Terms (Days Net) *</Label>
+                        <Input
+                          name="credit_days"
+                          type="number"
+                          value={formValues.credit_days}
+                          onChange={handleInputChange}
+                          required
+                          className="h-9 text-xs border-slate-200 font-semibold"
+                        />
+                      </div>
                     </div>
                   </div>
 
                   {/* Footer 2 */}
-                  <div className="flex items-center justify-between pt-4 border-t border-slate-100 mt-4">
+                  <div className="flex items-center justify-between pt-3.5 border-t border-slate-100 mt-4">
                     <Button
                       type="button"
                       variant="outline"
