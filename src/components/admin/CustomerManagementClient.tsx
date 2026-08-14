@@ -59,7 +59,6 @@ import {
   Calendar,
   ChevronLeft,
   ChevronRight,
-  ShieldCheck,
 } from "lucide-react";
 
 interface CustomerManagementClientProps {
@@ -298,11 +297,11 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
             onClick={() => {
               const csvContent =
                 "data:text/csv;charset=utf-8," +
-                ["Company,Name,Email,Mobile,GSTIN,City,State,Registered Date,Type,Status,Credit Limit"]
+                ["Company,Name,Email,Mobile,GSTIN,City,State,Registered Date,Type,Status"]
                   .concat(
                     filteredAndSortedCustomers.map(
                       (c) =>
-                        `"${c.company_name}","${c.title} ${c.first_name} ${c.last_name}","${c.email}","${c.mobile}","${c.gstin || "-"}","${c.city}","${c.state}","${formatDate(c.created_at)}","${c.user_type || USER_TYPES.PLATFORM_USER}","${c.approval_status || APPROVAL_STATUSES.APPROVED}","${c.credit_limit || 0}"`
+                        `"${c.company_name}","${c.title} ${c.first_name} ${c.last_name}","${c.email}","${c.mobile}","${c.gstin || "-"}","${c.city}","${c.state}","${formatDate(c.created_at)}","${c.user_type || USER_TYPES.PLATFORM_USER}","${c.approval_status || APPROVAL_STATUSES.APPROVED}"`
                     )
                   )
                   .join("\n");
@@ -336,7 +335,7 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
         </div>
       </div>
 
-      {/* KPI Metric Cards (Neutral Elegant Styling) */}
+      {/* KPI Metric Cards (Neutral Minimalist Styling) */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Total Customers */}
         <Card
@@ -449,7 +448,7 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
         </Card>
       </div>
 
-      {/* Filter & Search Bar with Pure Neutral Styling */}
+      {/* Filter & Search Toolbar */}
       <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 bg-white p-3 rounded-xl border border-slate-200 shadow-none">
         {/* Search Input (shadcn) */}
         <div className="relative flex-1">
@@ -528,269 +527,234 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
         </div>
       </div>
 
-      {/* Customers Data Table */}
-      <div className="rounded-xl border border-slate-200 bg-white overflow-hidden shadow-none">
-        <div className="overflow-x-auto">
-          <Table>
-            <TableHeader className="bg-slate-50/80 border-b border-slate-200">
-              <TableRow className="hover:bg-transparent border-0">
-                {/* Customer & Company */}
-                <TableHead
-                  onClick={() => handleSort("name")}
-                  className="text-[11px] font-semibold text-slate-600 tracking-wider uppercase py-3 px-4 min-w-[240px] cursor-pointer select-none hover:text-slate-900"
-                >
-                  <div className="flex items-center gap-1">
-                    Customer & Company
-                    {getSortIcon("name")}
+      {/* Customers Data Table - Fits 100% Desktop Width Without Horizontal Scroll */}
+      <div className="rounded-xl border border-slate-200 bg-white shadow-none overflow-hidden">
+        <Table className="w-full table-fixed">
+          <TableHeader className="bg-slate-50/80 border-b border-slate-200">
+            <TableRow className="hover:bg-transparent border-0">
+              {/* Customer & Company (28%) */}
+              <TableHead
+                onClick={() => handleSort("name")}
+                className="w-[28%] text-[11px] font-semibold text-slate-600 tracking-wider uppercase py-3 px-4 cursor-pointer select-none hover:text-slate-900"
+              >
+                <div className="flex items-center gap-1">
+                  Customer & Company
+                  {getSortIcon("name")}
+                </div>
+              </TableHead>
+
+              {/* Contact Details (24%) */}
+              <TableHead className="w-[24%] text-[11px] font-semibold text-slate-600 tracking-wider uppercase py-3 px-4">
+                Contact Details
+              </TableHead>
+
+              {/* Registered Date (14%) */}
+              <TableHead
+                onClick={() => handleSort("date")}
+                className="w-[14%] text-[11px] font-semibold text-slate-600 tracking-wider uppercase py-3 px-4 cursor-pointer select-none hover:text-slate-900"
+              >
+                <div className="flex items-center gap-1">
+                  Registered On
+                  {getSortIcon("date")}
+                </div>
+              </TableHead>
+
+              {/* User Type (11%) */}
+              <TableHead
+                onClick={() => handleSort("type")}
+                className="w-[11%] text-[11px] font-semibold text-slate-600 tracking-wider uppercase py-3 px-4 cursor-pointer select-none hover:text-slate-900"
+              >
+                <div className="flex items-center gap-1">
+                  Type
+                  {getSortIcon("type")}
+                </div>
+              </TableHead>
+
+              {/* Approval Status (11%) */}
+              <TableHead
+                onClick={() => handleSort("status")}
+                className="w-[11%] text-[11px] font-semibold text-slate-600 tracking-wider uppercase py-3 px-4 cursor-pointer select-none hover:text-slate-900"
+              >
+                <div className="flex items-center gap-1">
+                  Status
+                  {getSortIcon("status")}
+                </div>
+              </TableHead>
+
+              {/* Location (12%) */}
+              <TableHead
+                onClick={() => handleSort("location")}
+                className="w-[12%] text-[11px] font-semibold text-slate-600 tracking-wider uppercase py-3 px-4 cursor-pointer select-none hover:text-slate-900"
+              >
+                <div className="flex items-center gap-1">
+                  Location
+                  {getSortIcon("location")}
+                </div>
+              </TableHead>
+
+              {/* Actions (10%) */}
+              <TableHead className="w-[10%] text-[11px] font-semibold text-slate-600 tracking-wider uppercase py-3 px-4 text-right">
+                Actions
+              </TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {paginatedCustomers.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={7} className="text-center py-12 text-slate-500 bg-white">
+                  <div className="flex flex-col items-center justify-center space-y-2">
+                    <Users className="h-8 w-8 text-slate-300" />
+                    <p className="text-sm font-medium text-slate-700">No customers found</p>
+                    <p className="text-xs text-slate-400">
+                      Try adjusting your search criteria or register an offline customer.
+                    </p>
                   </div>
-                </TableHead>
-
-                {/* Contact Details */}
-                <TableHead className="text-[11px] font-semibold text-slate-600 tracking-wider uppercase py-3 px-4 min-w-[200px]">
-                  Contact Details
-                </TableHead>
-
-                {/* Registered Date */}
-                <TableHead
-                  onClick={() => handleSort("date")}
-                  className="text-[11px] font-semibold text-slate-600 tracking-wider uppercase py-3 px-4 min-w-[130px] whitespace-nowrap cursor-pointer select-none hover:text-slate-900"
-                >
-                  <div className="flex items-center gap-1">
-                    Registered On
-                    {getSortIcon("date")}
-                  </div>
-                </TableHead>
-
-                {/* User Type */}
-                <TableHead
-                  onClick={() => handleSort("type")}
-                  className="text-[11px] font-semibold text-slate-600 tracking-wider uppercase py-3 px-4 min-w-[120px] cursor-pointer select-none hover:text-slate-900"
-                >
-                  <div className="flex items-center gap-1">
-                    Type
-                    {getSortIcon("type")}
-                  </div>
-                </TableHead>
-
-                {/* Approval Status */}
-                <TableHead
-                  onClick={() => handleSort("status")}
-                  className="text-[11px] font-semibold text-slate-600 tracking-wider uppercase py-3 px-4 min-w-[130px] cursor-pointer select-none hover:text-slate-900"
-                >
-                  <div className="flex items-center gap-1">
-                    Status
-                    {getSortIcon("status")}
-                  </div>
-                </TableHead>
-
-                {/* Commercial Terms */}
-                <TableHead className="text-[11px] font-semibold text-slate-600 tracking-wider uppercase py-3 px-4 min-w-[120px]">
-                  Commercial
-                </TableHead>
-
-                {/* Location */}
-                <TableHead
-                  onClick={() => handleSort("location")}
-                  className="text-[11px] font-semibold text-slate-600 tracking-wider uppercase py-3 px-4 min-w-[130px] cursor-pointer select-none hover:text-slate-900"
-                >
-                  <div className="flex items-center gap-1">
-                    Location
-                    {getSortIcon("location")}
-                  </div>
-                </TableHead>
-
-                {/* Actions */}
-                <TableHead className="text-[11px] font-semibold text-slate-600 tracking-wider uppercase py-3 px-4 min-w-[110px] text-right">
-                  Actions
-                </TableHead>
+                </TableCell>
               </TableRow>
-            </TableHeader>
-            <TableBody>
-              {paginatedCustomers.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={8} className="text-center py-12 text-slate-500 bg-white">
-                    <div className="flex flex-col items-center justify-center space-y-2">
-                      <Users className="h-8 w-8 text-slate-300" />
-                      <p className="text-sm font-medium text-slate-700">No customers found</p>
-                      <p className="text-xs text-slate-400">
-                        Try adjusting your search criteria or register an offline customer.
-                      </p>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ) : (
-                paginatedCustomers.map((customer) => {
-                  const isOffline = customer.user_type === USER_TYPES.OFFLINE_USER;
-                  const userType = customer.user_type || USER_TYPES.PLATFORM_USER;
-                  const approvalStatus = customer.approval_status || APPROVAL_STATUSES.APPROVED;
+            ) : (
+              paginatedCustomers.map((customer) => {
+                const userType = customer.user_type || USER_TYPES.PLATFORM_USER;
+                const approvalStatus = customer.approval_status || APPROVAL_STATUSES.APPROVED;
 
-                  return (
-                    <TableRow
-                      key={customer.id}
-                      className="hover:bg-slate-50/70 transition-colors bg-white border-b border-slate-200/80"
-                    >
-                      {/* Customer & Company */}
-                      <TableCell className="py-3 px-4">
-                        <div className="flex items-center gap-3">
-                          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-700 font-medium text-xs border border-slate-200/80">
-                            {customer.first_name?.[0] || "C"}
-                            {customer.last_name?.[0] || ""}
-                          </div>
-                          <div>
-                            <div className="font-medium text-xs text-slate-900 leading-tight">
-                              {customer.title} {customer.first_name} {customer.last_name}
-                            </div>
-                            <div className="text-[11px] text-slate-500 flex items-center gap-1.5 mt-0.5">
-                              <Building2 className="h-3 w-3 text-slate-400 shrink-0" />
-                              <span className="truncate max-w-[170px]">{customer.company_name}</span>
-                            </div>
-                            {customer.gstin && (
-                              <span className="inline-block mt-0.5 text-[9px] font-mono text-slate-500 bg-slate-50 px-1.5 py-0.2 rounded border border-slate-200">
-                                GST: {customer.gstin}
-                              </span>
-                            )}
-                          </div>
+                return (
+                  <TableRow
+                    key={customer.id}
+                    className="hover:bg-slate-50/70 transition-colors bg-white border-b border-slate-200/80"
+                  >
+                    {/* Customer & Company */}
+                    <TableCell className="py-3 px-4 truncate">
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-700 font-medium text-xs border border-slate-200/80">
+                          {customer.first_name?.[0] || "C"}
+                          {customer.last_name?.[0] || ""}
                         </div>
-                      </TableCell>
-
-                      {/* Contact Details */}
-                      <TableCell className="py-3 px-4">
-                        <div className="space-y-0.5 text-xs">
-                          <div className="flex items-center gap-1.5 text-slate-700">
-                            <Mail className="h-3 w-3 text-slate-400 shrink-0" />
-                            <span className="truncate max-w-[170px]">{customer.email}</span>
+                        <div className="min-w-0">
+                          <div className="font-medium text-xs text-slate-900 truncate">
+                            {customer.title} {customer.first_name} {customer.last_name}
                           </div>
-                          <div className="flex items-center gap-1.5 text-slate-500 text-[11px]">
-                            <Phone className="h-3 w-3 text-slate-400 shrink-0" />
-                            <span>{customer.mobile}</span>
+                          <div className="text-[11px] text-slate-500 flex items-center gap-1.5 mt-0.5 truncate">
+                            <Building2 className="h-3 w-3 text-slate-400 shrink-0" />
+                            <span className="truncate">{customer.company_name}</span>
                           </div>
-                        </div>
-                      </TableCell>
-
-                      {/* Registered Date */}
-                      <TableCell className="py-3 px-4">
-                        <div className="flex items-center gap-1.5 text-xs text-slate-600 whitespace-nowrap">
-                          <Calendar className="h-3 w-3 text-slate-400 shrink-0" />
-                          <span>{formatDate(customer.created_at)}</span>
-                        </div>
-                      </TableCell>
-
-                      {/* User Type */}
-                      <TableCell className="py-3 px-4">
-                        {userType === USER_TYPES.PLATFORM_USER ? (
-                          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[11px] font-medium bg-slate-100 text-slate-700 border border-slate-200/60 whitespace-nowrap">
-                            <Globe className="h-3 w-3 text-slate-500" /> Platform
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[11px] font-medium bg-slate-100 text-slate-700 border border-slate-200/60 whitespace-nowrap">
-                            <Store className="h-3 w-3 text-slate-500" /> Offline ERP
-                          </span>
-                        )}
-                      </TableCell>
-
-                      {/* Approval Status */}
-                      <TableCell className="py-3 px-4">
-                        {approvalStatus === APPROVAL_STATUSES.APPROVED && (
-                          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[11px] font-medium bg-emerald-50 text-emerald-700 border border-emerald-200/60 whitespace-nowrap">
-                            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" /> Approved
-                          </span>
-                        )}
-                        {approvalStatus === APPROVAL_STATUSES.PENDING && (
-                          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[11px] font-medium bg-amber-50 text-amber-700 border border-amber-200/60 whitespace-nowrap">
-                            <span className="h-1.5 w-1.5 rounded-full bg-amber-500 animate-pulse" /> Pending
-                          </span>
-                        )}
-                        {approvalStatus === APPROVAL_STATUSES.REJECTED && (
-                          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[11px] font-medium bg-rose-50 text-rose-700 border border-rose-200/60 whitespace-nowrap">
-                            <span className="h-1.5 w-1.5 rounded-full bg-rose-500" /> Rejected
-                          </span>
-                        )}
-                      </TableCell>
-
-                      {/* Commercial Terms */}
-                      <TableCell className="py-3 px-4">
-                        {isOffline ? (
-                          <div className="text-xs">
-                            <div className="font-semibold text-slate-800">
-                              ₹{(customer.credit_limit || COMMERCIAL_DEFAULTS.DEFAULT_CREDIT_LIMIT).toLocaleString("en-IN")}
-                            </div>
-                            <div className="text-[10px] text-slate-400">
-                              {customer.credit_days || COMMERCIAL_DEFAULTS.DEFAULT_CREDIT_DAYS}d Net
-                            </div>
-                          </div>
-                        ) : customer.credit_limit && customer.credit_limit > 0 ? (
-                          <div className="text-xs">
-                            <div className="font-semibold text-slate-800">
-                              ₹{customer.credit_limit.toLocaleString("en-IN")}
-                            </div>
-                            <div className="text-[10px] text-slate-400">
-                              {customer.credit_days || 30}d Net
-                            </div>
-                          </div>
-                        ) : (
-                          <span className="text-xs text-slate-500">Prepaid</span>
-                        )}
-                      </TableCell>
-
-                      {/* Location */}
-                      <TableCell className="py-3 px-4">
-                        <div className="text-xs text-slate-600 flex items-center gap-1">
-                          <MapPin className="h-3 w-3 text-slate-400 shrink-0" />
-                          <span className="truncate max-w-[120px]">
-                            {customer.city}, {customer.state}
-                          </span>
-                        </div>
-                      </TableCell>
-
-                      {/* Actions */}
-                      <TableCell className="py-3 px-4 text-right">
-                        <div className="flex items-center justify-end gap-1.5">
-                          {approvalStatus === APPROVAL_STATUSES.PENDING && (
-                            <>
-                              <Button
-                                type="button"
-                                size="icon"
-                                variant="outline"
-                                title="Approve Customer"
-                                disabled={isPending}
-                                onClick={() => handleStatusChange(customer.id, APPROVAL_STATUSES.APPROVED)}
-                                className="h-7 w-7 border-slate-200 text-slate-600 hover:border-emerald-500 hover:text-emerald-600 hover:bg-emerald-50/50 cursor-pointer shadow-none"
-                              >
-                                <Check className="h-3.5 w-3.5" />
-                              </Button>
-                              <Button
-                                type="button"
-                                size="icon"
-                                variant="outline"
-                                title="Reject Customer"
-                                disabled={isPending}
-                                onClick={() => handleStatusChange(customer.id, APPROVAL_STATUSES.REJECTED)}
-                                className="h-7 w-7 border-slate-200 text-slate-600 hover:border-rose-500 hover:text-rose-600 hover:bg-rose-50/50 cursor-pointer shadow-none"
-                              >
-                                <X className="h-3.5 w-3.5" />
-                              </Button>
-                            </>
+                          {customer.gstin && (
+                            <span className="inline-block mt-0.5 text-[9px] font-mono text-slate-500 bg-slate-50 px-1 py-0.2 rounded border border-slate-200">
+                              GST: {customer.gstin}
+                            </span>
                           )}
-
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setViewingCustomer(customer)}
-                            className="h-7 text-xs px-2.5 border-slate-200 text-slate-700 hover:bg-slate-50 hover:text-slate-900 shadow-none cursor-pointer"
-                          >
-                            <Eye className="h-3.5 w-3.5 text-slate-500 mr-1" />
-                            <span>View</span>
-                          </Button>
                         </div>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })
-              )}
-            </TableBody>
-          </Table>
-        </div>
+                      </div>
+                    </TableCell>
+
+                    {/* Contact Details */}
+                    <TableCell className="py-3 px-4 truncate">
+                      <div className="space-y-0.5 text-xs">
+                        <div className="flex items-center gap-1.5 text-slate-700 truncate">
+                          <Mail className="h-3 w-3 text-slate-400 shrink-0" />
+                          <span className="truncate">{customer.email}</span>
+                        </div>
+                        <div className="flex items-center gap-1.5 text-slate-500 text-[11px] truncate">
+                          <Phone className="h-3 w-3 text-slate-400 shrink-0" />
+                          <span>{customer.mobile}</span>
+                        </div>
+                      </div>
+                    </TableCell>
+
+                    {/* Registered Date */}
+                    <TableCell className="py-3 px-4 whitespace-nowrap">
+                      <div className="flex items-center gap-1.5 text-xs text-slate-600">
+                        <Calendar className="h-3 w-3 text-slate-400 shrink-0" />
+                        <span>{formatDate(customer.created_at)}</span>
+                      </div>
+                    </TableCell>
+
+                    {/* User Type */}
+                    <TableCell className="py-3 px-4 whitespace-nowrap">
+                      {userType === USER_TYPES.PLATFORM_USER ? (
+                        <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[11px] font-medium bg-slate-100 text-slate-700 border border-slate-200/60">
+                          <Globe className="h-3 w-3 text-slate-500" /> Platform
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[11px] font-medium bg-slate-100 text-slate-700 border border-slate-200/60">
+                          <Store className="h-3 w-3 text-slate-500" /> Offline ERP
+                        </span>
+                      )}
+                    </TableCell>
+
+                    {/* Approval Status */}
+                    <TableCell className="py-3 px-4 whitespace-nowrap">
+                      {approvalStatus === APPROVAL_STATUSES.APPROVED && (
+                        <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[11px] font-medium bg-emerald-50 text-emerald-700 border border-emerald-200/60">
+                          <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" /> Approved
+                        </span>
+                      )}
+                      {approvalStatus === APPROVAL_STATUSES.PENDING && (
+                        <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[11px] font-medium bg-amber-50 text-amber-700 border border-amber-200/60">
+                          <span className="h-1.5 w-1.5 rounded-full bg-amber-500 animate-pulse" /> Pending
+                        </span>
+                      )}
+                      {approvalStatus === APPROVAL_STATUSES.REJECTED && (
+                        <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[11px] font-medium bg-rose-50 text-rose-700 border border-rose-200/60">
+                          <span className="h-1.5 w-1.5 rounded-full bg-rose-500" /> Rejected
+                        </span>
+                      )}
+                    </TableCell>
+
+                    {/* Location */}
+                    <TableCell className="py-3 px-4 truncate">
+                      <div className="text-xs text-slate-600 flex items-center gap-1 truncate">
+                        <MapPin className="h-3 w-3 text-slate-400 shrink-0" />
+                        <span className="truncate">
+                          {customer.city}, {customer.state}
+                        </span>
+                      </div>
+                    </TableCell>
+
+                    {/* Actions (Solid Green Check & Red X for Instant Approval/Rejection) */}
+                    <TableCell className="py-3 px-4 text-right whitespace-nowrap">
+                      <div className="flex items-center justify-end gap-1.5">
+                        {approvalStatus === APPROVAL_STATUSES.PENDING && (
+                          <>
+                            <Button
+                              type="button"
+                              size="icon"
+                              title="Approve Customer"
+                              disabled={isPending}
+                              onClick={() => handleStatusChange(customer.id, APPROVAL_STATUSES.APPROVED)}
+                              className="h-7 w-7 bg-emerald-600 text-white hover:bg-emerald-700 cursor-pointer shadow-none rounded-md"
+                            >
+                              <Check className="h-3.5 w-3.5" />
+                            </Button>
+                            <Button
+                              type="button"
+                              size="icon"
+                              title="Reject Customer"
+                              disabled={isPending}
+                              onClick={() => handleStatusChange(customer.id, APPROVAL_STATUSES.REJECTED)}
+                              className="h-7 w-7 bg-rose-600 text-white hover:bg-rose-700 cursor-pointer shadow-none rounded-md"
+                            >
+                              <X className="h-3.5 w-3.5" />
+                            </Button>
+                          </>
+                        )}
+
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setViewingCustomer(customer)}
+                          className="h-7 text-xs px-2.5 border-slate-200 text-slate-700 hover:bg-slate-50 hover:text-slate-900 shadow-none cursor-pointer"
+                        >
+                          <Eye className="h-3.5 w-3.5 text-slate-500 mr-1" />
+                          <span>View</span>
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                );
+              })
+            )}
+          </TableBody>
+        </Table>
 
         {/* Pagination Bar */}
         <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-4 py-3 border-t border-slate-200 bg-slate-50/60">
