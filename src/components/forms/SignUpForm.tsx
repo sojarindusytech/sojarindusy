@@ -16,16 +16,17 @@ import {
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { INDIAN_STATES, TITLES } from "@/data/states";
 import {
-  User,
-  Building2,
   AlertCircle,
   CheckCircle2,
   ArrowRight,
+  ArrowLeft,
+  Check,
 } from "lucide-react";
 import Link from "next/link";
 
 export function SignUpForm() {
   const router = useRouter();
+  const [step, setStep] = useState<1 | 2>(1);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -66,10 +67,55 @@ export function SignUpForm() {
     }));
   };
 
+  const validateStep1 = () => {
+    if (!formData.first_name.trim()) return "First name is required.";
+    if (!formData.last_name.trim()) return "Last name is required.";
+    if (!formData.department.trim()) return "Department is required.";
+    if (!formData.designation.trim()) return "Designation is required.";
+    if (!formData.mobile.trim()) return "Mobile number is required.";
+    if (!formData.email.trim()) return "Official email is required.";
+    if (!formData.password) return "Password is required.";
+    if (formData.password.length < 6) return "Password must be at least 6 characters.";
+    if (formData.password !== formData.confirm_password) return "Passwords do not match.";
+    return null;
+  };
+
+  const validateStep2 = () => {
+    if (!formData.company_name.trim()) return "Company name is required.";
+    if (!formData.company_address.trim()) return "Company address is required.";
+    if (!formData.city.trim()) return "City is required.";
+    if (!formData.state.trim()) return "State is required.";
+    if (!formData.pincode.trim()) return "Pincode is required.";
+    return null;
+  };
+
+  const handleNextStep = (e: React.MouseEvent) => {
+    e.preventDefault();
+    setError(null);
+    const step1Error = validateStep1();
+    if (step1Error) {
+      setError(step1Error);
+      return;
+    }
+    setStep(2);
+  };
+
+  const handlePrevStep = () => {
+    setError(null);
+    setStep(1);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     setSuccess(null);
+
+    const step2Error = validateStep2();
+    if (step2Error) {
+      setError(step2Error);
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -86,7 +132,7 @@ export function SignUpForm() {
         setSuccess(res.message || "Account created successfully!");
         setTimeout(() => {
           router.push("/login?registered=true");
-        }, 2000);
+        }, 1500);
       }
     } catch (err: unknown) {
       setError(
@@ -98,152 +144,173 @@ export function SignUpForm() {
   };
 
   return (
-    <div className="w-full max-w-4xl mx-auto py-6">
-      <Card className="border border-slate-200 bg-white shadow-xl rounded-2xl">
-        <CardHeader className="bg-white p-6 pb-2 border-0">
-          <CardTitle className="text-2xl font-bold tracking-tight text-slate-900">
-            Sign Up
-          </CardTitle>
+    <div className="w-full max-w-xl mx-auto py-4">
+      <Card className="border border-slate-200 bg-white shadow-xl rounded-2xl overflow-hidden">
+        {/* Step Indicator Header */}
+        <CardHeader className="bg-white p-6 pb-4 border-b border-slate-100">
+          <div className="flex items-center justify-between mb-3">
+            <CardTitle className="text-xl font-bold tracking-tight text-slate-900">
+              Sign Up
+            </CardTitle>
+            <span className="text-xs font-semibold text-slate-500">
+              Step {step} of 2
+            </span>
+          </div>
+
+          {/* Progress Bar */}
+          <div className="grid grid-cols-2 gap-2">
+            <div className="flex items-center gap-2">
+              <div
+                className={`h-2 flex-1 rounded-full transition-all duration-300 ${
+                  step >= 1 ? "bg-[#024AE5]" : "bg-slate-100"
+                }`}
+              />
+              <span className="text-[11px] font-medium text-slate-700 whitespace-nowrap">
+                1. User Details
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div
+                className={`h-2 flex-1 rounded-full transition-all duration-300 ${
+                  step === 2 ? "bg-[#024AE5]" : "bg-slate-100"
+                }`}
+              />
+              <span className="text-[11px] font-medium text-slate-700 whitespace-nowrap">
+                2. Company Details
+              </span>
+            </div>
+          </div>
         </CardHeader>
 
         <form onSubmit={handleSubmit}>
-          <CardContent className="space-y-8 p-6 pt-4 bg-white">
+          <CardContent className="p-6 bg-white min-h-[420px] flex flex-col justify-start">
             {error && (
-              <div className="flex items-start gap-3 rounded-lg border border-red-500/20 bg-red-50 p-4 text-sm text-red-800">
-                <AlertCircle className="h-5 w-5 shrink-0 text-red-600" />
-                <div>
-                  <p className="font-semibold">Registration Error</p>
-                  <p className="text-xs mt-0.5">{error}</p>
-                </div>
+              <div className="mb-4 flex items-start gap-2.5 rounded-lg border border-red-500/20 bg-red-50 p-3 text-xs text-red-800">
+                <AlertCircle className="h-4 w-4 shrink-0 text-red-600 mt-0.5" />
+                <p>{error}</p>
               </div>
             )}
 
             {success && (
-              <div className="flex items-start gap-3 rounded-lg border border-[#3C8B4F]/30 bg-[#3C8B4F]/10 p-4 text-sm text-[#3C8B4F]">
-                <CheckCircle2 className="h-5 w-5 shrink-0 text-[#3C8B4F]" />
-                <div>
-                  <p className="font-semibold">Success!</p>
-                  <p className="text-xs mt-0.5">{success} Redirecting to login...</p>
-                </div>
+              <div className="mb-4 flex items-start gap-2.5 rounded-lg border border-[#3C8B4F]/30 bg-[#3C8B4F]/10 p-3 text-xs text-[#3C8B4F]">
+                <CheckCircle2 className="h-4 w-4 shrink-0 text-[#3C8B4F] mt-0.5" />
+                <p>{success} Redirecting to login...</p>
               </div>
             )}
 
-            {/* SECTION 1: Personal & Contact Information */}
-            <div className="space-y-4">
-              <div className="flex items-center gap-2 border-b border-slate-100 pb-2">
-                <div className="flex h-7 w-7 items-center justify-center rounded-full bg-blue-50 text-[#024AE5]">
-                  <User className="h-4 w-4" />
-                </div>
-                <h3 className="text-sm font-bold uppercase tracking-wider text-slate-800">
-                  1. Contact Information
-                </h3>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-12 gap-4">
-                {/* Title (shadcn Select) */}
-                <div className="sm:col-span-3 space-y-1.5">
-                  <Label>Title *</Label>
-                  <Select
-                    value={formData.title}
-                    onValueChange={(val) => handleSelectChange("title", val)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Title" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {TITLES.map((t) => (
-                        <SelectItem key={t} value={t}>
-                          {t}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                {/* First Name */}
-                <div className="sm:col-span-4 space-y-1.5">
-                  <Label htmlFor="first_name">First Name *</Label>
-                  <Input
-                    id="first_name"
-                    name="first_name"
-                    placeholder="First Name"
-                    value={formData.first_name}
-                    onChange={handleInputChange}
-                    required
-                  />
-                </div>
-
-                {/* Last Name */}
-                <div className="sm:col-span-5 space-y-1.5">
-                  <Label htmlFor="last_name">Last Name *</Label>
-                  <Input
-                    id="last_name"
-                    name="last_name"
-                    placeholder="Last Name"
-                    value={formData.last_name}
-                    onChange={handleInputChange}
-                    required
-                  />
-                </div>
-
-                {/* Department */}
-                <div className="sm:col-span-6 space-y-1.5">
-                  <Label htmlFor="department">Department *</Label>
-                  <Input
-                    id="department"
-                    name="department"
-                    placeholder="e.g. Procurement"
-                    value={formData.department}
-                    onChange={handleInputChange}
-                    required
-                  />
-                </div>
-
-                {/* Designation */}
-                <div className="sm:col-span-6 space-y-1.5">
-                  <Label htmlFor="designation">Designation *</Label>
-                  <Input
-                    id="designation"
-                    name="designation"
-                    placeholder="e.g. Purchase Manager"
-                    value={formData.designation}
-                    onChange={handleInputChange}
-                    required
-                  />
-                </div>
-
-                {/* Mobile */}
-                <div className="sm:col-span-6 space-y-1.5">
-                  <Label htmlFor="mobile">Mobile *</Label>
-                  <Input
-                    id="mobile"
-                    name="mobile"
-                    type="tel"
-                    placeholder="10-digit mobile"
-                    value={formData.mobile}
-                    onChange={handleInputChange}
-                    required
-                  />
-                </div>
-
-                {/* Landline No (Optional) */}
-                <div className="sm:col-span-6 space-y-1.5">
-                  <div className="flex items-center justify-between">
-                    <Label htmlFor="landline">Landline No.</Label>
-                    <span className="text-[10px] text-slate-400 font-medium">Optional</span>
+            {/* STEP 1: User & Contact Details */}
+            {step === 1 && (
+              <div className="space-y-3.5 animate-in fade-in-50 duration-200">
+                <div className="grid grid-cols-1 sm:grid-cols-12 gap-3">
+                  {/* Title */}
+                  <div className="sm:col-span-3 space-y-1">
+                    <Label>Title *</Label>
+                    <Select
+                      value={formData.title}
+                      onValueChange={(val) => handleSelectChange("title", val)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Title" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {TITLES.map((t) => (
+                          <SelectItem key={t} value={t}>
+                            {t}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
-                  <Input
-                    id="landline"
-                    name="landline"
-                    type="tel"
-                    placeholder="Landline number"
-                    value={formData.landline}
-                    onChange={handleInputChange}
-                  />
+
+                  {/* First Name */}
+                  <div className="sm:col-span-4 space-y-1">
+                    <Label htmlFor="first_name">First Name *</Label>
+                    <Input
+                      id="first_name"
+                      name="first_name"
+                      placeholder="First Name"
+                      value={formData.first_name}
+                      onChange={handleInputChange}
+                      required
+                    />
+                  </div>
+
+                  {/* Last Name */}
+                  <div className="sm:col-span-5 space-y-1">
+                    <Label htmlFor="last_name">Last Name *</Label>
+                    <Input
+                      id="last_name"
+                      name="last_name"
+                      placeholder="Last Name"
+                      value={formData.last_name}
+                      onChange={handleInputChange}
+                      required
+                    />
+                  </div>
                 </div>
 
-                {/* Official Email */}
-                <div className="sm:col-span-12 space-y-1.5">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {/* Department */}
+                  <div className="space-y-1">
+                    <Label htmlFor="department">Department *</Label>
+                    <Input
+                      id="department"
+                      name="department"
+                      placeholder="Department"
+                      value={formData.department}
+                      onChange={handleInputChange}
+                      required
+                    />
+                  </div>
+
+                  {/* Designation */}
+                  <div className="space-y-1">
+                    <Label htmlFor="designation">Designation *</Label>
+                    <Input
+                      id="designation"
+                      name="designation"
+                      placeholder="Designation"
+                      value={formData.designation}
+                      onChange={handleInputChange}
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {/* Mobile */}
+                  <div className="space-y-1">
+                    <Label htmlFor="mobile">Mobile *</Label>
+                    <Input
+                      id="mobile"
+                      name="mobile"
+                      type="tel"
+                      placeholder="Mobile number"
+                      value={formData.mobile}
+                      onChange={handleInputChange}
+                      required
+                    />
+                  </div>
+
+                  {/* Landline */}
+                  <div className="space-y-1">
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="landline">Landline</Label>
+                      <span className="text-[10px] text-slate-400">Optional</span>
+                    </div>
+                    <Input
+                      id="landline"
+                      name="landline"
+                      type="tel"
+                      placeholder="Landline number"
+                      value={formData.landline}
+                      onChange={handleInputChange}
+                    />
+                  </div>
+                </div>
+
+                {/* Email */}
+                <div className="space-y-1">
                   <Label htmlFor="email">Official Email ID *</Label>
                   <Input
                     id="email"
@@ -256,50 +323,43 @@ export function SignUpForm() {
                   />
                 </div>
 
-                {/* Password */}
-                <div className="sm:col-span-6 space-y-1.5">
-                  <Label htmlFor="password">Password *</Label>
-                  <Input
-                    id="password"
-                    name="password"
-                    type="password"
-                    placeholder="Minimum 6 characters"
-                    value={formData.password}
-                    onChange={handleInputChange}
-                    required
-                  />
-                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {/* Password */}
+                  <div className="space-y-1">
+                    <Label htmlFor="password">Password *</Label>
+                    <Input
+                      id="password"
+                      name="password"
+                      type="password"
+                      placeholder="Min 6 characters"
+                      value={formData.password}
+                      onChange={handleInputChange}
+                      required
+                    />
+                  </div>
 
-                {/* Confirm Password */}
-                <div className="sm:col-span-6 space-y-1.5">
-                  <Label htmlFor="confirm_password">Confirm Password *</Label>
-                  <Input
-                    id="confirm_password"
-                    name="confirm_password"
-                    type="password"
-                    placeholder="Re-enter password"
-                    value={formData.confirm_password}
-                    onChange={handleInputChange}
-                    required
-                  />
+                  {/* Confirm Password */}
+                  <div className="space-y-1">
+                    <Label htmlFor="confirm_password">Confirm Password *</Label>
+                    <Input
+                      id="confirm_password"
+                      name="confirm_password"
+                      type="password"
+                      placeholder="Re-enter password"
+                      value={formData.confirm_password}
+                      onChange={handleInputChange}
+                      required
+                    />
+                  </div>
                 </div>
               </div>
-            </div>
+            )}
 
-            {/* SECTION 2: Company Details */}
-            <div className="space-y-4 pt-2">
-              <div className="flex items-center gap-2 border-b border-slate-100 pb-2">
-                <div className="flex h-7 w-7 items-center justify-center rounded-full bg-emerald-50 text-[#3C8B4F]">
-                  <Building2 className="h-4 w-4" />
-                </div>
-                <h3 className="text-sm font-bold uppercase tracking-wider text-slate-800">
-                  2. Company Details
-                </h3>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-12 gap-4">
+            {/* STEP 2: Company Details */}
+            {step === 2 && (
+              <div className="space-y-3.5 animate-in fade-in-50 duration-200">
                 {/* Company Name */}
-                <div className="sm:col-span-8 space-y-1.5">
+                <div className="space-y-1">
                   <Label htmlFor="company_name">Company Name *</Label>
                   <Input
                     id="company_name"
@@ -311,11 +371,11 @@ export function SignUpForm() {
                   />
                 </div>
 
-                {/* GSTIN (Optional) */}
-                <div className="sm:col-span-4 space-y-1.5">
+                {/* GSTIN */}
+                <div className="space-y-1">
                   <div className="flex items-center justify-between">
                     <Label htmlFor="gstin">GSTIN</Label>
-                    <span className="text-[10px] text-slate-400 font-medium">Optional</span>
+                    <span className="text-[10px] text-slate-400">Optional</span>
                   </div>
                   <Input
                     id="gstin"
@@ -327,7 +387,7 @@ export function SignUpForm() {
                 </div>
 
                 {/* Company Address */}
-                <div className="sm:col-span-12 space-y-1.5">
+                <div className="space-y-1">
                   <Label htmlFor="company_address">Company Address *</Label>
                   <Input
                     id="company_address"
@@ -339,11 +399,11 @@ export function SignUpForm() {
                   />
                 </div>
 
-                {/* Additional Address (Optional) */}
-                <div className="sm:col-span-12 space-y-1.5">
+                {/* Additional Address */}
+                <div className="space-y-1">
                   <div className="flex items-center justify-between">
                     <Label htmlFor="additional_address">Additional Address</Label>
-                    <span className="text-[10px] text-slate-400 font-medium">Optional</span>
+                    <span className="text-[10px] text-slate-400">Optional</span>
                   </div>
                   <Input
                     id="additional_address"
@@ -354,78 +414,110 @@ export function SignUpForm() {
                   />
                 </div>
 
-                {/* City */}
-                <div className="sm:col-span-4 space-y-1.5">
-                  <Label htmlFor="city">City *</Label>
-                  <Input
-                    id="city"
-                    name="city"
-                    placeholder="City"
-                    value={formData.city}
-                    onChange={handleInputChange}
-                    required
-                  />
-                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  {/* City */}
+                  <div className="space-y-1">
+                    <Label htmlFor="city">City *</Label>
+                    <Input
+                      id="city"
+                      name="city"
+                      placeholder="City"
+                      value={formData.city}
+                      onChange={handleInputChange}
+                      required
+                    />
+                  </div>
 
-                {/* State Dropdown (shadcn Select) */}
-                <div className="sm:col-span-4 space-y-1.5">
-                  <Label>State *</Label>
-                  <Select
-                    value={formData.state}
-                    onValueChange={(val) => handleSelectChange("state", val)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select State" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {INDIAN_STATES.map((s) => (
-                        <SelectItem key={s} value={s}>
-                          {s}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+                  {/* State */}
+                  <div className="space-y-1">
+                    <Label>State *</Label>
+                    <Select
+                      value={formData.state}
+                      onValueChange={(val) => handleSelectChange("state", val)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="State" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {INDIAN_STATES.map((s) => (
+                          <SelectItem key={s} value={s}>
+                            {s}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
 
-                {/* Pincode */}
-                <div className="sm:col-span-4 space-y-1.5">
-                  <Label htmlFor="pincode">Pincode *</Label>
-                  <Input
-                    id="pincode"
-                    name="pincode"
-                    placeholder="Pincode"
-                    value={formData.pincode}
-                    onChange={handleInputChange}
-                    required
-                  />
+                  {/* Pincode */}
+                  <div className="space-y-1">
+                    <Label htmlFor="pincode">Pincode *</Label>
+                    <Input
+                      id="pincode"
+                      name="pincode"
+                      placeholder="Pincode"
+                      value={formData.pincode}
+                      onChange={handleInputChange}
+                      required
+                    />
+                  </div>
                 </div>
               </div>
-            </div>
+            )}
           </CardContent>
 
-          <CardFooter className="flex flex-col sm:flex-row items-center justify-between gap-4 bg-white p-6 pt-2 border-0">
-            <p className="text-xs text-slate-500">
-              Already registered?{" "}
-              <Link href="/login" className="font-semibold text-[#024AE5] hover:underline">
-                Sign In
-              </Link>
-            </p>
-            <Button
-              type="submit"
-              size="lg"
-              variant="primary"
-              disabled={loading}
-              className="w-full sm:w-auto gap-2"
-            >
-              {loading ? (
-                "Creating Account..."
-              ) : (
-                <>
-                  <span>Create Account</span>
+          {/* Footer Controls */}
+          <CardFooter className="flex items-center justify-between gap-3 bg-white p-6 pt-3 border-t border-slate-100">
+            {step === 1 ? (
+              <>
+                <p className="text-xs text-slate-500">
+                  Already registered?{" "}
+                  <Link href="/login" className="font-semibold text-[#024AE5] hover:underline">
+                    Sign In
+                  </Link>
+                </p>
+                <Button
+                  type="button"
+                  size="default"
+                  variant="primary"
+                  onClick={handleNextStep}
+                  className="gap-2 px-5"
+                >
+                  <span>Next: Company Details</span>
                   <ArrowRight className="h-4 w-4" />
-                </>
-              )}
-            </Button>
+                </Button>
+              </>
+            ) : (
+              <>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="default"
+                  onClick={handlePrevStep}
+                  disabled={loading}
+                  className="gap-2"
+                >
+                  <ArrowLeft className="h-4 w-4" />
+                  <span>Back</span>
+                </Button>
+
+                <Button
+                  type="submit"
+                  size="default"
+                  variant="primary"
+                  disabled={loading}
+                  className="gap-2 px-6"
+                >
+                  {loading ? (
+                    "Creating Account..."
+                  ) : (
+                    <>
+                      <span>Create Account</span>
+                      <Check className="h-4 w-4" />
+                    </>
+                  )}
+                </Button>
+              </>
+            )}
           </CardFooter>
         </form>
       </Card>
