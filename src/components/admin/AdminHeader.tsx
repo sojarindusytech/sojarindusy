@@ -1,34 +1,23 @@
 "use client";
 
 import { useState } from "react";
-import { Search, Bell, User, ChevronDown, Menu } from "lucide-react";
+import { Search, Bell, User, ChevronDown } from "lucide-react";
 import { Input } from "@/components/ui/input";
 
 interface AdminHeaderProps {
   userEmail?: string;
   userName?: string;
-  onToggleSidebar?: () => void;
 }
 
 export function AdminHeader({
   userName = "Super Admin",
-  onToggleSidebar,
 }: AdminHeaderProps) {
   const [searchValue, setSearchValue] = useState("");
 
   return (
     <header className="sticky top-0 z-20 flex h-16 w-full items-center justify-between border-b border-slate-200 bg-white px-6">
-      {/* Left: Hamburger + Search Input */}
-      <div className="flex flex-1 max-w-xl items-center gap-4">
-        <button
-          type="button"
-          onClick={onToggleSidebar}
-          className="p-1.5 text-slate-500 hover:text-slate-900 rounded-lg hover:bg-slate-50 transition-colors cursor-pointer"
-          aria-label="Toggle navigation"
-        >
-          <Menu className="h-5 w-5" />
-        </button>
-
+      {/* Left: Search Input */}
+      <div className="flex flex-1 max-w-xl items-center">
         <div className="relative w-full max-w-md">
           <Input
             type="text"
