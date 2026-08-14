@@ -140,7 +140,7 @@ export function AdminBreadcrumbs() {
   };
 
   return (
-    <div className="w-full border-b border-slate-200/70 bg-white px-4 sm:px-6 py-2.5 shadow-none">
+    <div className="w-full bg-transparent px-4 sm:px-6 pt-4 pb-1">
       <Breadcrumb>
         <BreadcrumbList className="text-xs">
           <BreadcrumbItem>

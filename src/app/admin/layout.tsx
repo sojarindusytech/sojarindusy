@@ -25,9 +25,8 @@ export default async function AdminLayout({
       {/* Main Content Viewport */}
       <div className="flex flex-1 flex-col overflow-x-hidden">
         <AdminHeader userName={fullName} userEmail={user.email} />
-        {/* shadcn Breadcrumbs right below header */}
         <AdminBreadcrumbs />
-        <main className="flex-1 p-4 sm:p-6">
+        <main className="flex-1 p-4 sm:p-6 pt-3 sm:pt-4">
           {children}
         </main>
       </div>
