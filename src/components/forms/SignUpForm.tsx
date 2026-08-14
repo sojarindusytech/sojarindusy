@@ -72,7 +72,6 @@ export function SignUpForm() {
       ...prev,
       [name]: value,
     }));
-    // Clear field-specific error upon typing
     if (fieldErrors[name]) {
       setFieldErrors((prev) => {
         const next = { ...prev };
@@ -241,7 +240,7 @@ export function SignUpForm() {
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-12 gap-3">
-                  {/* Title (Reduced width for Mr, Mrs, Miss, Ms) */}
+                  {/* Title */}
                   <div className="sm:col-span-2 space-y-1">
                     <Label>Title *</Label>
                     <Select
@@ -267,7 +266,6 @@ export function SignUpForm() {
                     <Input
                       id="first_name"
                       name="first_name"
-                      placeholder="First Name"
                       value={formData.first_name}
                       onChange={handleInputChange}
                       className={fieldErrors.first_name ? "border-red-500 focus-visible:ring-red-500" : ""}
@@ -284,7 +282,6 @@ export function SignUpForm() {
                     <Input
                       id="last_name"
                       name="last_name"
-                      placeholder="Last Name"
                       value={formData.last_name}
                       onChange={handleInputChange}
                       className={fieldErrors.last_name ? "border-red-500 focus-visible:ring-red-500" : ""}
@@ -303,7 +300,6 @@ export function SignUpForm() {
                     <Input
                       id="department"
                       name="department"
-                      placeholder="Department"
                       value={formData.department}
                       onChange={handleInputChange}
                       className={fieldErrors.department ? "border-red-500 focus-visible:ring-red-500" : ""}
@@ -320,7 +316,6 @@ export function SignUpForm() {
                     <Input
                       id="designation"
                       name="designation"
-                      placeholder="Designation"
                       value={formData.designation}
                       onChange={handleInputChange}
                       className={fieldErrors.designation ? "border-red-500 focus-visible:ring-red-500" : ""}
@@ -340,7 +335,6 @@ export function SignUpForm() {
                       id="mobile"
                       name="mobile"
                       type="tel"
-                      placeholder="10-digit mobile"
                       value={formData.mobile}
                       onChange={handleInputChange}
                       className={fieldErrors.mobile ? "border-red-500 focus-visible:ring-red-500" : ""}
@@ -361,14 +355,13 @@ export function SignUpForm() {
                       id="landline"
                       name="landline"
                       type="tel"
-                      placeholder="Landline number"
                       value={formData.landline}
                       onChange={handleInputChange}
                     />
                   </div>
                 </div>
 
-                {/* Email */}
+                {/* Email (Kept placeholder) */}
                 <div className="space-y-1">
                   <Label htmlFor="email">Official Email ID *</Label>
                   <Input
@@ -395,7 +388,6 @@ export function SignUpForm() {
                         id="password"
                         name="password"
                         type={showPassword ? "text" : "password"}
-                        placeholder="Min 8 chars, A-Z, 0-9, @"
                         value={formData.password}
                         onChange={handleInputChange}
                         className={`pr-10 ${fieldErrors.password ? "border-red-500 focus-visible:ring-red-500" : ""}`}
@@ -427,7 +419,6 @@ export function SignUpForm() {
                         id="confirm_password"
                         name="confirm_password"
                         type={showConfirmPassword ? "text" : "password"}
-                        placeholder="Re-enter password"
                         value={formData.confirm_password}
                         onChange={handleInputChange}
                         className={`pr-10 ${fieldErrors.confirm_password ? "border-red-500 focus-visible:ring-red-500" : ""}`}
@@ -495,7 +486,6 @@ export function SignUpForm() {
                   <Input
                     id="company_name"
                     name="company_name"
-                    placeholder="Company Name"
                     value={formData.company_name}
                     onChange={handleInputChange}
                     className={fieldErrors.company_name ? "border-red-500 focus-visible:ring-red-500" : ""}
@@ -515,7 +505,6 @@ export function SignUpForm() {
                   <Input
                     id="gstin"
                     name="gstin"
-                    placeholder="e.g. 27AAAAA0000A1Z5"
                     value={formData.gstin}
                     onChange={handleInputChange}
                     className={fieldErrors.gstin ? "border-red-500 focus-visible:ring-red-500" : ""}
@@ -531,7 +520,6 @@ export function SignUpForm() {
                   <Input
                     id="company_address"
                     name="company_address"
-                    placeholder="Plot / Street / Area"
                     value={formData.company_address}
                     onChange={handleInputChange}
                     className={fieldErrors.company_address ? "border-red-500 focus-visible:ring-red-500" : ""}
@@ -551,7 +539,6 @@ export function SignUpForm() {
                   <Input
                     id="additional_address"
                     name="additional_address"
-                    placeholder="Building / Floor / Unit"
                     value={formData.additional_address}
                     onChange={handleInputChange}
                   />
@@ -564,7 +551,6 @@ export function SignUpForm() {
                     <Input
                       id="city"
                       name="city"
-                      placeholder="City"
                       value={formData.city}
                       onChange={handleInputChange}
                       className={fieldErrors.city ? "border-red-500 focus-visible:ring-red-500" : ""}
@@ -601,7 +587,6 @@ export function SignUpForm() {
                     <Input
                       id="pincode"
                       name="pincode"
-                      placeholder="6-digit Pincode"
                       value={formData.pincode}
                       onChange={handleInputChange}
                       className={fieldErrors.pincode ? "border-red-500 focus-visible:ring-red-500" : ""}
