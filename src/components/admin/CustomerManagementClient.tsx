@@ -36,6 +36,16 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   Search,
   UserPlus,
   Users,
@@ -59,6 +69,8 @@ import {
   Calendar,
   ChevronLeft,
   ChevronRight,
+  ShieldCheck,
+  AlertTriangle,
 } from "lucide-react";
 
 interface CustomerManagementClientProps {
@@ -89,6 +101,12 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
   const [formError, setFormError] = useState<string | null>(null);
   const [formSuccess, setFormSuccess] = useState<string | null>(null);
 
+  // Confirmation Alert Dialog State (shadcn)
+  const [confirmDialog, setConfirmDialog] = useState<{
+    customer: Profile;
+    targetStatus: ApprovalStatus;
+  } | null>(null);
+
   // Form select values
   const [formTitle, setFormTitle] = useState<UserTitle>(USER_TITLES[0]);
   const [formDept, setFormDept] = useState<string>(DEPARTMENT_OPTIONS[0]);
@@ -112,10 +130,8 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
   // Filtered & Sorted List
   const filteredAndSortedCustomers = useMemo(() => {
     const result = customers.filter((c) => {
-      // Exclude platform admin from customer table
       if (c.role === "platform_owner") return false;
 
-      // Search query filter
       const query = searchQuery.toLowerCase().trim();
       const matchesSearch =
         !query ||
@@ -128,18 +144,15 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
         c.city?.toLowerCase().includes(query) ||
         c.state?.toLowerCase().includes(query);
 
-      // User Type filter
       const userType = c.user_type || USER_TYPES.PLATFORM_USER;
       const matchesType = selectedUserType === "all" || userType === selectedUserType;
 
-      // Approval Status filter
       const status = c.approval_status || APPROVAL_STATUSES.APPROVED;
       const matchesStatus = selectedStatus === "all" || status === selectedStatus;
 
       return matchesSearch && matchesType && matchesStatus;
     });
 
-    // Apply Sorting
     result.sort((a, b) => {
       let comparison = 0;
       if (sortField === "name") {
@@ -214,17 +227,20 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
     }
   };
 
-  // Handle Quick Approval / Rejection
-  const handleStatusChange = (customerId: string, newStatus: ApprovalStatus) => {
+  // Perform status update after confirmation
+  const handleConfirmedStatusChange = () => {
+    if (!confirmDialog) return;
+    const { customer, targetStatus } = confirmDialog;
+    setConfirmDialog(null);
+
     startTransition(async () => {
-      // Optimistic state update
       setCustomers((prev) =>
-        prev.map((c) => (c.id === customerId ? { ...c, approval_status: newStatus } : c))
+        prev.map((c) => (c.id === customer.id ? { ...c, approval_status: targetStatus } : c))
       );
-      if (viewingCustomer && viewingCustomer.id === customerId) {
-        setViewingCustomer((prev) => (prev ? { ...prev, approval_status: newStatus } : null));
+      if (viewingCustomer && viewingCustomer.id === customer.id) {
+        setViewingCustomer((prev) => (prev ? { ...prev, approval_status: targetStatus } : null));
       }
-      await updateCustomerApprovalStatus(customerId, newStatus);
+      await updateCustomerApprovalStatus(customer.id, targetStatus);
     });
   };
 
@@ -335,7 +351,7 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
         </div>
       </div>
 
-      {/* KPI Metric Cards (Neutral Minimalist Styling) */}
+      {/* KPI Metric Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Total Customers */}
         <Card
@@ -450,7 +466,7 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
 
       {/* Filter & Search Toolbar */}
       <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 bg-white p-3 rounded-xl border border-slate-200 shadow-none">
-        {/* Search Input (shadcn) */}
+        {/* Search Input */}
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
           <Input
@@ -527,7 +543,7 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
         </div>
       </div>
 
-      {/* Customers Data Table - Balanced Column Proportions without wasted space */}
+      {/* Customers Data Table */}
       <div className="rounded-xl border border-slate-200 bg-white shadow-none overflow-hidden">
         <Table className="w-full table-fixed">
           <TableHeader className="bg-slate-50/80 border-b border-slate-200">
@@ -709,7 +725,7 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
                       </div>
                     </TableCell>
 
-                    {/* Actions (Solid Green Check & Red X with proper padding & breathing room) */}
+                    {/* Actions with Confirmation Triggers */}
                     <TableCell className="py-2.5 px-3.5 text-right whitespace-nowrap">
                       <div className="flex items-center justify-end gap-1.5">
                         {approvalStatus === APPROVAL_STATUSES.PENDING && (
@@ -719,7 +735,12 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
                               size="icon"
                               title="Approve Customer"
                               disabled={isPending}
-                              onClick={() => handleStatusChange(customer.id, APPROVAL_STATUSES.APPROVED)}
+                              onClick={() =>
+                                setConfirmDialog({
+                                  customer,
+                                  targetStatus: APPROVAL_STATUSES.APPROVED,
+                                })
+                              }
                               className="h-7 w-7 bg-emerald-600 text-white hover:bg-emerald-700 cursor-pointer shadow-none rounded-md p-1.5 shrink-0"
                             >
                               <Check className="h-3.5 w-3.5" />
@@ -729,7 +750,12 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
                               size="icon"
                               title="Reject Customer"
                               disabled={isPending}
-                              onClick={() => handleStatusChange(customer.id, APPROVAL_STATUSES.REJECTED)}
+                              onClick={() =>
+                                setConfirmDialog({
+                                  customer,
+                                  targetStatus: APPROVAL_STATUSES.REJECTED,
+                                })
+                              }
                               className="h-7 w-7 bg-rose-600 text-white hover:bg-rose-700 cursor-pointer shadow-none rounded-md p-1.5 shrink-0"
                             >
                               <X className="h-3.5 w-3.5" />
@@ -856,6 +882,86 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
           </div>
         </div>
       </div>
+
+      {/* SHADCN CONFIRMATION ALERT DIALOG FOR APPROVE / REJECT */}
+      <AlertDialog
+        open={Boolean(confirmDialog)}
+        onOpenChange={(open) => {
+          if (!open) setConfirmDialog(null);
+        }}
+      >
+        <AlertDialogContent className="max-w-md bg-white border border-slate-200 shadow-2xl rounded-2xl p-6">
+          <AlertDialogHeader>
+            <div className="flex items-center gap-3">
+              {confirmDialog?.targetStatus === APPROVAL_STATUSES.APPROVED ? (
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600 border border-emerald-200">
+                  <ShieldCheck className="h-5 w-5" />
+                </div>
+              ) : (
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-rose-50 text-rose-600 border border-rose-200">
+                  <AlertTriangle className="h-5 w-5" />
+                </div>
+              )}
+              <div>
+                <AlertDialogTitle className="text-base font-bold text-slate-900">
+                  {confirmDialog?.targetStatus === APPROVAL_STATUSES.APPROVED
+                    ? "Approve Customer Account?"
+                    : "Reject Customer Account?"}
+                </AlertDialogTitle>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  {confirmDialog?.customer.company_name}
+                </p>
+              </div>
+            </div>
+
+            <AlertDialogDescription className="text-xs text-slate-600 pt-2 leading-relaxed">
+              {confirmDialog?.targetStatus === APPROVAL_STATUSES.APPROVED ? (
+                <>
+                  Are you sure you want to approve{" "}
+                  <strong className="text-slate-900 font-semibold">
+                    {confirmDialog.customer.title} {confirmDialog.customer.first_name}{" "}
+                    {confirmDialog.customer.last_name}
+                  </strong>{" "}
+                  from{" "}
+                  <strong className="text-slate-900 font-semibold">
+                    {confirmDialog.customer.company_name}
+                  </strong>
+                  ? This account will gain full purchasing, quotations, and online catalogue access.
+                </>
+              ) : (
+                <>
+                  Are you sure you want to reject registration for{" "}
+                  <strong className="text-slate-900 font-semibold">
+                    {confirmDialog?.customer.company_name}
+                  </strong>{" "}
+                  ({confirmDialog?.customer.email})? The customer will be marked as rejected.
+                </>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+
+          <AlertDialogFooter className="flex items-center justify-end gap-2 pt-4 border-t border-slate-100">
+            <AlertDialogCancel className="h-8 text-xs border-slate-200 text-slate-700 hover:bg-slate-50">
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmedStatusChange}
+              disabled={isPending}
+              className={`h-8 text-xs font-medium text-white shadow-none ${
+                confirmDialog?.targetStatus === APPROVAL_STATUSES.APPROVED
+                  ? "bg-emerald-600 hover:bg-emerald-700"
+                  : "bg-rose-600 hover:bg-rose-700"
+              }`}
+            >
+              {isPending
+                ? "Updating..."
+                : confirmDialog?.targetStatus === APPROVAL_STATUSES.APPROVED
+                ? "Yes, Approve Account"
+                : "Yes, Reject Account"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* MODAL 1: ADD OFFLINE CUSTOMER */}
       {isAddModalOpen && (
@@ -1198,9 +1304,12 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
                 <div className="w-[150px]">
                   <Select
                     value={viewingCustomer.approval_status || APPROVAL_STATUSES.APPROVED}
-                    onValueChange={(val) =>
-                      handleStatusChange(viewingCustomer.id, val as ApprovalStatus)
-                    }
+                    onValueChange={(val) => {
+                      setConfirmDialog({
+                        customer: viewingCustomer,
+                        targetStatus: val as ApprovalStatus,
+                      });
+                    }}
                   >
                     <SelectTrigger className="h-8 text-xs bg-white border-slate-200 font-semibold">
                       <SelectValue />
