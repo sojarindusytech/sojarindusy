@@ -20,7 +20,6 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
 import {
   Select,
   SelectContent,
@@ -43,8 +42,6 @@ import {
   Globe,
   Store,
   Clock,
-  CheckCircle2,
-  XCircle,
   Eye,
   Filter,
   Download,
@@ -62,6 +59,7 @@ import {
   Calendar,
   ChevronLeft,
   ChevronRight,
+  ShieldCheck,
 } from "lucide-react";
 
 interface CustomerManagementClientProps {
@@ -86,7 +84,7 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [itemsPerPage, setItemsPerPage] = useState<number>(10);
 
-  // Modal & Form State with shadcn controlled selects
+  // Modal & Form State
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [viewingCustomer, setViewingCustomer] = useState<Profile | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
@@ -100,7 +98,7 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
     String(COMMERCIAL_DEFAULTS.DEFAULT_CREDIT_DAYS)
   );
 
-  // Statistics calculation based on single source of truth enums
+  // Statistics calculation
   const totalCount = customers.length;
   const platformCount = customers.filter(
     (c) => (c.user_type || USER_TYPES.PLATFORM_USER) === USER_TYPES.PLATFORM_USER
@@ -194,16 +192,15 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
 
   const getSortIcon = (field: SortField) => {
     if (sortField !== field) {
-      return <ArrowUpDown className="h-3 w-3 text-slate-400 opacity-60 ml-1" />;
+      return <ArrowUpDown className="h-3 w-3 text-slate-400 opacity-60 ml-1 inline-block" />;
     }
     return sortDirection === "asc" ? (
-      <ArrowUp className="h-3 w-3 text-[#024AE5] ml-1" />
+      <ArrowUp className="h-3 w-3 text-[#024AE5] ml-1 inline-block" />
     ) : (
-      <ArrowDown className="h-3 w-3 text-[#024AE5] ml-1" />
+      <ArrowDown className="h-3 w-3 text-[#024AE5] ml-1 inline-block" />
     );
   };
 
-  // Format Registered Date
   const formatDate = (dateString?: string) => {
     if (!dateString) return "—";
     try {
@@ -252,7 +249,6 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
         setTimeout(() => {
           setIsAddModalOpen(false);
           setFormSuccess(null);
-          // Update local state with typed fields
           const newCust: Profile = {
             id: `off-${Date.now()}`,
             role: "customer",
@@ -282,8 +278,8 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
   };
 
   return (
-    <div className="space-y-6 w-full">
-      {/* Page Header with Action Buttons */}
+    <div className="space-y-6 w-full max-w-full">
+      {/* Page Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-slate-200 pb-5">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-slate-900">
@@ -294,13 +290,12 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2.5">
           <Button
             type="button"
             variant="outline"
             size="sm"
             onClick={() => {
-              // CSV export
               const csvContent =
                 "data:text/csv;charset=utf-8," +
                 ["Company,Name,Email,Mobile,GSTIN,City,State,Registered Date,Type,Status,Credit Limit"]
@@ -321,7 +316,7 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
             }}
             className="gap-1.5 text-xs border-slate-200 text-slate-700 hover:bg-slate-50 shadow-none cursor-pointer"
           >
-            <Download className="h-4 w-4 text-slate-500" />
+            <Download className="h-3.5 w-3.5 text-slate-500" />
             <span>Export CSV</span>
           </Button>
 
@@ -333,15 +328,15 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
               setFormSuccess(null);
               setIsAddModalOpen(true);
             }}
-            className="gap-2 text-xs bg-[#024AE5] text-white hover:bg-[#023ecc] shadow-none cursor-pointer font-medium"
+            className="gap-1.5 text-xs bg-[#024AE5] text-white hover:bg-[#023ecc] shadow-none cursor-pointer font-medium"
           >
-            <UserPlus className="h-4 w-4" />
+            <UserPlus className="h-3.5 w-3.5" />
             <span>+ Add Offline Customer</span>
           </Button>
         </div>
       </div>
 
-      {/* KPI Metric Cards */}
+      {/* KPI Metric Cards (Neutral Elegant Styling) */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Total Customers */}
         <Card
@@ -350,17 +345,21 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
             setSelectedStatus("all");
             setCurrentPage(1);
           }}
-          className="border border-slate-200 bg-white shadow-none rounded-xl p-4 cursor-pointer hover:border-[#024AE5]/40 transition-colors"
+          className={`border bg-white shadow-none rounded-xl p-4 cursor-pointer transition-all ${
+            selectedUserType === "all" && selectedStatus === "all"
+              ? "border-slate-300 ring-1 ring-slate-200"
+              : "border-slate-200 hover:border-slate-300"
+          }`}
         >
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+              <p className="text-[11px] font-medium uppercase tracking-wider text-slate-500">
                 Total Customers
               </p>
               <h3 className="text-2xl font-bold text-slate-900 mt-1">{totalCount}</h3>
             </div>
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100 text-slate-700">
-              <Users className="h-5 w-5" />
+            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-slate-100 text-slate-600 border border-slate-200/60">
+              <Users className="h-4 w-4" />
             </div>
           </div>
           <p className="text-[11px] text-slate-500 mt-2">Active business accounts</p>
@@ -373,21 +372,21 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
             setSelectedStatus("all");
             setCurrentPage(1);
           }}
-          className={`border bg-white shadow-none rounded-xl p-4 cursor-pointer transition-colors ${
+          className={`border bg-white shadow-none rounded-xl p-4 cursor-pointer transition-all ${
             selectedUserType === USER_TYPES.PLATFORM_USER
-              ? "border-[#024AE5] ring-1 ring-[#024AE5]"
-              : "border-slate-200 hover:border-[#024AE5]/40"
+              ? "border-slate-400 ring-1 ring-slate-300"
+              : "border-slate-200 hover:border-slate-300"
           }`}
         >
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+              <p className="text-[11px] font-medium uppercase tracking-wider text-slate-500">
                 Platform Users
               </p>
-              <h3 className="text-2xl font-bold text-[#024AE5] mt-1">{platformCount}</h3>
+              <h3 className="text-2xl font-bold text-slate-900 mt-1">{platformCount}</h3>
             </div>
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#024AE5]/10 text-[#024AE5]">
-              <Globe className="h-5 w-5" />
+            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-slate-100 text-slate-600 border border-slate-200/60">
+              <Globe className="h-4 w-4" />
             </div>
           </div>
           <p className="text-[11px] text-slate-500 mt-2">Website online portal signups</p>
@@ -400,21 +399,21 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
             setSelectedStatus("all");
             setCurrentPage(1);
           }}
-          className={`border bg-white shadow-none rounded-xl p-4 cursor-pointer transition-colors ${
+          className={`border bg-white shadow-none rounded-xl p-4 cursor-pointer transition-all ${
             selectedUserType === USER_TYPES.OFFLINE_USER
-              ? "border-[#3C8B4F] ring-1 ring-[#3C8B4F]"
-              : "border-slate-200 hover:border-[#3C8B4F]/40"
+              ? "border-slate-400 ring-1 ring-slate-300"
+              : "border-slate-200 hover:border-slate-300"
           }`}
         >
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+              <p className="text-[11px] font-medium uppercase tracking-wider text-slate-500">
                 Offline Customers
               </p>
-              <h3 className="text-2xl font-bold text-[#3C8B4F] mt-1">{offlineCount}</h3>
+              <h3 className="text-2xl font-bold text-slate-900 mt-1">{offlineCount}</h3>
             </div>
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#3C8B4F]/10 text-[#3C8B4F]">
-              <Store className="h-5 w-5" />
+            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-slate-100 text-slate-600 border border-slate-200/60">
+              <Store className="h-4 w-4" />
             </div>
           </div>
           <p className="text-[11px] text-slate-500 mt-2">Direct ERP & billing accounts</p>
@@ -427,31 +426,31 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
             setSelectedUserType("all");
             setCurrentPage(1);
           }}
-          className={`border bg-white shadow-none rounded-xl p-4 cursor-pointer transition-colors ${
+          className={`border bg-white shadow-none rounded-xl p-4 cursor-pointer transition-all ${
             selectedStatus === APPROVAL_STATUSES.PENDING
-              ? "border-amber-500 ring-1 ring-amber-500"
-              : "border-slate-200 hover:border-amber-400"
+              ? "border-amber-400 ring-1 ring-amber-200"
+              : "border-slate-200 hover:border-slate-300"
           }`}
         >
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+              <p className="text-[11px] font-medium uppercase tracking-wider text-slate-500">
                 Pending Approval
               </p>
-              <h3 className="text-2xl font-bold text-amber-600 mt-1">{pendingCount}</h3>
+              <h3 className="text-2xl font-bold text-slate-900 mt-1">{pendingCount}</h3>
             </div>
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-50 text-amber-600">
-              <Clock className="h-5 w-5" />
+            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-slate-100 text-slate-600 border border-slate-200/60">
+              <Clock className="h-4 w-4" />
             </div>
           </div>
-          <p className="text-[11px] text-amber-700 font-medium mt-2">
-            {pendingCount > 0 ? "Requires admin review" : "All accounts verified"}
+          <p className="text-[11px] text-slate-500 mt-2">
+            {pendingCount > 0 ? "Requires review" : "All accounts verified"}
           </p>
         </Card>
       </div>
 
-      {/* Filter & Search Bar with shadcn Inputs and Selects */}
-      <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 bg-white p-3.5 rounded-xl border border-slate-200 shadow-none">
+      {/* Filter & Search Bar with Pure Neutral Styling */}
+      <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 bg-white p-3 rounded-xl border border-slate-200 shadow-none">
         {/* Search Input (shadcn) */}
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
@@ -463,41 +462,34 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
               setSearchQuery(e.target.value);
               setCurrentPage(1);
             }}
-            className="pl-9 h-10 text-xs bg-slate-50 border-slate-200 focus-visible:bg-white focus-visible:ring-[#024AE5]"
+            className="pl-9 h-9 text-xs bg-slate-50/60 border-slate-200 focus-visible:bg-white focus-visible:ring-1 focus-visible:ring-slate-400"
           />
         </div>
 
-        {/* shadcn Dropdown Filters */}
-        <div className="flex flex-wrap items-center gap-3">
-          {/* User Type Filter (shadcn Select) */}
-          <div className="flex items-center gap-2">
-            <Filter className="h-3.5 w-3.5 text-slate-400 shrink-0" />
-            <div className="w-[180px]">
-              <Select
-                value={selectedUserType}
-                onValueChange={(val) => {
-                  setSelectedUserType(val);
-                  setCurrentPage(1);
-                }}
-              >
-                <SelectTrigger className="h-10 text-xs bg-white border-slate-200">
-                  <SelectValue placeholder="All Types" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Types</SelectItem>
-                  <SelectItem value={USER_TYPES.PLATFORM_USER}>
-                    {USER_TYPE_CONFIG[USER_TYPES.PLATFORM_USER].shortLabel}
-                  </SelectItem>
-                  <SelectItem value={USER_TYPES.OFFLINE_USER}>
-                    {USER_TYPE_CONFIG[USER_TYPES.OFFLINE_USER].shortLabel}
-                  </SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+        {/* Dropdown Filters */}
+        <div className="flex flex-wrap items-center gap-2.5">
+          {/* User Type Filter */}
+          <div className="w-[160px]">
+            <Select
+              value={selectedUserType}
+              onValueChange={(val) => {
+                setSelectedUserType(val);
+                setCurrentPage(1);
+              }}
+            >
+              <SelectTrigger className="h-9 text-xs bg-white border-slate-200 text-slate-700">
+                <SelectValue placeholder="All Types" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Types</SelectItem>
+                <SelectItem value={USER_TYPES.PLATFORM_USER}>Platform Users</SelectItem>
+                <SelectItem value={USER_TYPES.OFFLINE_USER}>Offline Customers</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
-          {/* Status Filter (shadcn Select) */}
-          <div className="w-[170px]">
+          {/* Status Filter */}
+          <div className="w-[160px]">
             <Select
               value={selectedStatus}
               onValueChange={(val) => {
@@ -505,20 +497,14 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
                 setCurrentPage(1);
               }}
             >
-              <SelectTrigger className="h-10 text-xs bg-white border-slate-200">
+              <SelectTrigger className="h-9 text-xs bg-white border-slate-200 text-slate-700">
                 <SelectValue placeholder="All Statuses" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Statuses</SelectItem>
-                <SelectItem value={APPROVAL_STATUSES.APPROVED}>
-                  {APPROVAL_STATUS_CONFIG[APPROVAL_STATUSES.APPROVED].label}
-                </SelectItem>
-                <SelectItem value={APPROVAL_STATUSES.PENDING}>
-                  {APPROVAL_STATUS_CONFIG[APPROVAL_STATUSES.PENDING].label}
-                </SelectItem>
-                <SelectItem value={APPROVAL_STATUSES.REJECTED}>
-                  {APPROVAL_STATUS_CONFIG[APPROVAL_STATUSES.REJECTED].label}
-                </SelectItem>
+                <SelectItem value={APPROVAL_STATUSES.APPROVED}>Approved</SelectItem>
+                <SelectItem value={APPROVAL_STATUSES.PENDING}>Pending Review</SelectItem>
+                <SelectItem value={APPROVAL_STATUSES.REJECTED}>Rejected</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -534,7 +520,7 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
                 setSelectedStatus("all");
                 setCurrentPage(1);
               }}
-              className="text-xs text-slate-500 hover:text-slate-900 h-10 px-2"
+              className="text-xs text-slate-500 hover:text-slate-900 h-9 px-2.5"
             >
               Reset
             </Button>
@@ -544,297 +530,287 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
 
       {/* Customers Data Table */}
       <div className="rounded-xl border border-slate-200 bg-white overflow-hidden shadow-none">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              {/* Customer & Company (Sortable) */}
-              <TableHead
-                onClick={() => handleSort("name")}
-                className="text-xs font-semibold text-slate-700 py-3.5 cursor-pointer select-none hover:text-[#024AE5]"
-              >
-                <div className="flex items-center">
-                  Customer & Company
-                  {getSortIcon("name")}
-                </div>
-              </TableHead>
-
-              {/* Contact Details */}
-              <TableHead className="text-xs font-semibold text-slate-700 py-3.5">
-                Contact Details
-              </TableHead>
-
-              {/* Registered Date (Sortable) */}
-              <TableHead
-                onClick={() => handleSort("date")}
-                className="text-xs font-semibold text-slate-700 py-3.5 cursor-pointer select-none hover:text-[#024AE5]"
-              >
-                <div className="flex items-center">
-                  Registered Date
-                  {getSortIcon("date")}
-                </div>
-              </TableHead>
-
-              {/* User Type (Sortable) */}
-              <TableHead
-                onClick={() => handleSort("type")}
-                className="text-xs font-semibold text-slate-700 py-3.5 cursor-pointer select-none hover:text-[#024AE5]"
-              >
-                <div className="flex items-center">
-                  User Type
-                  {getSortIcon("type")}
-                </div>
-              </TableHead>
-
-              {/* Approval Status (Sortable) */}
-              <TableHead
-                onClick={() => handleSort("status")}
-                className="text-xs font-semibold text-slate-700 py-3.5 cursor-pointer select-none hover:text-[#024AE5]"
-              >
-                <div className="flex items-center">
-                  Approval Status
-                  {getSortIcon("status")}
-                </div>
-              </TableHead>
-
-              {/* Commercial Terms */}
-              <TableHead className="text-xs font-semibold text-slate-700 py-3.5">
-                Commercial Terms
-              </TableHead>
-
-              {/* Location (Sortable) */}
-              <TableHead
-                onClick={() => handleSort("location")}
-                className="text-xs font-semibold text-slate-700 py-3.5 cursor-pointer select-none hover:text-[#024AE5]"
-              >
-                <div className="flex items-center">
-                  Location
-                  {getSortIcon("location")}
-                </div>
-              </TableHead>
-
-              {/* Actions */}
-              <TableHead className="text-xs font-semibold text-slate-700 py-3.5 text-right">
-                Actions
-              </TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {paginatedCustomers.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={8} className="text-center py-12 text-slate-500 bg-white">
-                  <div className="flex flex-col items-center justify-center space-y-2">
-                    <Users className="h-8 w-8 text-slate-300" />
-                    <p className="text-sm font-medium text-slate-700">No customers found</p>
-                    <p className="text-xs text-slate-400">
-                      Try adjusting your search criteria or register an offline customer.
-                    </p>
+        <div className="overflow-x-auto">
+          <Table>
+            <TableHeader className="bg-slate-50/80 border-b border-slate-200">
+              <TableRow className="hover:bg-transparent border-0">
+                {/* Customer & Company */}
+                <TableHead
+                  onClick={() => handleSort("name")}
+                  className="text-[11px] font-semibold text-slate-600 tracking-wider uppercase py-3 px-4 min-w-[240px] cursor-pointer select-none hover:text-slate-900"
+                >
+                  <div className="flex items-center gap-1">
+                    Customer & Company
+                    {getSortIcon("name")}
                   </div>
-                </TableCell>
+                </TableHead>
+
+                {/* Contact Details */}
+                <TableHead className="text-[11px] font-semibold text-slate-600 tracking-wider uppercase py-3 px-4 min-w-[200px]">
+                  Contact Details
+                </TableHead>
+
+                {/* Registered Date */}
+                <TableHead
+                  onClick={() => handleSort("date")}
+                  className="text-[11px] font-semibold text-slate-600 tracking-wider uppercase py-3 px-4 min-w-[130px] whitespace-nowrap cursor-pointer select-none hover:text-slate-900"
+                >
+                  <div className="flex items-center gap-1">
+                    Registered On
+                    {getSortIcon("date")}
+                  </div>
+                </TableHead>
+
+                {/* User Type */}
+                <TableHead
+                  onClick={() => handleSort("type")}
+                  className="text-[11px] font-semibold text-slate-600 tracking-wider uppercase py-3 px-4 min-w-[120px] cursor-pointer select-none hover:text-slate-900"
+                >
+                  <div className="flex items-center gap-1">
+                    Type
+                    {getSortIcon("type")}
+                  </div>
+                </TableHead>
+
+                {/* Approval Status */}
+                <TableHead
+                  onClick={() => handleSort("status")}
+                  className="text-[11px] font-semibold text-slate-600 tracking-wider uppercase py-3 px-4 min-w-[130px] cursor-pointer select-none hover:text-slate-900"
+                >
+                  <div className="flex items-center gap-1">
+                    Status
+                    {getSortIcon("status")}
+                  </div>
+                </TableHead>
+
+                {/* Commercial Terms */}
+                <TableHead className="text-[11px] font-semibold text-slate-600 tracking-wider uppercase py-3 px-4 min-w-[120px]">
+                  Commercial
+                </TableHead>
+
+                {/* Location */}
+                <TableHead
+                  onClick={() => handleSort("location")}
+                  className="text-[11px] font-semibold text-slate-600 tracking-wider uppercase py-3 px-4 min-w-[130px] cursor-pointer select-none hover:text-slate-900"
+                >
+                  <div className="flex items-center gap-1">
+                    Location
+                    {getSortIcon("location")}
+                  </div>
+                </TableHead>
+
+                {/* Actions */}
+                <TableHead className="text-[11px] font-semibold text-slate-600 tracking-wider uppercase py-3 px-4 min-w-[110px] text-right">
+                  Actions
+                </TableHead>
               </TableRow>
-            ) : (
-              paginatedCustomers.map((customer) => {
-                const isOffline = customer.user_type === USER_TYPES.OFFLINE_USER;
-                const userType = customer.user_type || USER_TYPES.PLATFORM_USER;
-                const approvalStatus = customer.approval_status || APPROVAL_STATUSES.APPROVED;
-                const typeConfig =
-                  USER_TYPE_CONFIG[userType as UserType] || USER_TYPE_CONFIG[USER_TYPES.PLATFORM_USER];
-                const statusConfig =
-                  APPROVAL_STATUS_CONFIG[approvalStatus as ApprovalStatus] ||
-                  APPROVAL_STATUS_CONFIG[APPROVAL_STATUSES.APPROVED];
+            </TableHeader>
+            <TableBody>
+              {paginatedCustomers.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={8} className="text-center py-12 text-slate-500 bg-white">
+                    <div className="flex flex-col items-center justify-center space-y-2">
+                      <Users className="h-8 w-8 text-slate-300" />
+                      <p className="text-sm font-medium text-slate-700">No customers found</p>
+                      <p className="text-xs text-slate-400">
+                        Try adjusting your search criteria or register an offline customer.
+                      </p>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ) : (
+                paginatedCustomers.map((customer) => {
+                  const isOffline = customer.user_type === USER_TYPES.OFFLINE_USER;
+                  const userType = customer.user_type || USER_TYPES.PLATFORM_USER;
+                  const approvalStatus = customer.approval_status || APPROVAL_STATUSES.APPROVED;
 
-                return (
-                  <TableRow
-                    key={customer.id}
-                    className="hover:bg-slate-50/80 transition-colors bg-white border-b border-slate-200"
-                  >
-                    {/* Customer & Company */}
-                    <TableCell className="py-3 bg-transparent">
-                      <div className="flex items-center gap-3">
-                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-700 font-semibold text-xs border border-slate-200">
-                          {customer.first_name?.[0] || "C"}
-                          {customer.last_name?.[0] || ""}
-                        </div>
-                        <div>
-                          <div className="font-semibold text-xs text-slate-900 leading-tight">
-                            {customer.title} {customer.first_name} {customer.last_name}
+                  return (
+                    <TableRow
+                      key={customer.id}
+                      className="hover:bg-slate-50/70 transition-colors bg-white border-b border-slate-200/80"
+                    >
+                      {/* Customer & Company */}
+                      <TableCell className="py-3 px-4">
+                        <div className="flex items-center gap-3">
+                          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-700 font-medium text-xs border border-slate-200/80">
+                            {customer.first_name?.[0] || "C"}
+                            {customer.last_name?.[0] || ""}
                           </div>
-                          <div className="text-[11px] text-slate-600 font-medium flex items-center gap-1.5 mt-0.5">
-                            <Building2 className="h-3 w-3 text-slate-400 shrink-0" />
-                            <span className="truncate max-w-[180px]">{customer.company_name}</span>
-                          </div>
-                          {customer.gstin && (
-                            <span className="inline-block mt-0.5 text-[9px] font-mono font-semibold bg-slate-100 text-slate-600 px-1.5 py-0.2 rounded border border-slate-200">
-                              GSTIN: {customer.gstin}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    </TableCell>
-
-                    {/* Contact Details */}
-                    <TableCell className="py-3 bg-transparent">
-                      <div className="space-y-1 text-xs">
-                        <div className="flex items-center gap-1.5 text-slate-700">
-                          <Mail className="h-3.5 w-3.5 text-slate-400 shrink-0" />
-                          <span className="truncate max-w-[180px]">{customer.email}</span>
-                        </div>
-                        <div className="flex items-center gap-1.5 text-slate-600">
-                          <Phone className="h-3.5 w-3.5 text-slate-400 shrink-0" />
-                          <span>{customer.mobile}</span>
-                        </div>
-                      </div>
-                    </TableCell>
-
-                    {/* Registered Date */}
-                    <TableCell className="py-3 bg-transparent">
-                      <div className="flex items-center gap-1.5 text-xs text-slate-600 font-medium whitespace-nowrap">
-                        <Calendar className="h-3.5 w-3.5 text-slate-400 shrink-0" />
-                        <span>{formatDate(customer.created_at)}</span>
-                      </div>
-                    </TableCell>
-
-                    {/* User Type */}
-                    <TableCell className="py-3 bg-transparent">
-                      {userType === USER_TYPES.PLATFORM_USER ? (
-                        <Badge
-                          className={`${typeConfig.badgeBg} ${typeConfig.badgeText} border-0 gap-1 text-[10px] font-semibold py-0.5`}
-                        >
-                          <Globe className="h-3 w-3" /> {typeConfig.shortLabel}
-                        </Badge>
-                      ) : (
-                        <Badge
-                          className={`${typeConfig.badgeBg} ${typeConfig.badgeText} border-0 gap-1 text-[10px] font-semibold py-0.5`}
-                        >
-                          <Store className="h-3 w-3" /> {typeConfig.shortLabel}
-                        </Badge>
-                      )}
-                    </TableCell>
-
-                    {/* Approval Status */}
-                    <TableCell className="py-3 bg-transparent">
-                      {approvalStatus === APPROVAL_STATUSES.APPROVED && (
-                        <Badge className="bg-emerald-50 text-emerald-700 border-emerald-200 gap-1 text-[10px] font-semibold py-0.5">
-                          <CheckCircle2 className="h-3 w-3 text-emerald-600" /> {statusConfig.label}
-                        </Badge>
-                      )}
-                      {approvalStatus === APPROVAL_STATUSES.PENDING && (
-                        <Badge className="bg-amber-50 text-amber-700 border-amber-200 gap-1 text-[10px] font-semibold py-0.5 animate-pulse">
-                          <Clock className="h-3 w-3 text-amber-600" /> {statusConfig.label}
-                        </Badge>
-                      )}
-                      {approvalStatus === APPROVAL_STATUSES.REJECTED && (
-                        <Badge className="bg-rose-50 text-rose-700 border-rose-200 gap-1 text-[10px] font-semibold py-0.5">
-                          <XCircle className="h-3 w-3 text-rose-600" /> {statusConfig.label}
-                        </Badge>
-                      )}
-                    </TableCell>
-
-                    {/* Commercial / Credit Terms */}
-                    <TableCell className="py-3 bg-transparent">
-                      {isOffline ? (
-                        <div className="text-xs">
-                          <div className="font-semibold text-slate-900">
-                            ₹{(customer.credit_limit || COMMERCIAL_DEFAULTS.DEFAULT_CREDIT_LIMIT).toLocaleString("en-IN")}
-                          </div>
-                          <div className="text-[10px] text-slate-400">
-                            {customer.credit_days || COMMERCIAL_DEFAULTS.DEFAULT_CREDIT_DAYS} Days Net Credit
+                          <div>
+                            <div className="font-medium text-xs text-slate-900 leading-tight">
+                              {customer.title} {customer.first_name} {customer.last_name}
+                            </div>
+                            <div className="text-[11px] text-slate-500 flex items-center gap-1.5 mt-0.5">
+                              <Building2 className="h-3 w-3 text-slate-400 shrink-0" />
+                              <span className="truncate max-w-[170px]">{customer.company_name}</span>
+                            </div>
+                            {customer.gstin && (
+                              <span className="inline-block mt-0.5 text-[9px] font-mono text-slate-500 bg-slate-50 px-1.5 py-0.2 rounded border border-slate-200">
+                                GST: {customer.gstin}
+                              </span>
+                            )}
                           </div>
                         </div>
-                      ) : customer.credit_limit && customer.credit_limit > 0 ? (
-                        <div className="text-xs">
-                          <div className="font-semibold text-slate-900">
-                            ₹{customer.credit_limit.toLocaleString("en-IN")}
+                      </TableCell>
+
+                      {/* Contact Details */}
+                      <TableCell className="py-3 px-4">
+                        <div className="space-y-0.5 text-xs">
+                          <div className="flex items-center gap-1.5 text-slate-700">
+                            <Mail className="h-3 w-3 text-slate-400 shrink-0" />
+                            <span className="truncate max-w-[170px]">{customer.email}</span>
                           </div>
-                          <div className="text-[10px] text-slate-400">
-                            {customer.credit_days || 30} Days Approved
+                          <div className="flex items-center gap-1.5 text-slate-500 text-[11px]">
+                            <Phone className="h-3 w-3 text-slate-400 shrink-0" />
+                            <span>{customer.mobile}</span>
                           </div>
                         </div>
-                      ) : (
-                        <div className="text-xs text-slate-500 font-medium">
-                          <span className="inline-flex items-center rounded-md bg-slate-100 px-2 py-0.5 text-[10px] font-medium text-slate-600 border border-slate-200">
-                            Prepaid (Online)
+                      </TableCell>
+
+                      {/* Registered Date */}
+                      <TableCell className="py-3 px-4">
+                        <div className="flex items-center gap-1.5 text-xs text-slate-600 whitespace-nowrap">
+                          <Calendar className="h-3 w-3 text-slate-400 shrink-0" />
+                          <span>{formatDate(customer.created_at)}</span>
+                        </div>
+                      </TableCell>
+
+                      {/* User Type */}
+                      <TableCell className="py-3 px-4">
+                        {userType === USER_TYPES.PLATFORM_USER ? (
+                          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[11px] font-medium bg-slate-100 text-slate-700 border border-slate-200/60 whitespace-nowrap">
+                            <Globe className="h-3 w-3 text-slate-500" /> Platform
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[11px] font-medium bg-slate-100 text-slate-700 border border-slate-200/60 whitespace-nowrap">
+                            <Store className="h-3 w-3 text-slate-500" /> Offline ERP
+                          </span>
+                        )}
+                      </TableCell>
+
+                      {/* Approval Status */}
+                      <TableCell className="py-3 px-4">
+                        {approvalStatus === APPROVAL_STATUSES.APPROVED && (
+                          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[11px] font-medium bg-emerald-50 text-emerald-700 border border-emerald-200/60 whitespace-nowrap">
+                            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" /> Approved
+                          </span>
+                        )}
+                        {approvalStatus === APPROVAL_STATUSES.PENDING && (
+                          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[11px] font-medium bg-amber-50 text-amber-700 border border-amber-200/60 whitespace-nowrap">
+                            <span className="h-1.5 w-1.5 rounded-full bg-amber-500 animate-pulse" /> Pending
+                          </span>
+                        )}
+                        {approvalStatus === APPROVAL_STATUSES.REJECTED && (
+                          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[11px] font-medium bg-rose-50 text-rose-700 border border-rose-200/60 whitespace-nowrap">
+                            <span className="h-1.5 w-1.5 rounded-full bg-rose-500" /> Rejected
+                          </span>
+                        )}
+                      </TableCell>
+
+                      {/* Commercial Terms */}
+                      <TableCell className="py-3 px-4">
+                        {isOffline ? (
+                          <div className="text-xs">
+                            <div className="font-semibold text-slate-800">
+                              ₹{(customer.credit_limit || COMMERCIAL_DEFAULTS.DEFAULT_CREDIT_LIMIT).toLocaleString("en-IN")}
+                            </div>
+                            <div className="text-[10px] text-slate-400">
+                              {customer.credit_days || COMMERCIAL_DEFAULTS.DEFAULT_CREDIT_DAYS}d Net
+                            </div>
+                          </div>
+                        ) : customer.credit_limit && customer.credit_limit > 0 ? (
+                          <div className="text-xs">
+                            <div className="font-semibold text-slate-800">
+                              ₹{customer.credit_limit.toLocaleString("en-IN")}
+                            </div>
+                            <div className="text-[10px] text-slate-400">
+                              {customer.credit_days || 30}d Net
+                            </div>
+                          </div>
+                        ) : (
+                          <span className="text-xs text-slate-500">Prepaid</span>
+                        )}
+                      </TableCell>
+
+                      {/* Location */}
+                      <TableCell className="py-3 px-4">
+                        <div className="text-xs text-slate-600 flex items-center gap-1">
+                          <MapPin className="h-3 w-3 text-slate-400 shrink-0" />
+                          <span className="truncate max-w-[120px]">
+                            {customer.city}, {customer.state}
                           </span>
                         </div>
-                      )}
-                    </TableCell>
+                      </TableCell>
 
-                    {/* Location */}
-                    <TableCell className="py-3 bg-transparent">
-                      <div className="text-xs text-slate-700 flex items-center gap-1">
-                        <MapPin className="h-3 w-3 text-slate-400 shrink-0" />
-                        <span>
-                          {customer.city}, {customer.state}
-                        </span>
-                      </div>
-                    </TableCell>
+                      {/* Actions */}
+                      <TableCell className="py-3 px-4 text-right">
+                        <div className="flex items-center justify-end gap-1.5">
+                          {approvalStatus === APPROVAL_STATUSES.PENDING && (
+                            <>
+                              <Button
+                                type="button"
+                                size="icon"
+                                variant="outline"
+                                title="Approve Customer"
+                                disabled={isPending}
+                                onClick={() => handleStatusChange(customer.id, APPROVAL_STATUSES.APPROVED)}
+                                className="h-7 w-7 border-slate-200 text-slate-600 hover:border-emerald-500 hover:text-emerald-600 hover:bg-emerald-50/50 cursor-pointer shadow-none"
+                              >
+                                <Check className="h-3.5 w-3.5" />
+                              </Button>
+                              <Button
+                                type="button"
+                                size="icon"
+                                variant="outline"
+                                title="Reject Customer"
+                                disabled={isPending}
+                                onClick={() => handleStatusChange(customer.id, APPROVAL_STATUSES.REJECTED)}
+                                className="h-7 w-7 border-slate-200 text-slate-600 hover:border-rose-500 hover:text-rose-600 hover:bg-rose-50/50 cursor-pointer shadow-none"
+                              >
+                                <X className="h-3.5 w-3.5" />
+                              </Button>
+                            </>
+                          )}
 
-                    {/* Actions */}
-                    <TableCell className="py-3 text-right bg-transparent">
-                      <div className="flex items-center justify-end gap-1.5">
-                        {/* Quick Approve / Reject for Pending Accounts */}
-                        {approvalStatus === APPROVAL_STATUSES.PENDING && (
-                          <>
-                            <Button
-                              type="button"
-                              size="icon"
-                              title="Approve Customer"
-                              disabled={isPending}
-                              onClick={() => handleStatusChange(customer.id, APPROVAL_STATUSES.APPROVED)}
-                              className="h-7 w-7 bg-emerald-600 text-white hover:bg-emerald-700 cursor-pointer shadow-none"
-                            >
-                              <Check className="h-3.5 w-3.5" />
-                            </Button>
-                            <Button
-                              type="button"
-                              size="icon"
-                              title="Reject Customer"
-                              disabled={isPending}
-                              onClick={() => handleStatusChange(customer.id, APPROVAL_STATUSES.REJECTED)}
-                              className="h-7 w-7 bg-rose-600 text-white hover:bg-rose-700 cursor-pointer shadow-none"
-                            >
-                              <X className="h-3.5 w-3.5" />
-                            </Button>
-                          </>
-                        )}
-
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setViewingCustomer(customer)}
-                          className="h-7 text-xs px-2.5 gap-1 border-slate-200 text-slate-700 hover:bg-slate-100 shadow-none cursor-pointer"
-                        >
-                          <Eye className="h-3.5 w-3.5 text-slate-500" />
-                          <span>View</span>
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                );
-              })
-            )}
-          </TableBody>
-        </Table>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setViewingCustomer(customer)}
+                            className="h-7 text-xs px-2.5 border-slate-200 text-slate-700 hover:bg-slate-50 hover:text-slate-900 shadow-none cursor-pointer"
+                          >
+                            <Eye className="h-3.5 w-3.5 text-slate-500 mr-1" />
+                            <span>View</span>
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })
+              )}
+            </TableBody>
+          </Table>
+        </div>
 
         {/* Pagination Bar */}
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-4 py-3 border-t border-slate-200 bg-slate-50/70">
-          <div className="flex items-center gap-2 text-xs text-slate-600">
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-4 py-3 border-t border-slate-200 bg-slate-50/60">
+          <div className="flex items-center gap-2 text-xs text-slate-500">
             <span>
               Showing{" "}
-              <strong className="font-semibold text-slate-900">
+              <strong className="font-semibold text-slate-800">
                 {totalItems === 0 ? 0 : (validCurrentPage - 1) * itemsPerPage + 1}
               </strong>{" "}
               to{" "}
-              <strong className="font-semibold text-slate-900">
+              <strong className="font-semibold text-slate-800">
                 {Math.min(validCurrentPage * itemsPerPage, totalItems)}
               </strong>{" "}
-              of <strong className="font-semibold text-slate-900">{totalItems}</strong> customers
+              of <strong className="font-semibold text-slate-800">{totalItems}</strong> customers
             </span>
 
             {/* Rows Per Page Selector */}
             <div className="hidden sm:flex items-center gap-1.5 ml-4">
               <span className="text-slate-400">Rows per page:</span>
-              <div className="w-[70px]">
+              <div className="w-[65px]">
                 <Select
                   value={String(itemsPerPage)}
                   onValueChange={(val) => {
@@ -917,7 +893,7 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
         </div>
       </div>
 
-      {/* MODAL 1: ADD OFFLINE CUSTOMER (with shadcn Inputs and Selects) */}
+      {/* MODAL 1: ADD OFFLINE CUSTOMER */}
       {isAddModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-xs p-4 overflow-y-auto">
           <div className="relative w-full max-w-3xl rounded-2xl bg-white p-6 shadow-2xl border border-slate-200 my-8 max-h-[90vh] overflow-y-auto animate-in fade-in zoom-in-95 duration-150">
@@ -925,7 +901,7 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
             <div className="flex items-center justify-between border-b border-slate-200 pb-4 mb-5">
               <div>
                 <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-                  <Store className="h-5 w-5 text-[#3C8B4F]" />
+                  <Store className="h-5 w-5 text-slate-700" />
                   Add Offline Customer Profile
                 </h2>
                 <p className="text-xs text-slate-500 mt-0.5">
@@ -942,10 +918,10 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
             </div>
 
             {/* Offline Account Notice Banner */}
-            <div className="mb-5 rounded-xl bg-blue-50/80 p-3.5 border border-blue-100 flex items-start gap-3 text-xs text-blue-800">
-              <AlertCircle className="h-4 w-4 text-[#024AE5] shrink-0 mt-0.5" />
+            <div className="mb-5 rounded-xl bg-slate-50 p-3.5 border border-slate-200 flex items-start gap-3 text-xs text-slate-700">
+              <AlertCircle className="h-4 w-4 text-slate-500 shrink-0 mt-0.5" />
               <div>
-                <span className="font-semibold text-blue-900">ERP & Commercial Account Note: </span>
+                <span className="font-semibold text-slate-900">ERP & Commercial Account Note: </span>
                 This profile is created directly in the customer database for quotes, invoices, and ledger tracking.
                 No website portal password or login credentials will be generated.
               </div>
@@ -967,7 +943,7 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
               {/* Section 1: Company Profile */}
               <div>
                 <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700 mb-3 flex items-center gap-2">
-                  <Building2 className="h-4 w-4 text-[#024AE5]" />
+                  <Building2 className="h-4 w-4 text-slate-600" />
                   1. Company & Tax Details
                 </h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -1067,7 +1043,7 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
               {/* Section 2: Contact Person */}
               <div className="border-t border-slate-100 pt-4">
                 <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700 mb-3 flex items-center gap-2">
-                  <Users className="h-4 w-4 text-[#024AE5]" />
+                  <Users className="h-4 w-4 text-slate-600" />
                   2. Primary Contact Person
                 </h3>
                 <div className="grid grid-cols-1 sm:grid-cols-12 gap-4">
@@ -1143,7 +1119,7 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
               {/* Section 3: Commercial & Credit Terms */}
               <div className="border-t border-slate-100 pt-4">
                 <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700 mb-3 flex items-center gap-2">
-                  <CreditCard className="h-4 w-4 text-[#024AE5]" />
+                  <CreditCard className="h-4 w-4 text-slate-600" />
                   3. Commercial & Credit Parameters
                 </h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -1214,7 +1190,7 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
             {/* Header */}
             <div className="flex items-center justify-between border-b border-slate-200 pb-4 mb-4">
               <div className="flex items-center gap-3">
-                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#024AE5]/10 text-[#024AE5] font-bold text-sm">
+                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-slate-100 text-slate-700 font-bold text-sm border border-slate-200/80">
                   {viewingCustomer.first_name?.[0]}
                   {viewingCustomer.last_name?.[0]}
                 </div>
@@ -1237,18 +1213,20 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
             </div>
 
             {/* Approval & Type Status Row */}
-            <div className="flex flex-wrap items-center justify-between gap-3 bg-slate-50 p-3.5 rounded-xl border border-slate-100 mb-4">
+            <div className="flex flex-wrap items-center justify-between gap-3 bg-slate-50 p-3.5 rounded-xl border border-slate-200 mb-4">
               <div className="flex items-center gap-2">
                 <span className="text-xs font-semibold text-slate-700">Account Type:</span>
-                {viewingCustomer.user_type === USER_TYPES.OFFLINE_USER ? (
-                  <Badge className="bg-[#3C8B4F]/10 text-[#3C8B4F] border-0 text-[10px]">
-                    {USER_TYPE_CONFIG[USER_TYPES.OFFLINE_USER].shortLabel}
-                  </Badge>
-                ) : (
-                  <Badge className="bg-[#024AE5]/10 text-[#024AE5] border-0 text-[10px]">
-                    {USER_TYPE_CONFIG[USER_TYPES.PLATFORM_USER].shortLabel}
-                  </Badge>
-                )}
+                <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[11px] font-medium bg-white text-slate-700 border border-slate-200">
+                  {viewingCustomer.user_type === USER_TYPES.OFFLINE_USER ? (
+                    <>
+                      <Store className="h-3 w-3 text-slate-500" /> Offline ERP
+                    </>
+                  ) : (
+                    <>
+                      <Globe className="h-3 w-3 text-slate-500" /> Platform User
+                    </>
+                  )}
+                </span>
               </div>
 
               <div className="flex items-center gap-2">
@@ -1264,15 +1242,9 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value={APPROVAL_STATUSES.APPROVED}>
-                        {APPROVAL_STATUS_CONFIG[APPROVAL_STATUSES.APPROVED].label}
-                      </SelectItem>
-                      <SelectItem value={APPROVAL_STATUSES.PENDING}>
-                        {APPROVAL_STATUS_CONFIG[APPROVAL_STATUSES.PENDING].label}
-                      </SelectItem>
-                      <SelectItem value={APPROVAL_STATUSES.REJECTED}>
-                        {APPROVAL_STATUS_CONFIG[APPROVAL_STATUSES.REJECTED].label}
-                      </SelectItem>
+                      <SelectItem value={APPROVAL_STATUSES.APPROVED}>Approved</SelectItem>
+                      <SelectItem value={APPROVAL_STATUSES.PENDING}>Pending Review</SelectItem>
+                      <SelectItem value={APPROVAL_STATUSES.REJECTED}>Rejected</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
