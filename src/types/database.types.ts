@@ -1,6 +1,8 @@
 export type UserRole = "platform_owner" | "customer";
 export type UserTitle = "Mr" | "Mrs" | "Miss" | "Ms";
 export type OrderStatus = "pending" | "processing" | "shipped" | "delivered" | "cancelled";
+export type ApprovalStatus = "pending" | "approved" | "rejected";
+export type UserType = "platform_user" | "offline_user";
 
 export interface Profile {
   id: string;
@@ -20,6 +22,11 @@ export interface Profile {
   city: string;
   state: string;
   pincode: string;
+  approval_status?: ApprovalStatus;
+  user_type?: UserType;
+  notes?: string | null;
+  credit_limit?: number | null;
+  credit_days?: number | null;
   created_at?: string;
   updated_at?: string;
 }
@@ -74,6 +81,8 @@ export interface Database {
     Enums: {
       user_role: UserRole;
       order_status: OrderStatus;
+      approval_status: ApprovalStatus;
+      user_type: UserType;
     };
     CompositeTypes: {
       [_ in never]: never;

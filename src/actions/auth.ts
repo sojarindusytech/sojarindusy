@@ -63,7 +63,8 @@ export async function signUpUser(formData: FormData): Promise<SignUpState> {
     gstin: validated.gstin || null,
     city: validated.city,
     state: validated.state,
-    pincode: validated.pincode,
+    approval_status: "pending",
+    user_type: "platform_user",
   };
 
   // 1. Sign up user with Supabase Auth
@@ -102,6 +103,10 @@ export async function signUpUser(formData: FormData): Promise<SignUpState> {
     city: validated.city,
     state: validated.state,
     pincode: validated.pincode,
+    approval_status: "pending",
+    user_type: "platform_user",
+    credit_limit: 500000,
+    credit_days: 30,
   };
 
   const { error: profileError } = await supabase
