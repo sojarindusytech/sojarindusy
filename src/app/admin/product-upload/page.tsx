@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -19,6 +19,9 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { CategoryCheckboxTree } from "@/components/common/CategoryCheckboxTree";
+import { CategoryNode } from "@/types/database.types";
+import { fetchCategoriesTree } from "@/actions/category";
 import {
   Download,
   History,
@@ -30,6 +33,8 @@ import {
   Eye,
   ArrowRight,
   Upload,
+  FolderTree,
+  Tag,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -54,27 +59,43 @@ const sampleRows: PreviewRow[] = [
 export default function ProductUploadPage() {
   const [selectedFile, setSelectedFile] = useState<string>("4FLUTE_SIH55_Standard_End_Mill.xlsx");
   const [fileSize] = useState<string>("25.6 KB");
-  const [activeStep, setActiveStep] = useState<number>(3); // Matches screenshot state
+  const [activeStep, setActiveStep] = useState<number>(3);
+
+  // Category Tree State
+  const [treeNodes, setTreeNodes] = useState<CategoryNode[]>([]);
+  const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>([
+    "cat-end-mills",
+    "cat-flat-end-mills",
+    "cat-4flute-standard",
+  ]);
+
+  useEffect(() => {
+    async function loadCategories() {
+      const { treeNodes: nodes } = await fetchCategoriesTree();
+      setTreeNodes(nodes);
+    }
+    loadCategories();
+  }, []);
 
   return (
     <div className="space-y-6 w-full">
       {/* Header with Title and Actions */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-slate-200 pb-5">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-slate-900">
             Product Upload
           </h1>
           <p className="text-xs text-slate-500 mt-1">
-            Upload Excel file to import products (SKUs) in bulk
+            Upload Excel file to import products (SKUs) in bulk and map category taxonomies.
           </p>
         </div>
 
         <div className="flex items-center gap-3">
-          <Button variant="outline" size="sm" className="gap-1.5 text-xs">
+          <Button variant="outline" size="sm" className="gap-1.5 text-xs border-slate-200 text-slate-700">
             <Download className="h-4 w-4 text-slate-500" />
             <span>Download Template</span>
           </Button>
-          <Button variant="outline" size="sm" className="gap-1.5 text-xs">
+          <Button variant="outline" size="sm" className="gap-1.5 text-xs border-slate-200 text-slate-700">
             <History className="h-4 w-4 text-slate-500" />
             <span>Upload History</span>
           </Button>
@@ -82,7 +103,7 @@ export default function ProductUploadPage() {
       </div>
 
       {/* 4-Step Process Stepper */}
-      <div className="bg-white rounded-xl border border-slate-200/80 p-5 shadow-none">
+      <div className="bg-white rounded-xl border border-slate-200 bg-white p-5 shadow-none">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           {/* Step 1 */}
           <div className="flex items-center gap-3">
@@ -110,7 +131,7 @@ export default function ProductUploadPage() {
 
           <div className="hidden md:block flex-1 h-[1px] bg-slate-200 mx-4" />
 
-          {/* Step 3 (Active in Image) */}
+          {/* Step 3 */}
           <div className="flex items-center gap-3">
             <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#024AE5] text-white text-xs font-bold shadow-xs ring-4 ring-[#024AE5]/15">
               3
@@ -136,7 +157,7 @@ export default function ProductUploadPage() {
         </div>
       </div>
 
-      {/* 3 Top Cards: Upload Zone, Summary, Selected Context */}
+      {/* 3 Top Cards: Upload Zone, Summary, Category Selection */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
         {/* Card 1: Upload Excel File */}
         <Card className="border-slate-200 bg-white shadow-none rounded-xl">
@@ -152,7 +173,7 @@ export default function ProductUploadPage() {
                 Drag and drop your file here
               </p>
               <p className="text-[11px] text-slate-400 mb-3">or</p>
-              <Button size="sm" variant="primary" className="text-xs h-8 px-4">
+              <Button size="sm" variant="default" className="text-xs h-8 px-4 bg-[#024AE5] text-white">
                 Choose File
               </Button>
             </div>
@@ -206,41 +227,24 @@ export default function ProductUploadPage() {
           </CardContent>
         </Card>
 
-        {/* Card 3: Selected Context */}
+        {/* Card 3: Free-Form Category Selection (Checkbox Tree Integration) */}
         <Card className="border-slate-200 bg-white shadow-none rounded-xl flex flex-col justify-between">
-          <CardHeader className="pb-3 border-b border-slate-100">
-            <CardTitle className="text-xs font-bold text-slate-900">
-              Selected Context
+          <CardHeader className="pb-3 border-b border-slate-100 flex items-center justify-between">
+            <CardTitle className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+              <FolderTree className="h-3.5 w-3.5 text-[#024AE5]" />
+              Assign Product Categories
             </CardTitle>
+            <Link href="/admin/categories" className="text-[10px] text-[#024AE5] hover:underline">
+              Manage Taxonomies →
+            </Link>
           </CardHeader>
-          <CardContent className="p-4 space-y-3 flex-1 flex flex-col justify-between">
-            <div className="space-y-2 text-xs">
-              <div className="flex items-center justify-between py-1 border-b border-slate-100">
-                <span className="text-slate-500">Tool Family</span>
-                <span className="font-medium text-slate-900">End Mills</span>
-              </div>
-              <div className="flex items-center justify-between py-1 border-b border-slate-100">
-                <span className="text-slate-500">Tool Type</span>
-                <span className="font-medium text-slate-900">Flat End Mill</span>
-              </div>
-              <div className="flex items-center justify-between py-1 border-b border-slate-100">
-                <span className="text-slate-500">Flute Count</span>
-                <span className="font-medium text-slate-900">4 Flute</span>
-              </div>
-              <div className="flex items-center justify-between py-1 border-b border-slate-100">
-                <span className="text-slate-500">Variant Type</span>
-                <span className="font-medium text-slate-900">Standard</span>
-              </div>
-              <div className="flex items-center justify-between py-1">
-                <span className="text-slate-500">HRC Series</span>
-                <span className="font-medium text-slate-900">SIH55</span>
-              </div>
-            </div>
-
-            <Button variant="outline" size="sm" className="w-full gap-1.5 text-xs text-slate-700">
-              <Edit3 className="h-3.5 w-3.5 text-slate-500" />
-              <span>Change Context</span>
-            </Button>
+          <CardContent className="p-3 flex-1">
+            <CategoryCheckboxTree
+              treeNodes={treeNodes}
+              selectedIds={selectedCategoryIds}
+              onChange={(newIds) => setSelectedCategoryIds(newIds)}
+              className="border-0 p-0"
+            />
           </CardContent>
         </Card>
       </div>
@@ -253,7 +257,7 @@ export default function ProductUploadPage() {
               Column Mapping
             </CardTitle>
             <p className="text-[11px] text-emerald-700 font-medium mt-0.5">
-              Please map the columns from your Excel file with the system fields.
+              Please map the columns from your Excel file with system product attributes.
             </p>
           </div>
           <Button variant="outline" size="sm" className="gap-1.5 text-xs text-[#024AE5] border-blue-200 hover:bg-blue-50">
@@ -385,8 +389,8 @@ export default function ProductUploadPage() {
         <Button variant="outline" size="sm" className="text-xs px-5">
           Cancel
         </Button>
-        <Button variant="primary" size="sm" className="text-xs px-6 gap-1.5">
-          <span>Validate Data</span>
+        <Button size="sm" className="text-xs px-6 gap-1.5 bg-[#024AE5] text-white hover:bg-[#023ecc]">
+          <span>Validate Data & Categories</span>
           <ArrowRight className="h-4 w-4" />
         </Button>
       </div>

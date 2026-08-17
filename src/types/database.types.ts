@@ -57,6 +57,32 @@ export interface Order {
   updated_at: string;
 }
 
+export interface Category {
+  id: string;
+  name: string;
+  slug: string;
+  parent_id: string | null;
+  description?: string | null;
+  image_url?: string | null;
+  display_order: number;
+  is_active: boolean;
+  created_at?: string;
+  updated_at?: string;
+  product_count?: number;
+}
+
+export interface CategoryNode extends Category {
+  depth: number;
+  children: CategoryNode[];
+  parent_name?: string | null;
+}
+
+export interface ProductCategory {
+  product_id: string;
+  category_id: string;
+  created_at?: string;
+}
+
 export interface Database {
   public: {
     Tables: {
@@ -70,6 +96,18 @@ export interface Database {
         Row: Order;
         Insert: Omit<Order, "created_at" | "updated_at">;
         Update: Partial<Order>;
+        Relationships: [];
+      };
+      categories: {
+        Row: Category;
+        Insert: Omit<Category, "id" | "created_at" | "updated_at">;
+        Update: Partial<Category>;
+        Relationships: [];
+      };
+      product_categories: {
+        Row: ProductCategory;
+        Insert: ProductCategory;
+        Update: Partial<ProductCategory>;
         Relationships: [];
       };
     };

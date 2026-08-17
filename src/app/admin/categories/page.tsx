@@ -1,25 +1,21 @@
-import { AdminComingSoon } from "@/components/admin/AdminComingSoon";
-import { Tags } from "lucide-react";
+import { fetchCategoriesTree } from "@/actions/category";
+import { CategoryManagementClient } from "@/components/admin/CategoryManagementClient";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Categories & Variants | Sojar Indusy Admin",
-  description: "Category and variant matrix management.",
+  title: "Categories & Hierarchy | Sojar Indusy Admin",
+  description: "WordPress-style nested category taxonomy management.",
 };
 
-export default function CategoriesAdminPage() {
+export const revalidate = 0; // Dynamic route
+
+export default async function CategoriesAdminPage() {
+  const { flatCategories, treeNodes } = await fetchCategoriesTree();
+
   return (
-    <AdminComingSoon
-      section="Product Management"
-      title="Categories / Variants"
-      description="Define tooling hierarchies, cutting geometry categories, and material grade specifications."
-      icon={Tags}
-      features={[
-        "Hierarchical category and sub-category trees",
-        "Custom tooling attribute schemas (Corner Radius, Helix Angle, Coatings)",
-        "Automated SEO tagging and category filtering presets",
-        "Cross-category variant grouping and compatibility tables",
-      ]}
+    <CategoryManagementClient
+      initialFlatCategories={flatCategories}
+      initialTreeNodes={treeNodes}
     />
   );
 }
