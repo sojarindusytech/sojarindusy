@@ -57,6 +57,7 @@ import {
   AlertTriangle,
   ArrowUpDown,
   Check,
+  Image as ImageIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -83,6 +84,7 @@ export function CategoryManagementClient({
     slug: "",
     parent_id: "none",
     description: "",
+    image_url: "",
     display_order: "0",
     is_active: "true",
   });
@@ -163,6 +165,7 @@ export function CategoryManagementClient({
       slug: "",
       parent_id: parentCategory.id,
       description: "",
+      image_url: "",
       display_order: "0",
       is_active: "true",
     });
@@ -179,6 +182,7 @@ export function CategoryManagementClient({
       slug: category.slug,
       parent_id: category.parent_id || "none",
       description: category.description || "",
+      image_url: category.image_url || "",
       display_order: String(category.display_order ?? 0),
       is_active: category.is_active ? "true" : "false",
     });
@@ -195,6 +199,7 @@ export function CategoryManagementClient({
       slug: "",
       parent_id: "none",
       description: "",
+      image_url: "",
       display_order: "0",
       is_active: "true",
     });
@@ -216,6 +221,7 @@ export function CategoryManagementClient({
     formData.append("slug", formValues.slug);
     formData.append("parent_id", formValues.parent_id);
     formData.append("description", formValues.description);
+    formData.append("image_url", formValues.image_url);
     formData.append("display_order", formValues.display_order);
     formData.append("is_active", formValues.is_active);
 
@@ -235,6 +241,7 @@ export function CategoryManagementClient({
                   slug: formValues.slug || c.slug,
                   parent_id: formValues.parent_id === "none" ? null : formValues.parent_id,
                   description: formValues.description || null,
+                  image_url: formValues.image_url || null,
                   display_order: Number(formValues.display_order) || 0,
                   is_active: formValues.is_active === "true",
                 }
@@ -330,7 +337,7 @@ export function CategoryManagementClient({
             Categories & Hierarchy
           </h1>
           <p className="text-xs text-slate-500 mt-1">
-            Manage WordPress-style free-form nested categories, tooling hierarchies, and product taxonomies.
+            Manage WordPress-style free-form nested categories, image assets, and product taxonomies.
           </p>
         </div>
 
@@ -489,6 +496,37 @@ export function CategoryManagementClient({
                   placeholder="e.g. end-mills"
                   className="h-9 text-xs border-slate-200 font-mono text-slate-600"
                 />
+              </div>
+
+              {/* Category Image URL */}
+              <div className="space-y-1">
+                <Label className="text-xs font-medium text-slate-700">Category Image URL (Optional)</Label>
+                <div className="flex items-center gap-2">
+                  <Input
+                    name="image_url"
+                    value={formValues.image_url}
+                    onChange={(e) => setFormValues((prev) => ({ ...prev, image_url: e.target.value }))}
+                    placeholder="https://example.com/category-image.jpg"
+                    className="h-9 text-xs border-slate-200 flex-1"
+                  />
+                  {formValues.image_url ? (
+                    <div className="h-9 w-9 rounded-lg border border-slate-200 overflow-hidden shrink-0 bg-slate-50 flex items-center justify-center">
+                      <img
+                        src={formValues.image_url}
+                        alt="Preview"
+                        className="h-full w-full object-cover"
+                        onError={(e) => {
+                          (e.target as HTMLElement).style.display = "none";
+                        }}
+                      />
+                    </div>
+                  ) : (
+                    <div className="h-9 w-9 rounded-lg border border-slate-200/80 bg-slate-50 flex items-center justify-center text-slate-400 shrink-0">
+                      <ImageIcon className="h-4 w-4" />
+                    </div>
+                  )}
+                </div>
+                <p className="text-[10px] text-slate-400">Image URL for store category banners & navigation icons.</p>
               </div>
 
               {/* Parent Category Selector */}
@@ -727,8 +765,19 @@ export function CategoryManagementClient({
                             <span className="w-5 shrink-0" />
                           )}
 
-                          {/* Category Icon */}
-                          {node.depth === 0 ? (
+                          {/* Category Image Thumbnail or Icon */}
+                          {node.image_url ? (
+                            <div className="h-6 w-6 rounded border border-slate-200 overflow-hidden shrink-0 bg-slate-50">
+                              <img
+                                src={node.image_url}
+                                alt={node.name}
+                                className="h-full w-full object-cover"
+                                onError={(e) => {
+                                  (e.target as HTMLElement).style.display = "none";
+                                }}
+                              />
+                            </div>
+                          ) : node.depth === 0 ? (
                             <Folder className="h-4 w-4 text-slate-600 shrink-0" />
                           ) : (
                             <Tag className="h-3.5 w-3.5 text-slate-400 shrink-0" />

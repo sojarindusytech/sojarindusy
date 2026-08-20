@@ -22,6 +22,7 @@ const SEED_CATEGORIES: Category[] = [
     slug: "end-mills",
     parent_id: null,
     description: "Solid carbide and HSS end milling cutters",
+    image_url: "https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=300&q=80",
     display_order: 1,
     is_active: true,
     created_at: new Date().toISOString(),
@@ -32,6 +33,7 @@ const SEED_CATEGORIES: Category[] = [
     slug: "flat-end-mills",
     parent_id: "cat-end-mills",
     description: "Square end mills for slotting, profiling, and shoulder milling",
+    image_url: null,
     display_order: 1,
     is_active: true,
     created_at: new Date().toISOString(),
@@ -42,6 +44,7 @@ const SEED_CATEGORIES: Category[] = [
     slug: "4-flute-standard-hrc55",
     parent_id: "cat-flat-end-mills",
     description: "4-flute high hardness end mills for steel up to HRC 55",
+    image_url: null,
     display_order: 1,
     is_active: true,
     created_at: new Date().toISOString(),
@@ -52,6 +55,7 @@ const SEED_CATEGORIES: Category[] = [
     slug: "ball-nose-end-mills",
     parent_id: "cat-end-mills",
     description: "Spherical end mills for 3D contouring and die mold machining",
+    image_url: null,
     display_order: 2,
     is_active: true,
     created_at: new Date().toISOString(),
@@ -62,6 +66,7 @@ const SEED_CATEGORIES: Category[] = [
     slug: "carbide-drills",
     parent_id: null,
     description: "High performance internal coolant and solid carbide drills",
+    image_url: "https://images.unsplash.com/photo-1504328345606-18bbc8c9d7d1?w=300&q=80",
     display_order: 2,
     is_active: true,
     created_at: new Date().toISOString(),
@@ -72,6 +77,7 @@ const SEED_CATEGORIES: Category[] = [
     slug: "precision-reamers",
     parent_id: null,
     description: "High precision hole finishing tooling",
+    image_url: null,
     display_order: 3,
     is_active: true,
     created_at: new Date().toISOString(),
@@ -170,6 +176,7 @@ export async function createCategory(formData: FormData): Promise<{
   const parentIdRaw = (formData.get("parent_id") as string)?.trim();
   const parent_id = parentIdRaw && parentIdRaw !== "none" && parentIdRaw !== "null" ? parentIdRaw : null;
   const description = (formData.get("description") as string)?.trim() || null;
+  const image_url = (formData.get("image_url") as string)?.trim() || null;
   const display_order = Number(formData.get("display_order")) || 0;
   const is_active = formData.get("is_active") === "true" || formData.get("is_active") === "on" || formData.get("is_active") === "1";
 
@@ -188,6 +195,7 @@ export async function createCategory(formData: FormData): Promise<{
     slug,
     parent_id,
     description,
+    image_url,
     display_order,
     is_active,
     created_at: new Date().toISOString(),
@@ -232,6 +240,7 @@ export async function updateCategory(
   const parentIdRaw = (formData.get("parent_id") as string)?.trim();
   const parent_id = parentIdRaw && parentIdRaw !== "none" && parentIdRaw !== "null" ? parentIdRaw : null;
   const description = (formData.get("description") as string)?.trim() || null;
+  const image_url = (formData.get("image_url") as string)?.trim() || null;
   const display_order = Number(formData.get("display_order")) || 0;
   const is_active = formData.get("is_active") === "true" || formData.get("is_active") === "on" || formData.get("is_active") === "1";
 
@@ -257,6 +266,7 @@ export async function updateCategory(
         slug,
         parent_id,
         description,
+        image_url,
         display_order,
         is_active,
         updated_at: new Date().toISOString(),
