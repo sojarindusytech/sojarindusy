@@ -25,21 +25,20 @@ export function CategoryCheckboxTree({
     setExpandedNodes((prev) => ({ ...prev, [id]: !prev[id] }));
   };
 
-  // Helper to find all ancestor parent IDs for a given target category ID
-  const getAllAncestorIds = (nodes: CategoryNode[], targetId: string, ancestors: string[] = []): string[] | null => {
+  const getPathToNode = (nodes: CategoryNode[], targetId: string, currentPath: string[] = []): string[] | null => {
     for (const node of nodes) {
       if (node.id === targetId) {
-        return ancestors;
+        return [...currentPath, node.id];
       }
       if (node.children && node.children.length > 0) {
-        const found = getAllAncestorIds(node.children, targetId, [...ancestors, node.id]);
-        if (found) return found;
+        const foundPath = getPathToNode(node.children, targetId, [...currentPath, node.id]);
+        if (foundPath) return foundPath;
       }
     }
     return null;
   };
 
-  // Helper to handle checkbox toggle with auto-parent selection rule
+  // Helper to handle checkbox toggle
   const handleToggleCategory = (nodeId: string) => {
     const isCurrentlySelected = selectedIds.includes(nodeId);
     let updatedSelected = [...selectedIds];
@@ -48,17 +47,12 @@ export function CategoryCheckboxTree({
       // Uncheck this node
       updatedSelected = updatedSelected.filter((id) => id !== nodeId);
     } else {
-      // Check this node
-      if (!updatedSelected.includes(nodeId)) {
-        updatedSelected.push(nodeId);
-      }
-
-      // Auto-apply parent selection rule: find all ancestor IDs and check them as well!
-      const ancestors = getAllAncestorIds(treeNodes, nodeId);
-      if (ancestors && ancestors.length > 0) {
-        ancestors.forEach((ancId) => {
-          if (!updatedSelected.includes(ancId)) {
-            updatedSelected.push(ancId);
+      // Check this node and all parents
+      const pathToNode = getPathToNode(treeNodes, nodeId);
+      if (pathToNode) {
+        pathToNode.forEach((id) => {
+          if (!updatedSelected.includes(id)) {
+            updatedSelected.push(id);
           }
         });
       }
@@ -70,7 +64,7 @@ export function CategoryCheckboxTree({
   const renderNode = (node: CategoryNode) => {
     const isSelected = selectedIds.includes(node.id);
     const hasChildren = node.children && node.children.length > 0;
-    const isExpanded = expandedNodes[node.id] ?? true; // Default expanded for good UX
+    const isExpanded = expandedNodes[node.id] ?? false; // Default collapsed to show root only
 
     return (
       <div key={node.id} className="space-y-1">

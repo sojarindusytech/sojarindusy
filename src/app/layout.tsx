@@ -4,6 +4,7 @@ import "./globals.css";
 import { Navbar } from "@/components/common/Navbar";
 import { Footer } from "@/components/common/Footer";
 import { ThemeProvider } from "@/components/theme/ThemeProvider";
+import { Toaster } from "react-hot-toast";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -51,6 +52,7 @@ export default function RootLayout({
           <main className="flex-1 bg-white">{children}</main>
           <Footer />
         </ThemeProvider>
+        <Toaster position="top-right" />
       </body>
     </html>
   );

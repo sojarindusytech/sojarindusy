@@ -67,3 +67,51 @@ CREATE TABLE public.product_categories (
   CONSTRAINT product_categories_pkey PRIMARY KEY (product_id, category_id),
   CONSTRAINT product_categories_category_id_fkey FOREIGN KEY (category_id) REFERENCES public.categories(id) ON DELETE CASCADE
 );
+
+CREATE TABLE public.products (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  title text NOT NULL,
+  slug text NOT NULL UNIQUE,
+  short_description text,
+  description text,
+  images jsonb NOT NULL DEFAULT '[]'::jsonb,
+  is_active boolean NOT NULL DEFAULT true,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  updated_at timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT products_pkey PRIMARY KEY (id)
+);
+
+CREATE TABLE public.product_variants (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  product_id uuid NOT NULL,
+  sku text NOT NULL UNIQUE,
+  diameter numeric,
+  flute_length numeric,
+  overall_length numeric,
+  shank_diameter numeric,
+  list_price numeric NOT NULL DEFAULT 0,
+  stock_quantity integer NOT NULL DEFAULT 0,
+  specifications jsonb NOT NULL DEFAULT '{}'::jsonb,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  updated_at timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT product_variants_pkey PRIMARY KEY (id),
+  CONSTRAINT product_variants_product_id_fkey FOREIGN KEY (product_id) REFERENCES public.products(id) ON DELETE CASCADE
+);
+
+CREATE TABLE public.tags (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  name text NOT NULL,
+  slug text NOT NULL UNIQUE,
+  type text NOT NULL DEFAULT 'hardness'::text,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT tags_pkey PRIMARY KEY (id)
+);
+
+CREATE TABLE public.product_tags (
+  product_id uuid NOT NULL,
+  tag_id uuid NOT NULL,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT product_tags_pkey PRIMARY KEY (product_id, tag_id),
+  CONSTRAINT product_tags_product_id_fkey FOREIGN KEY (product_id) REFERENCES public.products(id) ON DELETE CASCADE,
+  CONSTRAINT product_tags_tag_id_fkey FOREIGN KEY (tag_id) REFERENCES public.tags(id) ON DELETE CASCADE
+);

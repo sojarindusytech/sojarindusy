@@ -214,7 +214,7 @@ export default async function AdminDashboardPage() {
         </div>
 
         <div className="flex items-center gap-3">
-          <Link href="/admin/product-upload">
+          <Link href="/admin/products?upload=true">
             <Button size="sm" className="bg-white text-[#024AE5] hover:bg-slate-100 text-xs font-semibold gap-1.5 shadow-none">
               <UploadCloud className="h-4 w-4" />
               <span>Upload Products (Excel)</span>
@@ -285,7 +285,7 @@ export default async function AdminDashboardPage() {
 
       {/* Quick Access Module Hub */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <Link href="/admin/product-upload" className="group">
+        <Link href="/admin/products?upload=true" className="group">
           <Card className="border-slate-200 bg-white hover:border-[#024AE5] hover:bg-blue-50/20 transition-all p-3 shadow-none">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">

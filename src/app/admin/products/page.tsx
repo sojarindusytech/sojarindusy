@@ -1,25 +1,26 @@
-import { AdminComingSoon } from "@/components/admin/AdminComingSoon";
-import { Package } from "lucide-react";
+import { fetchProductsList } from "@/actions/product";
+import { fetchCategoriesTree } from "@/actions/category";
+import { fetchTags } from "@/actions/tag";
+import { ProductManagementClient } from "@/components/admin/ProductManagementClient";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Products | Sojar Indusy Admin",
-  description: "Product catalog management.",
+  title: "Products & SKU Matrix | Sojar Indusy Admin",
+  description: "View product families, uploaded CSV SKU matrices, stock quantities, and pricing.",
 };
 
-export default function ProductsAdminPage() {
+export const revalidate = 0;
+
+export default async function ProductsAdminPage() {
+  const products = await fetchProductsList();
+  const { treeNodes } = await fetchCategoriesTree();
+  const tags = await fetchTags();
+
   return (
-    <AdminComingSoon
-      section="Product Management"
-      title="Products"
-      description="Manage industrial SKUs, stock levels, CNC tooling variants, and pricing structures."
-      icon={Package}
-      features={[
-        "Real-time inventory level tracking and low-stock alerts",
-        "SKU parameter matrix (Diameter, Flute Length, Shank Dia, HRC Series)",
-        "Dynamic pricing rules and tiered B2B discount tables",
-        "Batch catalog synchronization with ERP databases",
-      ]}
+    <ProductManagementClient
+      initialProducts={products}
+      treeNodes={treeNodes}
+      availableTags={tags}
     />
   );
 }

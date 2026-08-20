@@ -162,6 +162,55 @@ export async function fetchCategoriesTree(): Promise<{
 }
 
 /**
+ * Upload an image to Supabase Storage bucket 'category-images'
+ */
+export async function uploadCategoryImage(formData: FormData): Promise<{
+  publicUrl?: string;
+  error?: string;
+}> {
+  const supabase = createAdminClient();
+  const file = formData.get("file") as File;
+
+  if (!file || file.size === 0) {
+    return { error: "No image file provided." };
+  }
+
+  const fileExt = file.name.split(".").pop()?.toLowerCase() || "jpg";
+  const fileName = `category_${Date.now()}_${Math.random().toString(36).substring(2, 7)}.${fileExt}`;
+  const filePath = `categories/${fileName}`;
+
+  try {
+    const arrayBuffer = await file.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+
+    const { data, error } = await supabase.storage
+      .from("category-images")
+      .upload(filePath, buffer, {
+        contentType: file.type || "image/jpeg",
+        upsert: true,
+      });
+
+    if (error) {
+      // If bucket is not initialized yet in Supabase, explain clearly
+      if (error.message.includes("Bucket not found")) {
+        return {
+          error: "Storage bucket 'category-images' does not exist yet. Please run the SQL migration in your database manager.",
+        };
+      }
+      return { error: error.message };
+    }
+
+    const { data: publicUrlData } = supabase.storage
+      .from("category-images")
+      .getPublicUrl(filePath);
+
+    return { publicUrl: publicUrlData.publicUrl };
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : "Failed to upload image file." };
+  }
+}
+
+/**
  * Create a new category
  */
 export async function createCategory(formData: FormData): Promise<{

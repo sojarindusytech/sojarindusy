@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition, useMemo } from "react";
+import { useState, useTransition, useMemo, useRef } from "react";
 import { Category, CategoryNode } from "@/types/database.types";
 import {
   createCategory,
@@ -8,6 +8,7 @@ import {
   deleteCategory,
   toggleCategoryStatus,
   generateSlug,
+  uploadCategoryImage,
 } from "@/actions/category";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -39,6 +40,13 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
+import {
   Folder,
   FolderPlus,
   Tag,
@@ -58,6 +66,8 @@ import {
   ArrowUpDown,
   Check,
   Image as ImageIcon,
+  Upload,
+  Loader2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -92,8 +102,16 @@ export function CategoryManagementClient({
   const [formError, setFormError] = useState<string | null>(null);
   const [formSuccess, setFormSuccess] = useState<string | null>(null);
 
+  // Image Upload State
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   // Expanded Tree Nodes State
   const [expandedNodes, setExpandedNodes] = useState<Record<string, boolean>>({});
+
+  // Modal State
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   // Confirmation Alert Dialog State (shadcn)
   const [deleteConfirmCategory, setDeleteConfirmCategory] = useState<Category | null>(null);
@@ -154,11 +172,37 @@ export function CategoryManagementClient({
     }));
   };
 
+  // Handle Image File Upload
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsUploadingImage(true);
+    setUploadError(null);
+
+    const uploadFormData = new FormData();
+    uploadFormData.append("file", file);
+
+    const res = await uploadCategoryImage(uploadFormData);
+    setIsUploadingImage(false);
+
+    if (res.error) {
+      setUploadError(res.error);
+    } else if (res.publicUrl) {
+      setFormValues((prev) => ({ ...prev, image_url: res.publicUrl || "" }));
+    }
+
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  };
+
   // Handle Add Subcategory Preset Action
   const handleAddSubcategoryPreset = (parentCategory: Category) => {
     setEditingId(null);
     setFormError(null);
     setFormSuccess(null);
+    setUploadError(null);
     setIsSlugManuallyEdited(false);
     setFormValues({
       name: "",
@@ -169,6 +213,7 @@ export function CategoryManagementClient({
       display_order: "0",
       is_active: "true",
     });
+    setIsModalOpen(true);
   };
 
   // Populate Edit Form
@@ -176,6 +221,7 @@ export function CategoryManagementClient({
     setEditingId(category.id);
     setFormError(null);
     setFormSuccess(null);
+    setUploadError(null);
     setIsSlugManuallyEdited(true);
     setFormValues({
       name: category.name,
@@ -186,6 +232,7 @@ export function CategoryManagementClient({
       display_order: String(category.display_order ?? 0),
       is_active: category.is_active ? "true" : "false",
     });
+    setIsModalOpen(true);
   };
 
   // Reset Form
@@ -193,6 +240,7 @@ export function CategoryManagementClient({
     setEditingId(null);
     setFormError(null);
     setFormSuccess(null);
+    setUploadError(null);
     setIsSlugManuallyEdited(false);
     setFormValues({
       name: "",
@@ -203,6 +251,11 @@ export function CategoryManagementClient({
       display_order: "0",
       is_active: "true",
     });
+  };
+
+  const handleOpenAddRootModal = () => {
+    handleResetForm();
+    setIsModalOpen(true);
   };
 
   // Form Submit (Create or Update)
@@ -256,11 +309,12 @@ export function CategoryManagementClient({
         if (res.error) {
           setFormError(res.error);
         } else {
-          setFormSuccess("Category created successfully.");
+          setFormSuccess("Category created successfully!");
           if (res.category) {
             refreshLocalState([res.category, ...flatCategories]);
           }
           handleResetForm();
+          setTimeout(() => setIsModalOpen(false), 1000);
         }
       }
     });
@@ -318,7 +372,7 @@ export function CategoryManagementClient({
         result.push(node);
       }
 
-      const isExpanded = expandedNodes[node.id] ?? true;
+      const isExpanded = expandedNodes[node.id] ?? false;
       if (node.children && node.children.length > 0 && isExpanded) {
         node.children.forEach((child) => traverse(child));
       }
@@ -344,7 +398,7 @@ export function CategoryManagementClient({
         <Button
           type="button"
           size="sm"
-          onClick={handleResetForm}
+          onClick={handleOpenAddRootModal}
           className="gap-1.5 text-xs bg-[#024AE5] text-white hover:bg-[#023ecc] shadow-none cursor-pointer font-medium"
         >
           <FolderPlus className="h-3.5 w-3.5" />
@@ -419,13 +473,11 @@ export function CategoryManagementClient({
         </Card>
       </div>
 
-      {/* Split Screen Layout: Left Form (Add/Edit) + Right Hierarchical Tree Table */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-        {/* LEFT COLUMN: Add / Edit Category Form (4 cols) */}
-        <Card className="lg:col-span-4 border border-slate-200 bg-white shadow-none rounded-xl">
-          <CardHeader className="border-b border-slate-100 pb-3">
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-sm font-bold text-slate-900 flex items-center gap-2">
+      <div className="w-full">
+        <Dialog open={isModalOpen} onOpenChange={(open) => !open && setIsModalOpen(false)}>
+          <DialogContent className="max-w-md bg-white p-0 overflow-hidden border border-slate-200 shadow-xl rounded-xl">
+            <DialogHeader className="p-4 border-b border-slate-100 bg-slate-50/50">
+              <DialogTitle className="text-sm font-bold text-slate-900 flex items-center gap-2">
                 {editingId ? (
                   <>
                     <Edit2 className="h-4 w-4 text-[#024AE5]" /> Edit Category
@@ -435,22 +487,13 @@ export function CategoryManagementClient({
                     <Plus className="h-4 w-4 text-[#024AE5]" /> Add New Category
                   </>
                 )}
-              </CardTitle>
-              {editingId && (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={handleResetForm}
-                  className="h-7 text-xs text-slate-500 hover:text-slate-900 px-2"
-                >
-                  Reset
-                </Button>
-              )}
-            </div>
-          </CardHeader>
+              </DialogTitle>
+              <DialogDescription className="sr-only">
+                {editingId ? "Edit existing category details" : "Create a new category"}
+              </DialogDescription>
+            </DialogHeader>
 
-          <CardContent className="p-4 space-y-4">
+          <div className="p-4 space-y-4 max-h-[calc(100vh-10rem)] overflow-y-auto custom-scrollbar">
             {formError && (
               <div className="flex items-start gap-2 rounded-lg border border-rose-500/20 bg-rose-50 p-2.5 text-xs text-rose-800">
                 <AlertCircle className="h-4 w-4 shrink-0 text-rose-600 mt-0.5" />
@@ -461,6 +504,12 @@ export function CategoryManagementClient({
               <div className="flex items-start gap-2 rounded-lg border border-emerald-500/20 bg-emerald-50 p-2.5 text-xs text-emerald-800">
                 <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600 mt-0.5" />
                 <p>{formSuccess}</p>
+              </div>
+            )}
+            {uploadError && (
+              <div className="flex items-start gap-2 rounded-lg border border-rose-500/20 bg-rose-50 p-2.5 text-xs text-rose-800">
+                <AlertCircle className="h-4 w-4 shrink-0 text-rose-600 mt-0.5" />
+                <p>{uploadError}</p>
               </div>
             )}
 
@@ -498,35 +547,89 @@ export function CategoryManagementClient({
                 />
               </div>
 
-              {/* Category Image URL */}
-              <div className="space-y-1">
-                <Label className="text-xs font-medium text-slate-700">Category Image URL (Optional)</Label>
-                <div className="flex items-center gap-2">
-                  <Input
-                    name="image_url"
-                    value={formValues.image_url}
-                    onChange={(e) => setFormValues((prev) => ({ ...prev, image_url: e.target.value }))}
-                    placeholder="https://example.com/category-image.jpg"
-                    className="h-9 text-xs border-slate-200 flex-1"
-                  />
-                  {formValues.image_url ? (
-                    <div className="h-9 w-9 rounded-lg border border-slate-200 overflow-hidden shrink-0 bg-slate-50 flex items-center justify-center">
+              {/* Category Image Upload (shadcn styled UI) */}
+              <div className="space-y-2">
+                <Label className="text-xs font-medium text-slate-700">Category Image</Label>
+
+                {/* Hidden File Input */}
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  accept="image/jpeg,image/png,image/webp,image/svg+xml,image/gif"
+                  onChange={handleFileUpload}
+                  className="hidden"
+                />
+
+                {/* Shadcn Image Dropzone / Preview */}
+                {formValues.image_url ? (
+                  <div className="relative rounded-xl border border-slate-200 bg-slate-50/80 p-2.5 flex items-center gap-3">
+                    <div className="h-12 w-12 rounded-lg border border-slate-200 overflow-hidden shrink-0 bg-white shadow-2xs">
                       <img
                         src={formValues.image_url}
-                        alt="Preview"
+                        alt="Category Preview"
                         className="h-full w-full object-cover"
                         onError={(e) => {
                           (e.target as HTMLElement).style.display = "none";
                         }}
                       />
                     </div>
-                  ) : (
-                    <div className="h-9 w-9 rounded-lg border border-slate-200/80 bg-slate-50 flex items-center justify-center text-slate-400 shrink-0">
-                      <ImageIcon className="h-4 w-4" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-semibold text-slate-800 truncate">Image Attached</p>
+                      <p className="text-[10px] text-slate-400 font-mono truncate">{formValues.image_url}</p>
                     </div>
-                  )}
+                    <div className="flex items-center gap-1 shrink-0">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => fileInputRef.current?.click()}
+                        className="h-7 text-xs px-2.5 border-slate-200 text-slate-700 hover:bg-white"
+                      >
+                        Change
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => setFormValues((prev) => ({ ...prev, image_url: "" }))}
+                        className="h-7 w-7 text-rose-500 hover:bg-rose-50 rounded-md"
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <div
+                    onClick={() => fileInputRef.current?.click()}
+                    className="border-2 border-dashed border-slate-200 rounded-xl p-4 flex flex-col items-center justify-center text-center bg-slate-50/50 hover:bg-slate-50 transition-colors cursor-pointer"
+                  >
+                    {isUploadingImage ? (
+                      <div className="flex flex-col items-center justify-center py-1">
+                        <Loader2 className="h-6 w-6 animate-spin text-[#024AE5] mb-1.5" />
+                        <p className="text-xs font-medium text-slate-700">Uploading image...</p>
+                      </div>
+                    ) : (
+                      <>
+                        <Upload className="h-6 w-6 text-slate-400 mb-1.5" />
+                        <p className="text-xs font-medium text-slate-700">
+                          Click to upload image <span className="text-slate-400 font-normal">(or drag & drop)</span>
+                        </p>
+                        <p className="text-[10px] text-slate-400 mt-0.5">PNG, JPG, WebP or SVG up to 5MB</p>
+                      </>
+                    )}
+                  </div>
+                )}
+
+                {/* Optional Manual URL Fallback Input */}
+                <div className="pt-0.5">
+                  <Input
+                    name="image_url"
+                    value={formValues.image_url}
+                    onChange={(e) => setFormValues((prev) => ({ ...prev, image_url: e.target.value }))}
+                    placeholder="or enter public image URL..."
+                    className="h-7 text-[11px] border-slate-200 font-mono text-slate-600 placeholder:text-slate-400"
+                  />
                 </div>
-                <p className="text-[10px] text-slate-400">Image URL for store category banners & navigation icons.</p>
               </div>
 
               {/* Parent Category Selector */}
@@ -627,18 +730,19 @@ export function CategoryManagementClient({
                 <Button
                   type="submit"
                   size="sm"
-                  disabled={isPending}
+                  disabled={isPending || isUploadingImage}
                   className="h-8 text-xs bg-[#024AE5] text-white hover:bg-[#023ecc] font-medium cursor-pointer"
                 >
                   {isPending ? "Saving..." : editingId ? "Update Category" : "Save Category"}
                 </Button>
               </div>
             </form>
-          </CardContent>
-        </Card>
+          </div>
+          </DialogContent>
+        </Dialog>
 
         {/* RIGHT COLUMN: Hierarchical Category Tree Table (8 cols) */}
-        <Card className="lg:col-span-8 border border-slate-200 bg-white shadow-none rounded-xl overflow-hidden">
+        <Card className="w-full border border-slate-200 bg-white shadow-none rounded-xl overflow-hidden">
           {/* Toolbar */}
           <div className="p-3.5 border-b border-slate-200 bg-white flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
             <div className="relative flex-1">

@@ -51,7 +51,7 @@ const navItems: NavSectionItem[] = [
     subItems: [
       { title: "Products", href: "/admin/products" },
       { title: "Categories / Variants", href: "/admin/categories" },
-      { title: "Product Upload", href: "/admin/product-upload" },
+      { title: "Tags / Attributes", href: "/admin/tags" },
     ],
   },
   {

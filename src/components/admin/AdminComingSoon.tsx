@@ -74,7 +74,7 @@ export function AdminComingSoon({
           </div>
 
           <div className="flex items-center gap-3 pt-2">
-            <Link href="/admin/product-upload">
+            <Link href="/admin/products?upload=true">
               <Button variant="primary" size="sm" className="text-xs">
                 Go to Product Upload
               </Button>
