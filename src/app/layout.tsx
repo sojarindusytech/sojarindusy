@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Inter, Plus_Jakarta_Sans, Outfit, Geist } from "next/font/google";
 import "./globals.css";
-import { Navbar } from "@/components/common/Navbar";
+import { GlobalHeader } from "@/components/common/GlobalHeader";
 import { Footer } from "@/components/common/Footer";
 import { ThemeProvider } from "@/components/theme/ThemeProvider";
 import { Toaster } from "react-hot-toast";
@@ -48,7 +48,7 @@ export default function RootLayout({
     >
       <body className="min-h-full flex flex-col bg-white text-slate-900 selection:bg-[#024AE5] selection:text-white">
         <ThemeProvider>
-          <Navbar />
+          <GlobalHeader />
           <main className="flex-1 bg-white">{children}</main>
           <Footer />
         </ThemeProvider>
