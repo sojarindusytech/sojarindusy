@@ -1,57 +1,71 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
-import { Clock, Sparkles } from "lucide-react";
+import { Clock, Tag } from "lucide-react";
 import Link from "next/link";
-import type { Metadata } from "next";
-import { fetchProductsList } from "@/actions/product";
+import { fetchCategoryBySlug } from "@/actions/category";
+import { fetchProductsByCategory } from "@/actions/product";
+import { notFound } from "next/navigation";
+import Image from "next/image";
 
-export const metadata: Metadata = {
-  title: "Industrial Product Catalog | Sojar Indusy",
-  description: "Browse high-precision fasteners, industrial valves, flanges, and engineered components by Sojar Indusy.",
-};
+export default async function CategoryPage({ params }: { params: Promise<{ slug: string }> }) {
+  const { slug } = await params;
+  const category = await fetchCategoryBySlug(slug);
+  if (!category) {
+    notFound();
+  }
 
-export default async function ProductsPage() {
-  const dbProducts = await fetchProductsList();
+  const products = await fetchProductsByCategory(slug);
 
   return (
-    <div className="min-h-screen bg-slate-50 py-10">
-      <div className="container mx-auto max-w-6xl px-4 sm:px-6 space-y-10">
-        {/* Page Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-slate-200 pb-6">
-          <div>
-            <div className="flex items-center gap-2 mb-1">
-              <Badge variant="blue" className="text-xs">
-                Product Catalog
-              </Badge>
-              <Badge variant="warning" className="gap-1 text-xs">
-                <Clock className="h-3 w-3" /> Live Inventory
-              </Badge>
-            </div>
-            <h1 className="text-3xl font-bold tracking-tight text-slate-900">
-              Industrial Components & Assemblies
-            </h1>
-            <p className="text-sm text-slate-500 mt-1">
-              Engineered hardware certified for high-pressure, thermal, and mechanical stress environments.
-            </p>
+    <div className="min-h-screen bg-slate-50">
+      {/* Category Header/Banner */}
+      <div className="relative bg-[#0F172A] border-b border-slate-200 overflow-hidden">
+        {category.image_url && (
+          <div className="absolute inset-0 z-0">
+            <Image
+              src={category.image_url}
+              alt={category.name}
+              fill
+              className="object-cover opacity-20 mix-blend-overlay"
+              priority
+            />
           </div>
+        )}
+        {/* Gradient overlay for readability */}
+        <div className="absolute inset-0 z-0 bg-gradient-to-r from-[#0F172A] via-[#0F172A]/80 to-transparent"></div>
+        
+        <div className="container relative z-10 mx-auto max-w-6xl px-4 py-20 sm:px-6">
+          <Badge variant="blue" className="mb-4 bg-[#024AE5]/20 text-blue-200 border-[#024AE5]/30">
+            Category
+          </Badge>
+          <h1 className="text-4xl font-extrabold tracking-tight text-white drop-shadow-md">
+            {category.name}
+          </h1>
+          {category.description && (
+            <p className="mt-4 text-lg text-slate-300 max-w-2xl drop-shadow-sm">
+              {category.description}
+            </p>
+          )}
+        </div>
+      </div>
 
-          <Link href="/signup">
-            <Button variant="primary" className="gap-2 shadow-none">
-              <Sparkles className="h-4 w-4" />
-              <span>Register for B2B Pricing</span>
-            </Button>
-          </Link>
+      <div className="container mx-auto max-w-6xl px-4 py-10 sm:px-6 space-y-10">
+        <div className="flex items-center justify-between border-b border-slate-200 pb-4">
+          <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">
+            <Tag className="h-5 w-5 text-[#024AE5]" />
+            Products in {category.name}
+          </h2>
+          <span className="text-sm font-medium bg-slate-200 text-slate-700 px-3 py-1 rounded-full">{products.length} Items</span>
         </div>
 
         {/* Products Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {dbProducts.map((item, idx) => {
+          {products.map((item) => {
             const firstVariant = item.variants && item.variants.length > 0 ? item.variants[0] : null;
             const sku = firstVariant?.sku || "N/A";
             const categoryName = item.categories && item.categories.length > 0 ? item.categories[0].name : "Uncategorized";
             
-            // Extract from specifications JSONB if available, otherwise fallback
             const specs = firstVariant?.specifications || {};
             const material = specs.material || "Industrial Grade Alloy";
             const standard = specs.standard || "ISO / DIN Standard";
@@ -109,9 +123,9 @@ export default async function ProductsPage() {
             );
           })}
 
-          {dbProducts.length === 0 && (
+          {products.length === 0 && (
             <div className="col-span-full flex flex-col items-center justify-center py-20 text-slate-500">
-              <p>No products found in the database.</p>
+              <p>No products found for this category.</p>
             </div>
           )}
         </div>

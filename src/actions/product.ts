@@ -40,16 +40,126 @@ export async function fetchProductsList(): Promise<Product[]> {
       `)
       .order("created_at", { ascending: false });
 
-    if (error || !dbProducts || dbProducts.length === 0) {
+    if (error) {
+      console.error("fetchProductsList Supabase Error:", error);
+      return [];
+    }
+    if (!dbProducts || dbProducts.length === 0) {
       return [];
     }
 
-    const mappedProducts = dbProducts.map((p: any) => ({
-      ...p,
-      tags: p.product_tags?.map((pt: any) => pt.tags).filter(Boolean) || [],
-    }));
+    // Workaround for missing foreign key from product_categories to products
+    const { data: catLinks } = await supabase
+      .from("product_categories")
+      .select(`
+        product_id,
+        categories(*)
+      `);
+
+    const mappedProducts = dbProducts.map((p: any) => {
+      const pCats = catLinks?.filter((link: any) => link.product_id === p.id) || [];
+      return {
+        ...p,
+        tags: p.product_tags?.map((pt: any) => pt.tags).filter(Boolean) || [],
+        categories: pCats.map((pc: any) => pc.categories).filter(Boolean),
+      };
+    });
 
     return mappedProducts as Product[];
+  } catch (err) {
+    return [];
+  }
+}
+
+export async function fetchProductBySlug(slug: string): Promise<Product | null> {
+  const supabase = createAdminClient();
+
+  try {
+    const { data, error } = await supabase
+      .from("products")
+      .select(`
+        *,
+        variants:product_variants(*),
+        product_tags(
+          tags(*)
+        )
+      `)
+      .eq("slug", slug)
+      .single();
+
+    const dbProduct = data as any;
+
+    if (error || !dbProduct) {
+      return null;
+    }
+
+    const { data: catLinks } = await supabase
+      .from("product_categories")
+      .select(`categories(*)`)
+      .eq("product_id", dbProduct.id);
+
+    const mappedProduct = {
+      ...dbProduct,
+      tags: dbProduct.product_tags?.map((pt: any) => pt.tags).filter(Boolean) || [],
+      categories: catLinks?.map((pc: any) => pc.categories).filter(Boolean) || [],
+    };
+
+    return mappedProduct as Product;
+  } catch (err) {
+    return null;
+  }
+}
+
+export async function fetchProductsByCategory(categorySlug: string): Promise<Product[]> {
+  const supabase = createAdminClient();
+
+  try {
+    const { data: catData, error: catError } = await supabase
+      .from("categories")
+      .select("id")
+      .eq("slug", categorySlug)
+      .single();
+
+    const categoryData = catData as any;
+
+    if (catError || !categoryData) return [];
+
+    const { data: linkData, error: linkError } = await supabase
+      .from("product_categories")
+      .select("product_id")
+      .eq("category_id", categoryData.id);
+
+    if (linkError || !linkData || linkData.length === 0) return [];
+
+    const productIds = linkData.map((l: any) => l.product_id);
+
+    const { data: dbProducts, error } = await supabase
+      .from("products")
+      .select(`
+        *,
+        variants:product_variants(*),
+        product_tags(
+          tags(*)
+        )
+      `)
+      .in("id", productIds)
+      .order("created_at", { ascending: false });
+
+    if (error || !dbProducts || dbProducts.length === 0) return [];
+
+    const { data: catLinks } = await supabase
+      .from("product_categories")
+      .select(`product_id, categories(*)`)
+      .in("product_id", dbProducts.map((p: any) => p.id));
+
+    return dbProducts.map((p: any) => {
+      const pCats = catLinks?.filter((link: any) => link.product_id === p.id) || [];
+      return {
+        ...p,
+        tags: p.product_tags?.map((pt: any) => pt.tags).filter(Boolean) || [],
+        categories: pCats.map((pc: any) => pc.categories).filter(Boolean),
+      };
+    }) as Product[];
   } catch (err) {
     return [];
   }

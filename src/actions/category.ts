@@ -14,6 +14,21 @@ export async function generateSlug(name: string): Promise<string> {
     .replace(/^-+|-+$/g, "");
 }
 
+export async function fetchCategoryBySlug(slug: string): Promise<Category | null> {
+  const supabase = createAdminClient();
+  try {
+    const { data, error } = await supabase
+      .from("categories")
+      .select("*")
+      .eq("slug", slug)
+      .single();
+    if (error) return null;
+    return data as Category;
+  } catch (err) {
+    return null;
+  }
+}
+
 // Initial Seed Categories for Tooling Domain fallback
 const SEED_CATEGORIES: Category[] = [
   {
