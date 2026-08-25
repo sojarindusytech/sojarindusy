@@ -1,10 +1,11 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
-import { Clock, Sparkles } from "lucide-react";
+import { Card, CardTitle } from "@/components/ui/card";
+import { Clock, Sparkles, Folder, ChevronRight } from "lucide-react";
 import Link from "next/link";
+import Image from "next/image";
 import type { Metadata } from "next";
-import { fetchProductsList } from "@/actions/product";
+import { fetchCategoriesTree } from "@/actions/category";
 
 export const metadata: Metadata = {
   title: "Industrial Product Catalog | Sojar Indusy",
@@ -12,106 +13,69 @@ export const metadata: Metadata = {
 };
 
 export default async function ProductsPage() {
-  const dbProducts = await fetchProductsList();
+  const { flatCategories } = await fetchCategoriesTree();
+  
+  // Show root categories
+  const rootCategories = flatCategories
+    .filter(c => c.parent_id === null && c.is_active)
+    .sort((a, b) => a.display_order - b.display_order);
 
   return (
     <div className="min-h-screen bg-slate-50 py-10">
-      <div className="container mx-auto max-w-6xl px-4 sm:px-6 space-y-10">
-        {/* Page Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-slate-200 pb-6">
-          <div>
-            <div className="flex items-center gap-2 mb-1">
-              <Badge variant="blue" className="text-xs">
-                Product Catalog
-              </Badge>
-              <Badge variant="warning" className="gap-1 text-xs">
-                <Clock className="h-3 w-3" /> Live Inventory
-              </Badge>
-            </div>
-            <h1 className="text-3xl font-bold tracking-tight text-slate-900">
-              Industrial Components & Assemblies
-            </h1>
-            <p className="text-sm text-slate-500 mt-1">
-              Engineered hardware certified for high-pressure, thermal, and mechanical stress environments.
-            </p>
-          </div>
+      <div className="container mx-auto max-w-6xl px-4 sm:px-6 space-y-8">
+        
+        {/* Breadcrumbs */}
+        <nav className="flex items-center gap-2 text-xs font-medium text-slate-500 mb-4 flex-wrap">
+          <Link href="/" className="hover:text-[#024AE5]">Home</Link>
+          <ChevronRight className="h-3.5 w-3.5" />
+          <span className="text-slate-800 font-semibold">Products</span>
+        </nav>
 
-          <Link href="/signup">
-            <Button variant="primary" className="gap-2 shadow-none">
-              <Sparkles className="h-4 w-4" />
-              <span>Register for B2B Pricing</span>
-            </Button>
-          </Link>
+        {/* Page Title */}
+        <div className="pb-2">
+          <h1 className="text-4xl font-extrabold tracking-tight text-slate-900">
+            Products
+          </h1>
         </div>
 
-        {/* Products Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {dbProducts.map((item, idx) => {
-            const firstVariant = item.variants && item.variants.length > 0 ? item.variants[0] : null;
-            const sku = firstVariant?.sku || "N/A";
-            const categoryName = item.categories && item.categories.length > 0 ? item.categories[0].name : "Uncategorized";
-            
-            // Extract from specifications JSONB if available, otherwise fallback
-            const specs = firstVariant?.specifications || {};
-            const material = specs.material || "Industrial Grade Alloy";
-            const standard = specs.standard || "ISO / DIN Standard";
-
-            return (
-              <Link key={item.id} href={`/products/${item.slug}`} className="block h-full">
-                <Card className="h-full flex flex-col justify-between transition-all hover:border-[#024AE5]/40 bg-white shadow-sm hover:shadow-md cursor-pointer">
-                  <CardHeader className="pb-3">
-                    <div className="flex items-center justify-between gap-2">
-                      <Badge variant="secondary" className="text-[10px] font-semibold bg-slate-100 text-slate-700 hover:bg-slate-200">
-                        {categoryName}
-                      </Badge>
-                      <span className="font-mono text-[10px] text-slate-400">{sku}</span>
-                    </div>
-                    <CardTitle className="text-base font-bold text-slate-900 pt-2 line-clamp-2" title={item.title}>
-                      {item.title}
-                    </CardTitle>
-                  </CardHeader>
-
-                  <CardContent className="space-y-2.5 text-xs">
-                    {item.short_description && (
-                      <p className="text-slate-500 line-clamp-2 text-[11px] mb-2 leading-relaxed">
-                        {item.short_description}
-                      </p>
+        {/* Root Categories Grid */}
+        <div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+            {rootCategories.map((sub) => (
+              <Link key={sub.id} href={`/products/${sub.slug}`} className="block h-full">
+                <Card className="h-full transition-all hover:border-[#024AE5]/40 bg-white shadow-sm hover:shadow-md cursor-pointer flex flex-col border border-slate-200 group overflow-hidden">
+                  {/* Image Section */}
+                  <div className="w-full aspect-video bg-slate-50 relative border-b border-slate-100 flex items-center justify-center overflow-hidden">
+                    {sub.image_url ? (
+                      <Image 
+                        src={sub.image_url} 
+                        alt={sub.name} 
+                        fill 
+                        className="object-cover group-hover:scale-105 transition-transform duration-500"
+                      />
+                    ) : (
+                      <div className="flex flex-col items-center justify-center text-slate-400 group-hover:text-[#024AE5] transition-colors">
+                        <Folder className="h-8 w-8 mb-1 opacity-50" />
+                        <span className="text-[9px] uppercase font-semibold tracking-wider">No Image</span>
+                      </div>
                     )}
-                    <div className="rounded-lg bg-slate-50 p-3 space-y-1.5 border border-slate-100">
-                      <div className="flex justify-between">
-                        <span className="text-slate-500">Material:</span>
-                        <span className="font-semibold text-slate-800 line-clamp-1 text-right ml-2">{material}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-slate-500">Standard:</span>
-                        <span className="font-mono text-slate-700 line-clamp-1 text-right ml-2">{standard}</span>
-                      </div>
-                      {firstVariant && (
-                        <div className="flex justify-between">
-                          <span className="text-slate-500">Variants:</span>
-                          <span className="font-semibold text-[#024AE5]">{item.variants?.length || 0} Options</span>
-                        </div>
-                      )}
-                    </div>
-                  </CardContent>
-
-                  <CardFooter className="pt-0 border-t border-slate-100 py-3 flex items-center justify-between">
-                    <div className="flex items-center gap-1 text-[11px] text-[#3C8B4F] font-semibold">
-                      <span className="flex h-2 w-2 rounded-full bg-[#3C8B4F] mr-1"></span>
-                      <span>In Stock</span>
-                    </div>
-                    <div className="inline-flex items-center justify-center rounded-md text-xs h-8 px-3 font-medium border border-input bg-background hover:bg-[#024AE5] hover:text-white transition-colors">
-                      View Details
-                    </div>
-                  </CardFooter>
+                  </div>
+                  
+                  {/* Content Section */}
+                  <div className="p-4 flex flex-col items-center text-center flex-1">
+                    <CardTitle className="text-sm font-bold text-slate-900 group-hover:text-[#024AE5] transition-colors">{sub.name}</CardTitle>
+                    {sub.description && (
+                      <p className="text-[11px] text-slate-500 mt-2 line-clamp-2 leading-relaxed">{sub.description}</p>
+                    )}
+                  </div>
                 </Card>
               </Link>
-            );
-          })}
+            ))}
+          </div>
 
-          {dbProducts.length === 0 && (
+          {rootCategories.length === 0 && (
             <div className="col-span-full flex flex-col items-center justify-center py-20 text-slate-500">
-              <p>No products found in the database.</p>
+              <p>No categories found in the database.</p>
             </div>
           )}
         </div>

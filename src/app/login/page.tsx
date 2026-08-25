@@ -15,6 +15,7 @@ function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const registered = searchParams.get("registered");
+  const redirectTo = searchParams.get("redirect");
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -39,8 +40,12 @@ function LoginForm() {
 
       if (res.error) {
         setError(res.error);
-      } else if (res.redirectUrl) {
-        router.push(res.redirectUrl);
+      } else {
+        if (redirectTo) {
+          router.push(redirectTo);
+        } else if (res.redirectUrl) {
+          router.push(res.redirectUrl);
+        }
         router.refresh();
       }
     } catch (err: unknown) {

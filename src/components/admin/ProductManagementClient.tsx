@@ -79,6 +79,7 @@ export function ProductManagementClient({
   const [appendingSkuProductId, setAppendingSkuProductId] = useState<{ id: string, tags: Tag[] } | null>(null);
   const [bulkUpdatingProductId, setBulkUpdatingProductId] = useState<string | null>(null);
   const [tagFilters, setTagFilters] = useState<Record<string, string>>({});
+  const [selectedPath, setSelectedPath] = useState<string[]>([]);
   const [isPending, startTransition] = useTransition();
 
   const totalFamilies = products.length;
@@ -135,14 +136,87 @@ export function ProductManagementClient({
     }
   };
 
+  const activeCategoryId = selectedPath.length > 0 ? selectedPath[selectedPath.length - 1] : "all";
+
+  // Helper to collect all descendent category IDs including the root
+  const getDescendantIds = (nodes: CategoryNode[], targetId: string): Set<string> => {
+    const ids = new Set<string>();
+    let targetNode: CategoryNode | null = null;
+    
+    const findNode = (n: CategoryNode[]) => {
+      for (const node of n) {
+        if (node.id === targetId) targetNode = node;
+        if (node.children) findNode(node.children);
+      }
+    };
+    findNode(nodes);
+
+    if (targetNode) {
+      ids.add((targetNode as CategoryNode).id);
+      const addChildren = (n: CategoryNode) => {
+        if (n.children) {
+          for (const c of n.children) {
+            ids.add(c.id);
+            addChildren(c);
+          }
+        }
+      };
+      addChildren(targetNode);
+    }
+    return ids;
+  };
+
+  const activeCategoryAndDescendants = React.useMemo(() => {
+    if (activeCategoryId === "all") return new Set<string>();
+    return getDescendantIds(treeNodes, activeCategoryId);
+  }, [activeCategoryId, treeNodes]);
+
   const filteredProducts = products.filter((p) => {
     const query = searchQuery.toLowerCase().trim();
-    if (!query) return true;
+    
+    let matchCat = true;
+    if (activeCategoryId !== "all") {
+      matchCat = p.categories?.some(c => activeCategoryAndDescendants.has(c.id)) || false;
+    }
+
+    if (!query) return matchCat;
+    
     const matchTitle = p.title.toLowerCase().includes(query);
     const matchDesc = p.short_description?.toLowerCase().includes(query);
     const matchSku = p.variants?.some((v) => v.sku.toLowerCase().includes(query));
-    return matchTitle || matchDesc || matchSku;
+    
+    return matchCat && (matchTitle || matchDesc || matchSku);
   });
+
+  // Generate cascading dropdown data
+  const dropdownsToRender: { level: number; options: CategoryNode[]; selectedValue: string }[] = [];
+  let currentOptions = treeNodes;
+  let currentPathLevel = 0;
+  
+  while (currentOptions && currentOptions.length > 0) {
+    const selectedValue = selectedPath[currentPathLevel] || "all";
+    dropdownsToRender.push({ level: currentPathLevel, options: currentOptions, selectedValue });
+    
+    if (selectedValue === "all") {
+      break;
+    }
+    
+    const selectedNode = currentOptions.find(n => n.id === selectedValue);
+    if (selectedNode && selectedNode.children && selectedNode.children.length > 0) {
+      currentOptions = selectedNode.children;
+      currentPathLevel++;
+    } else {
+      break;
+    }
+  }
+
+  const handleCategorySelect = (level: number, value: string) => {
+    const newPath = [...selectedPath].slice(0, level);
+    if (value !== "all") {
+      newPath.push(value);
+    }
+    setSelectedPath(newPath);
+  };
 
   return (
     <div className="space-y-6 w-full max-w-full">
@@ -186,8 +260,8 @@ export function ProductManagementClient({
       </div>
 
       {/* Search & Filter Bar */}
-      <div className="flex items-center gap-3 bg-white p-3 border border-slate-200 rounded-xl">
-        <div className="relative flex-1">
+      <div className="flex flex-col sm:flex-row items-center gap-3 bg-white p-3 border border-slate-200 rounded-xl">
+        <div className="relative flex-1 w-full">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
           <Input
             placeholder="Search by SKU Code (e.g. SIH65), product title, or parameter..."
@@ -195,6 +269,25 @@ export function ProductManagementClient({
             onChange={(e) => setSearchQuery(e.target.value)}
             className="pl-9 h-9 text-xs bg-slate-50/60 border-slate-200"
           />
+        </div>
+        <div className="flex flex-wrap gap-2 w-full sm:w-auto">
+          {dropdownsToRender.map((dropdown) => (
+            <div key={dropdown.level} className="w-full sm:w-[160px]">
+              <Select value={dropdown.selectedValue} onValueChange={(val) => handleCategorySelect(dropdown.level, val)}>
+                <SelectTrigger className="h-9 text-xs bg-slate-50/60 border-slate-200">
+                  <SelectValue placeholder="All Categories" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">{dropdown.level === 0 ? "All Categories" : "All Subcategories"}</SelectItem>
+                  {dropdown.options.map((cat) => (
+                    <SelectItem key={cat.id} value={cat.id}>
+                      {cat.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          ))}
         </div>
       </div>
 

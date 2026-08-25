@@ -1,21 +1,32 @@
 "use client";
 
-import { useState } from "react";
-import { Product } from "@/types/database.types";
+import React, { useState } from "react";
+import { Product, Category } from "@/types/database.types";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ChevronRight, Share2, Download, ShoppingCart, Minus, Plus, Settings, CheckCircle2, ShieldCheck, Truck, Headphones } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
 import { cn } from "@/lib/utils";
+import { useRouter } from "next/navigation";
 
-export function ProductDetailsClient({ product }: { product: Product }) {
+export function ProductDetailsClient({ product, breadcrumb, isLoggedIn = false }: { product: Product, breadcrumb?: Category[], isLoggedIn?: boolean }) {
+  const router = useRouter();
   const [activeImageIdx, setActiveImageIdx] = useState(0);
-  const [activeTab, setActiveTab] = useState("series");
-  const [activeTagId, setActiveTagId] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState("selector");
+  const [activeTagId, setActiveTagId] = useState<string | null>(product.tags && product.tags.length > 0 ? product.tags[0].id : null);
   
   // State for quantity selection per variant
   const [quantities, setQuantities] = useState<Record<string, number>>({});
+
+  let shortDescMap: Record<string, string> = {};
+  try {
+    if (product.short_description?.trim().startsWith("{")) {
+      shortDescMap = JSON.parse(product.short_description);
+    }
+  } catch(e) {
+    // Ignore JSON parse errors
+  }
 
   const updateQuantity = (variantId: string, delta: number) => {
     setQuantities(prev => {
@@ -26,6 +37,9 @@ export function ProductDetailsClient({ product }: { product: Product }) {
   };
 
   const category = product.categories?.[0];
+  const badgeText = breadcrumb && breadcrumb.length > 0 
+    ? breadcrumb[breadcrumb.length - 1].name 
+    : category?.name;
   const images = product.images || [];
   
   const activeTagName = product.tags?.find(t => t.id === activeTagId)?.name;
@@ -64,16 +78,28 @@ export function ProductDetailsClient({ product }: { product: Product }) {
       <div className="container mx-auto max-w-7xl px-4 sm:px-6 pt-6">
         
         {/* Breadcrumbs */}
-        <nav className="flex items-center gap-2 text-xs font-medium text-slate-500 mb-8">
+        <nav className="flex items-center gap-2 text-xs font-medium text-slate-500 mb-8 flex-wrap">
           <Link href="/" className="hover:text-[#024AE5]">Home</Link>
           <ChevronRight className="h-3.5 w-3.5" />
           <Link href="/products" className="hover:text-[#024AE5]">Products</Link>
           <ChevronRight className="h-3.5 w-3.5" />
-          {category && (
-            <>
-              <Link href={`/categories/${category.slug}`} className="hover:text-[#024AE5]">{category.name}</Link>
-              <ChevronRight className="h-3.5 w-3.5" />
-            </>
+          {breadcrumb && breadcrumb.length > 0 ? (
+            breadcrumb.map((cat, idx) => {
+              const fullCategoryPath = breadcrumb.slice(0, idx + 1).map(c => c.slug).join('/');
+              return (
+                <React.Fragment key={cat.id}>
+                  <Link href={`/products/${fullCategoryPath}`} className="hover:text-[#024AE5]">{cat.name}</Link>
+                  <ChevronRight className="h-3.5 w-3.5" />
+                </React.Fragment>
+              );
+            })
+          ) : (
+            category && (
+              <>
+                <Link href={`/products/${category.slug}`} className="hover:text-[#024AE5]">{category.name}</Link>
+                <ChevronRight className="h-3.5 w-3.5" />
+              </>
+            )
           )}
           <span className="text-slate-800">{product.title}</span>
         </nav>
@@ -90,11 +116,13 @@ export function ProductDetailsClient({ product }: { product: Product }) {
                 fill 
                 className="object-contain p-8"
               />
-              <div className="absolute top-4 left-4">
-                <Badge variant="blue" className="rounded bg-[#024AE5] text-white hover:bg-[#024AE5] px-3 py-1 text-[10px] font-bold uppercase tracking-wider">
-                  2 FLUTE
-                </Badge>
-              </div>
+              {badgeText && (
+                <div className="absolute top-4 left-4">
+                  <Badge variant="blue" className="rounded bg-[#024AE5] text-white hover:bg-[#024AE5] px-3 py-1 text-[10px] font-bold uppercase tracking-wider">
+                    {badgeText}
+                  </Badge>
+                </div>
+              )}
             </div>
             
             <div className="flex gap-4 overflow-x-auto pb-2">
@@ -134,13 +162,26 @@ export function ProductDetailsClient({ product }: { product: Product }) {
             </div>
 
             <div className="text-slate-600 text-sm leading-relaxed mb-8 max-w-xl">
-              {product.description || product.short_description || "High precision micro diameter end mill with 2 flutes for high-speed machining, fine finishing, and intricate detailing."}
+              {activeTagId 
+                ? (shortDescMap[activeTagId] || filteredVariants.find(v => v.specifications?.ShortDescription)?.specifications?.ShortDescription || "No specific description was provided for this series.")
+                : "Select a series below to view its specific description."}
             </div>
           </div>
         </div>
 
         {/* Tabs */}
         <div className="flex items-center gap-8 border-b border-slate-200 mb-8 overflow-x-auto">
+          <button
+            onClick={() => setActiveTab("selector")}
+            className={cn(
+              "pb-3 text-sm font-bold transition-colors whitespace-nowrap",
+              activeTab === "selector"
+                ? "text-[#024AE5] border-b-2 border-[#024AE5]"
+                : "text-slate-500 hover:text-slate-800 border-b-2 border-transparent"
+            )}
+          >
+            HRC Selector
+          </button>
           <button
             onClick={() => setActiveTab("overview")}
             className={cn(
@@ -154,21 +195,19 @@ export function ProductDetailsClient({ product }: { product: Product }) {
           </button>
         </div>
 
-        {/* Tags / Series Pills */}
-        {product.tags && product.tags.length > 0 && (
-          <div className="flex flex-col gap-4 mb-8">
-            <div className="flex flex-wrap items-center gap-3">
-              <button
-                onClick={() => setActiveTagId(null)}
-                className={cn(
-                  "px-6 py-2 rounded-md text-sm font-bold transition-colors border",
-                  activeTagId === null
-                    ? "bg-[#024AE5] text-white border-[#024AE5]"
-                    : "bg-white text-slate-600 border-slate-200 hover:border-slate-300"
-                )}
-              >
-                All Series
-              </button>
+        {/* Tab Content */}
+        {activeTab === "overview" && (
+          <div className="text-slate-700 leading-relaxed max-w-4xl min-h-[300px]">
+            {product.description || (!product.short_description?.trim().startsWith("{") && product.short_description) || "No overview available for this product."}
+          </div>
+        )}
+
+        {activeTab === "selector" && (
+          <>
+            {/* Tags / Series Pills */}
+            {product.tags && product.tags.length > 0 && (
+              <div className="flex flex-col gap-4 mb-8">
+                <div className="flex flex-wrap items-center gap-3">
               {product.tags.map((tag) => (
                 <button
                   key={tag.id}
@@ -184,14 +223,6 @@ export function ProductDetailsClient({ product }: { product: Product }) {
                 </button>
               ))}
             </div>
-            
-            {/* Tag Short Description */}
-            {activeTagId && (
-              <div className="mt-2 text-slate-700 text-sm leading-relaxed max-w-3xl bg-slate-50 p-4 rounded-lg border border-slate-100">
-                <span className="font-semibold text-slate-900 mb-1 block">Series Overview</span>
-                {filteredVariants.find(v => v.specifications?.ShortDescription)?.specifications?.ShortDescription || "No specific description was provided for this series during upload."}
-              </div>
-            )}
           </div>
         )}
 
@@ -216,7 +247,7 @@ export function ProductDetailsClient({ product }: { product: Product }) {
                   {dynamicSpecs.map(spec => (
                     <th key={spec} className="px-6 py-4 text-center">{spec}</th>
                   ))}
-                  <th className="px-6 py-4 text-right">List Price<br/>(Excl. GST)</th>
+                  {isLoggedIn && <th className="px-6 py-4 text-right">List Price<br/>(Excl. GST)</th>}
                   <th className="px-6 py-4 text-center">Stock</th>
                   <th className="px-6 py-4 text-center">Qty</th>
                   <th className="px-6 py-4 text-center">Action</th>
@@ -237,7 +268,7 @@ export function ProductDetailsClient({ product }: { product: Product }) {
                           {v.specifications?.[spec] || "-"}
                         </td>
                       ))}
-                      <td className="px-6 py-4 text-right font-semibold text-slate-900">₹{v.list_price.toFixed(2)}</td>
+                      {isLoggedIn && <td className="px-6 py-4 text-right font-semibold text-slate-900">₹{v.list_price.toFixed(2)}</td>}
                       <td className="px-6 py-4 text-center">
                         <span className="text-[11px] font-bold text-[#137333]">In Stock</span>
                       </td>
@@ -259,7 +290,17 @@ export function ProductDetailsClient({ product }: { product: Product }) {
                         </div>
                       </td>
                       <td className="px-6 py-4 text-center">
-                        <Button size="sm" className="bg-[#024AE5] hover:bg-[#0238B0] text-white shadow-none text-xs w-full max-w-[120px] font-bold">
+                        <Button 
+                          size="sm" 
+                          className="bg-[#024AE5] hover:bg-[#0238B0] text-white shadow-none text-xs w-full max-w-[120px] font-bold"
+                          onClick={() => {
+                            if (!isLoggedIn) {
+                              router.push(`/login?redirect=${encodeURIComponent(window.location.pathname)}`);
+                            } else {
+                              // cart logic
+                            }
+                          }}
+                        >
                           <ShoppingCart className="h-3.5 w-3.5 mr-1.5" />
                           Add To Cart
                         </Button>
@@ -291,6 +332,8 @@ export function ProductDetailsClient({ product }: { product: Product }) {
             </select>
           </div>
         </div>
+        </>
+        )}
 
         {/* Trust Badges */}
         <div className="border-t border-slate-200 pt-10">
