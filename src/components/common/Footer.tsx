@@ -9,7 +9,8 @@ export function Footer() {
   // Hide the global website footer on dashboard and admin portals
   const isDashboardRoute =
     pathname.startsWith("/dashboard") ||
-    pathname.startsWith("/admin");
+    pathname.startsWith("/admin") ||
+    pathname.startsWith("/pending-approval");
 
   if (isDashboardRoute) {
     return null;

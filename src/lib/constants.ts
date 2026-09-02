@@ -140,9 +140,66 @@ export const APPROVAL_STATUS_CONFIG: Record<
   },
 };
 
+// RFQ Statuses
+export const RFQ_STATUSES = {
+  PENDING: "pending",
+  REVIEWING: "reviewing",
+  QUOTED: "quoted",
+  ACCEPTED: "accepted",
+  DECLINED: "declined",
+} as const;
+
+export const RFQ_STATUS_CONFIG: Record<
+  string,
+  {
+    label: string;
+    badgeBg: string;
+    badgeText: string;
+    border: string;
+    badgeVariant: "warning" | "blue" | "green" | "destructive" | "secondary";
+  }
+> = {
+  pending: {
+    label: "Under Review",
+    badgeBg: "bg-amber-50",
+    badgeText: "text-amber-700",
+    border: "border-amber-200",
+    badgeVariant: "warning",
+  },
+  reviewing: {
+    label: "Engineering Review",
+    badgeBg: "bg-blue-50",
+    badgeText: "text-[#024AE5]",
+    border: "border-blue-200",
+    badgeVariant: "blue",
+  },
+  quoted: {
+    label: "Quotation Ready",
+    badgeBg: "bg-emerald-50",
+    badgeText: "text-emerald-700",
+    border: "border-emerald-200",
+    badgeVariant: "green",
+  },
+  accepted: {
+    label: "Accepted / PO Issued",
+    badgeBg: "bg-emerald-100",
+    badgeText: "text-emerald-900",
+    border: "border-emerald-300",
+    badgeVariant: "green",
+  },
+  declined: {
+    label: "Declined",
+    badgeBg: "bg-slate-100",
+    badgeText: "text-slate-700",
+    border: "border-slate-200",
+    badgeVariant: "secondary",
+  },
+};
+
 // 5. Order Statuses
 export const ORDER_STATUSES = {
   PENDING: "pending",
+  CONFIRMED: "confirmed",
   PROCESSING: "processing",
   SHIPPED: "shipped",
   DELIVERED: "delivered",
@@ -155,41 +212,82 @@ export const ORDER_STATUS_CONFIG: Record<
   {
     label: string;
     badgeVariant: "secondary" | "warning" | "blue" | "green" | "destructive" | "outline";
+    badgeBg: string;
+    badgeText: string;
+    border: string;
     description: string;
   }
 > = {
   [ORDER_STATUSES.PENDING]: {
     label: "Pending Review",
     badgeVariant: "secondary",
-    description: "Order placed, awaiting initial warehouse review",
+    badgeBg: "bg-slate-100",
+    badgeText: "text-slate-700",
+    border: "border-slate-200",
+    description: "Order placed, awaiting sales & inventory confirmation",
+  },
+  [ORDER_STATUSES.CONFIRMED]: {
+    label: "Confirmed",
+    badgeVariant: "blue",
+    badgeBg: "bg-blue-50",
+    badgeText: "text-blue-700",
+    border: "border-blue-200",
+    description: "Order accepted, stock allocated for dispatch",
   },
   [ORDER_STATUSES.PROCESSING]: {
-    label: "Processing",
+    label: "Processing / Packaging",
     badgeVariant: "warning",
-    description: "Order verified, being packaged at CNC fulfillment unit",
+    badgeBg: "bg-amber-50",
+    badgeText: "text-amber-700",
+    border: "border-amber-200",
+    description: "Picked, inspected, and packaged at MIDC fulfillment unit",
   },
   [ORDER_STATUSES.SHIPPED]: {
-    label: "Shipped",
+    label: "Shipped / In Transit",
     badgeVariant: "blue",
-    description: "Dispatched with carrier, in transit with E-Way bill",
+    badgeBg: "bg-indigo-50",
+    badgeText: "text-indigo-700",
+    border: "border-indigo-200",
+    description: "Dispatched with carrier, live tracking active",
   },
   [ORDER_STATUSES.DELIVERED]: {
     label: "Delivered",
     badgeVariant: "green",
-    description: "Delivered and acknowledged by recipient facility",
+    badgeBg: "bg-emerald-50",
+    badgeText: "text-emerald-700",
+    border: "border-emerald-200",
+    description: "Successfully delivered and received at client facility",
   },
   [ORDER_STATUSES.CANCELLED]: {
     label: "Cancelled",
     badgeVariant: "destructive",
-    description: "Order cancelled or returned",
+    badgeBg: "bg-rose-50",
+    badgeText: "text-rose-700",
+    border: "border-rose-200",
+    description: "Order cancelled; reserved inventory returned to stock",
   },
 };
 
+// 5.1 Courier Logistics Partners
+export const COURIER_PARTNERS = [
+  { name: "Blue Dart", urlTemplate: "https://www.bluedart.com/tracking?track=" },
+  { name: "DTDC", urlTemplate: "https://www.dtdc.in/tracking.asp?strcnno=" },
+  { name: "Delhivery", urlTemplate: "https://www.delhivery.com/track/package/" },
+  { name: "VRL Logistics", urlTemplate: "https://www.vrlgroup.in/track_consignment.aspx?lrno=" },
+  { name: "Safexpress", urlTemplate: "https://www.safexpress.com/track-consignment?waybill=" },
+  { name: "TCI Freight", urlTemplate: "https://www.tcifreight.com/track" },
+  { name: "The Professional Couriers", urlTemplate: "https://www.tpcindia.com/track.aspx" },
+  { name: "Direct Factory Dispatch (Sojar Logistics)", urlTemplate: "" },
+  { name: "Other / Custom Courier", urlTemplate: "" },
+] as const;
+
 // 6. Commercial & Credit Defaults
 export const COMMERCIAL_DEFAULTS = {
-  DEFAULT_CREDIT_LIMIT: 500000,
-  DEFAULT_CREDIT_DAYS: 30,
-  CREDIT_DAYS_OPTIONS: [15, 30, 45, 60, 90],
+  DEFAULT_CREDIT_LIMIT: 0,
+  DEFAULT_CREDIT_DAYS: 0,
+  OFFLINE_DEFAULT_CREDIT_LIMIT: 500000,
+  OFFLINE_DEFAULT_CREDIT_DAYS: 30,
+  CREDIT_DAYS_OPTIONS: [0, 15, 30, 45, 60, 90],
 } as const;
 
 // 7. Industry Sectors & Department Options
