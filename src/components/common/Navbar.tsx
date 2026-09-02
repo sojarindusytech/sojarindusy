@@ -1,20 +1,24 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { Layers, LogIn, UserPlus, ChevronRight, ChevronDown } from "lucide-react";
+import { Layers, LogIn, UserPlus, ChevronRight, ChevronDown, User, LogOut } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { CategoryNode } from "@/types/database.types";
+import { createClient } from "@/lib/supabase/client";
 
 interface NavbarProps {
   categories?: CategoryNode[];
+  user?: any;
 }
 
 import { useState } from "react";
 
-const CategoryMenuItem = ({ node }: { node: CategoryNode }) => {
+const CategoryMenuItem = ({ node, parentPath = "" }: { node: CategoryNode, parentPath?: string }) => {
   const [isOpen, setIsOpen] = useState(false);
+
+  const currentPath = parentPath ? `${parentPath}/${node.slug}` : node.slug;
 
   return (
     <li 
@@ -23,7 +27,7 @@ const CategoryMenuItem = ({ node }: { node: CategoryNode }) => {
       onMouseLeave={() => setIsOpen(false)}
     >
       <Link
-        href={`/categories/${node.slug}`}
+        href={`/products/${currentPath}`}
         className="flex items-center justify-between px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 hover:text-[#024AE5]"
         onClick={() => setIsOpen(false)}
       >
@@ -35,7 +39,7 @@ const CategoryMenuItem = ({ node }: { node: CategoryNode }) => {
       {node.children && node.children.length > 0 && isOpen && (
         <ul className="absolute left-full top-0 w-48 rounded-md border border-slate-200 bg-white shadow-lg py-1 z-50">
           {node.children.map((child) => (
-            <CategoryMenuItem key={child.id} node={child} />
+            <CategoryMenuItem key={child.id} node={child} parentPath={currentPath} />
           ))}
         </ul>
       )}
@@ -43,8 +47,15 @@ const CategoryMenuItem = ({ node }: { node: CategoryNode }) => {
   );
 };
 
-export function Navbar({ categories = [] }: NavbarProps) {
+export function Navbar({ categories = [], user }: NavbarProps) {
   const pathname = usePathname();
+  const router = useRouter();
+
+  const handleLogout = async () => {
+    const supabase = createClient();
+    await supabase.auth.signOut();
+    router.refresh();
+  };
 
   const isDashboardRoute =
     pathname.startsWith("/dashboard") ||
@@ -132,22 +143,51 @@ export function Navbar({ categories = [] }: NavbarProps) {
 
         {/* Action Buttons */}
         <div className="flex items-center gap-2.5">
-          <Link href="/login">
-            <Button variant="ghost" size="sm" className="gap-1.5 text-xs sm:text-sm">
-              <LogIn className="h-4 w-4 text-slate-500" />
-              <span>Login</span>
-            </Button>
-          </Link>
-          <Link href="/signup">
-            <Button
-              size="sm"
-              variant="primary"
-              className="gap-1.5 text-xs sm:text-sm"
-            >
-              <UserPlus className="h-4 w-4" />
-              <span>Sign Up</span>
-            </Button>
-          </Link>
+          {user ? (
+            <div className="relative group">
+              <Button variant="ghost" className="gap-2 text-sm font-medium border border-slate-200">
+                <User className="h-4 w-4 text-[#024AE5]" />
+                <span>{user.email?.split('@')[0]}</span>
+              </Button>
+              
+              <div className="absolute right-0 top-full hidden pt-2 group-hover:block z-50">
+                <div className="w-48 rounded-md border border-slate-200 bg-white shadow-lg py-1 flex flex-col">
+                  <div className="px-4 py-2 text-xs text-slate-500 border-b border-slate-100 truncate">
+                    {user.email}
+                  </div>
+                  <Link href="/dashboard" className="px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 hover:text-[#024AE5]">
+                    Dashboard
+                  </Link>
+                  <button 
+                    onClick={handleLogout}
+                    className="flex items-center gap-2 w-full text-left px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50"
+                  >
+                    <LogOut className="h-4 w-4" />
+                    Logout
+                  </button>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <>
+              <Link href="/login">
+                <Button variant="ghost" size="sm" className="gap-1.5 text-xs sm:text-sm">
+                  <LogIn className="h-4 w-4 text-slate-500" />
+                  <span>Login</span>
+                </Button>
+              </Link>
+              <Link href="/signup">
+                <Button
+                  size="sm"
+                  variant="primary"
+                  className="gap-1.5 text-xs sm:text-sm"
+                >
+                  <UserPlus className="h-4 w-4" />
+                  <span>Sign Up</span>
+                </Button>
+              </Link>
+            </>
+          )}
         </div>
       </div>
     </header>

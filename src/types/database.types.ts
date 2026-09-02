@@ -4,9 +4,10 @@ import {
   OrderStatus,
   ApprovalStatus,
   UserType,
+  CustomerChannel,
 } from "@/lib/constants";
 
-export type { UserRole, UserTitle, OrderStatus, ApprovalStatus, UserType };
+export type { UserRole, UserTitle, OrderStatus, ApprovalStatus, UserType, CustomerChannel };
 
 export interface Profile {
   id: string;
@@ -27,6 +28,7 @@ export interface Profile {
   state: string;
   pincode: string;
   approval_status?: ApprovalStatus;
+  channel?: CustomerChannel;
   user_type?: UserType;
   notes?: string | null;
   credit_limit?: number | null;
@@ -100,23 +102,57 @@ export interface ProductVariant {
   list_price: number;
   stock_quantity: number;
   specifications?: Record<string, any>;
+  is_archived?: boolean;
+  archived_at?: string | null;
   created_at?: string;
   updated_at?: string;
 }
 
-export interface Tag {
+export type InventoryMovementType = 
+  | 'INITIAL_IMPORT'
+  | 'MANUAL_ADJUSTMENT'
+  | 'BULK_UPDATE'
+  | 'ORDER_RESERVATION'
+  | 'ORDER_FULFILLED'
+  | 'ORDER_CANCELLED'
+  | 'RETURN_RESTOCK'
+  | 'ARCHIVED';
+
+export interface InventoryLog {
+  id: string;
+  variant_id?: string | null;
+  product_id?: string | null;
+  sku_code: string;
+  product_title: string;
+  movement_type: InventoryMovementType | string;
+  quantity_delta: number;
+  balance_before: number;
+  balance_after: number;
+  reference_id?: string | null;
+  notes?: string | null;
+  created_by?: string | null;
+  created_at: string;
+}
+
+export interface Attribute {
   id: string;
   name: string;
   slug: string;
-  type: string; // e.g. 'hardness', 'material', 'coating', 'general'
+  type?: string;
   created_at?: string;
 }
 
-export interface ProductTag {
+// Backward compatibility alias
+export type Tag = Attribute;
+
+export interface ProductAttribute {
   product_id: string;
-  tag_id: string;
+  attribute_id: string;
   created_at?: string;
 }
+
+// Backward compatibility alias
+export type ProductTag = ProductAttribute;
 
 export interface Product {
   id: string;
@@ -130,7 +166,8 @@ export interface Product {
   updated_at?: string;
   variants?: ProductVariant[];
   categories?: Category[];
-  tags?: Tag[];
+  attributes?: Attribute[];
+  tags?: Attribute[]; // Backward compatibility alias
 }
 
 export interface Database {
@@ -172,16 +209,28 @@ export interface Database {
         Update: Partial<ProductVariant>;
         Relationships: [];
       };
+      attributes: {
+        Row: Attribute;
+        Insert: Omit<Attribute, "id" | "created_at">;
+        Update: Partial<Attribute>;
+        Relationships: [];
+      };
+      product_attributes: {
+        Row: ProductAttribute;
+        Insert: ProductAttribute;
+        Update: Partial<ProductAttribute>;
+        Relationships: [];
+      };
       tags: {
-        Row: Tag;
-        Insert: Omit<Tag, "id" | "created_at">;
-        Update: Partial<Tag>;
+        Row: Attribute;
+        Insert: Omit<Attribute, "id" | "created_at">;
+        Update: Partial<Attribute>;
         Relationships: [];
       };
       product_tags: {
-        Row: ProductTag;
-        Insert: ProductTag;
-        Update: Partial<ProductTag>;
+        Row: ProductAttribute;
+        Insert: ProductAttribute;
+        Update: Partial<ProductAttribute>;
         Relationships: [];
       };
     };

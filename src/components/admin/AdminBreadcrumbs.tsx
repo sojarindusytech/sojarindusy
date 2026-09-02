@@ -29,7 +29,15 @@ const routeMap: Record<string, RouteMeta> = {
   },
   "/admin/categories": {
     section: "Product Management",
-    title: "Categories / Variants",
+    title: "Categories",
+  },
+  "/admin/attributes": {
+    section: "Product Management",
+    title: "Attributes",
+  },
+  "/admin/tags": {
+    section: "Product Management",
+    title: "Attributes",
   },
   "/admin/categories/tool-types": {
     section: "Product Management",

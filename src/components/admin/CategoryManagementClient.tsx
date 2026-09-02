@@ -388,11 +388,8 @@ export function CategoryManagementClient({
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-slate-200 pb-5">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-slate-900">
-            Categories & Hierarchy
+            Categories
           </h1>
-          <p className="text-xs text-slate-500 mt-1">
-            Manage WordPress-style free-form nested categories, image assets, and product taxonomies.
-          </p>
         </div>
 
         <Button

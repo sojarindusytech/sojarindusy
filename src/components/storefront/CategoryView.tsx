@@ -4,33 +4,17 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Clock, Tag, Folder, ChevronRight, Package } from "lucide-react";
 import Link from "next/link";
-import { fetchCategoryBySlug, fetchCategoriesTree } from "@/actions/category";
-import { fetchProductsByCategory } from "@/actions/product";
-import { notFound } from "next/navigation";
 import Image from "next/image";
+import { Category, Product } from "@/types/database.types";
 
-export default async function CategoryPage({ params }: { params: Promise<{ slug: string }> }) {
-  const { slug } = await params;
-  const category = await fetchCategoryBySlug(slug);
-  if (!category) {
-    notFound();
-  }
+interface CategoryViewProps {
+  category: Category;
+  subCategories: Category[];
+  products: Product[];
+  breadcrumb: Category[];
+}
 
-  const { flatCategories } = await fetchCategoriesTree();
-  const subCategories = flatCategories
-    .filter(c => c.parent_id === category.id && c.is_active)
-    .sort((a, b) => a.display_order - b.display_order);
-
-  const products = subCategories.length === 0 ? await fetchProductsByCategory(slug) : [];
-
-  // Build breadcrumb
-  let breadcrumb: typeof category[] = [];
-  let current: typeof category | undefined = flatCategories.find(c => c.id === category.id);
-  while (current) {
-    breadcrumb.unshift(current);
-    current = flatCategories.find(c => c.id === current?.parent_id);
-  }
-
+export function CategoryView({ category, subCategories, products, breadcrumb }: CategoryViewProps) {
   return (
     <div className="min-h-screen bg-slate-50">
       {/* Category Header/Banner */}
@@ -60,7 +44,7 @@ export default async function CategoryPage({ params }: { params: Promise<{ slug:
                   <span className="text-slate-800 font-semibold">{cat.name}</span>
                 ) : (
                   <>
-                    <Link href={`/categories/${breadcrumb.slice(0, idx + 1).map(c => c.slug).join('/')}`} className="hover:text-[#024AE5]">{cat.name}</Link>
+                    <Link href={`/products/${breadcrumb.slice(0, idx + 1).map(c => c.slug).join('/')}`} className="hover:text-[#024AE5]">{cat.name}</Link>
                     <ChevronRight className="h-3.5 w-3.5" />
                   </>
                 )}
@@ -87,7 +71,7 @@ export default async function CategoryPage({ params }: { params: Promise<{ slug:
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
               {subCategories.map((sub) => {
                 const fullCategoryPath = breadcrumb.map(c => c.slug).join('/');
-                const subCategoryHref = fullCategoryPath ? `/categories/${fullCategoryPath}/${sub.slug}` : `/categories/${sub.slug}`;
+                const subCategoryHref = fullCategoryPath ? `/products/${fullCategoryPath}/${sub.slug}` : `/products/${sub.slug}`;
                 return (
                   <Link key={sub.id} href={subCategoryHref} className="block h-full">
                     <Card className="h-full transition-all hover:border-[#024AE5]/40 bg-white shadow-sm hover:shadow-md cursor-pointer flex flex-col border border-slate-200 group overflow-hidden">

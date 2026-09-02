@@ -50,8 +50,8 @@ const navItems: NavSectionItem[] = [
     icon: Package,
     subItems: [
       { title: "Products", href: "/admin/products" },
-      { title: "Categories / Variants", href: "/admin/categories" },
-      { title: "Tags / Attributes", href: "/admin/tags" },
+      { title: "Categories", href: "/admin/categories" },
+      { title: "Attributes", href: "/admin/attributes" },
     ],
   },
   {

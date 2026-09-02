@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { Tag } from "@/types/database.types";
+import { Attribute, Tag } from "@/types/database.types";
 import { bulkAppendSkus } from "@/actions/product-management";
+import { fetchAttributes } from "@/actions/attribute";
 import { fetchTags } from "@/actions/tag";
 import {
   Dialog,
@@ -31,9 +32,15 @@ interface ParsedCsvData {
   rows: Record<string, any>[];
 }
 
-const SYSTEM_MAPPABLE_FIELDS = [
-  { key: "sku", label: "SKU Code (CODE) *", dataType: "Text" },
-  { key: "diameter", label: "Diameter (D)", dataType: "Decimal" },
+interface TargetColumn {
+  key: string;
+  label: string;
+  dataType: string;
+}
+
+const TARGET_COLUMNS: TargetColumn[] = [
+  { key: "sku", label: "SKU Code *", dataType: "String" },
+  { key: "diameter", label: "Cutting Dia (D)", dataType: "Decimal" },
   { key: "fluteLength", label: "Flute Length (H)", dataType: "Decimal" },
   { key: "overallLength", label: "Overall Length (L)", dataType: "Decimal" },
   { key: "shankDia", label: "Shank Dia (D2)", dataType: "Decimal" },
@@ -41,27 +48,31 @@ const SYSTEM_MAPPABLE_FIELDS = [
   { key: "stockQuantity", label: "Stock Quantity", dataType: "Integer" },
 ];
 
+const SYSTEM_MAPPABLE_FIELDS = TARGET_COLUMNS;
+
 interface AppendSkuModalProps {
   isOpen: boolean;
   onClose: () => void;
   productId: string;
-  availableTags: Tag[];
+  availableAttributes?: Attribute[];
+  availableTags?: Tag[];
 }
 
-export function AppendSkuModal({ isOpen, onClose, productId, availableTags }: AppendSkuModalProps) {
-  const [selectedTagId, setSelectedTagId] = useState<string>("none");
+export function AppendSkuModal({ isOpen, onClose, productId, availableAttributes, availableTags }: AppendSkuModalProps) {
+  const initialAttributes = availableAttributes || availableTags || [];
+  const [selectedAttributeId, setSelectedAttributeId] = useState<string>("none");
   const [csvData, setCsvData] = useState<ParsedCsvData | null>(null);
   const [columnMapping, setColumnMapping] = useState<Record<string, string>>({});
   const [selectedRowIndices, setSelectedRowIndices] = useState<number[]>([]);
   const [submitError, setSubmitError] = useState<string | string[] | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [dynamicTags, setDynamicTags] = useState<Tag[]>(availableTags);
+  const [dynamicAttributes, setDynamicAttributes] = useState<Attribute[]>(initialAttributes);
 
   useEffect(() => {
     if (isOpen) {
-      fetchTags().then(tags => {
-        if (tags && tags.length > 0) {
-          setDynamicTags(tags);
+      fetchAttributes().then(attrs => {
+        if (attrs && attrs.length > 0) {
+          setDynamicAttributes(attrs);
         }
       });
     }
@@ -208,13 +219,14 @@ export function AppendSkuModal({ isOpen, onClose, productId, availableTags }: Ap
       const stockQty = stockQtyStr ? parseInt(stockQtyStr.toString().replace(/[^0-9]/g, ""), 10) : 0;
 
       const specs: any = {};
-      let tagIdToLink: string | undefined = undefined;
+      let attributeIdToLink: string | undefined = undefined;
 
-      if (selectedTagId && selectedTagId !== "none") {
-        const tag = dynamicTags.find(t => t.id === selectedTagId);
-        if (tag) {
-          specs.Tag = tag.name;
-          tagIdToLink = tag.id;
+      if (selectedAttributeId && selectedAttributeId !== "none") {
+        const attr = dynamicAttributes.find(t => t.id === selectedAttributeId);
+        if (attr) {
+          specs.Attribute = attr.name;
+          specs.Tag = attr.name; // backward compatibility
+          attributeIdToLink = attr.id;
         }
       }
 
@@ -245,8 +257,8 @@ export function AppendSkuModal({ isOpen, onClose, productId, availableTags }: Ap
     setIsSubmitting(true);
     setSubmitError(null);
 
-    const tagIdToLink = selectedTagId !== "none" ? selectedTagId : undefined;
-    const result = await bulkAppendSkus(productId, variantsToInsert, tagIdToLink);
+    const attributeIdToLink = selectedAttributeId !== "none" ? selectedAttributeId : undefined;
+    const result = await bulkAppendSkus(productId, variantsToInsert, attributeIdToLink);
     
     setIsSubmitting(false);
 
@@ -266,7 +278,7 @@ export function AppendSkuModal({ isOpen, onClose, productId, availableTags }: Ap
             Append SKUs from CSV
           </DialogTitle>
           <DialogDescription className="text-xs text-slate-500">
-            Upload a CSV to append SKUs to this existing product. You can optionally assign them to a Tag.
+            Upload a CSV to append SKUs to this existing product. You can optionally assign them to an Attribute.
           </DialogDescription>
         </DialogHeader>
 
@@ -286,14 +298,14 @@ export function AppendSkuModal({ isOpen, onClose, productId, availableTags }: Ap
 
           <div className="flex items-center justify-between gap-6">
             <div className="space-y-1.5 flex-1 max-w-sm">
-              <Label className="text-xs font-semibold text-slate-700">Assign to Tag</Label>
-              <Select value={selectedTagId} onValueChange={setSelectedTagId}>
+              <Label className="text-xs font-semibold text-slate-700">Assign to Attribute</Label>
+              <Select value={selectedAttributeId} onValueChange={setSelectedAttributeId}>
                 <SelectTrigger className="h-9 text-xs border-slate-200">
-                  <SelectValue placeholder="Select Tag" />
+                  <SelectValue placeholder="Select Attribute" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="none" className="text-xs italic text-slate-400">-- No Tag --</SelectItem>
-                  {dynamicTags.map((t) => (
+                  <SelectItem value="none" className="text-xs italic text-slate-400">-- No Attribute --</SelectItem>
+                  {dynamicAttributes.map((t) => (
                     <SelectItem key={t.id} value={t.id} className="text-xs font-medium">{t.name}</SelectItem>
                   ))}
                 </SelectContent>

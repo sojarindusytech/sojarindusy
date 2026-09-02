@@ -21,10 +21,12 @@ interface EditSkuModalProps {
   isOpen: boolean;
   onClose: () => void;
   variant: ProductVariant;
+  availableAttributes?: { id: string; name: string }[];
   availableTags?: { id: string; name: string }[];
 }
 
-export function EditSkuModal({ isOpen, onClose, variant, availableTags }: EditSkuModalProps) {
+export function EditSkuModal({ isOpen, onClose, variant, availableAttributes, availableTags }: EditSkuModalProps) {
+  const activeAttributes = availableAttributes || availableTags || [];
   const [sku, setSku] = useState(variant.sku);
   const [diameter, setDiameter] = useState(variant.diameter?.toString() || "");
   const [fluteLength, setFluteLength] = useState(variant.flute_length?.toString() || "");
@@ -32,7 +34,20 @@ export function EditSkuModal({ isOpen, onClose, variant, availableTags }: EditSk
   const [shankDiameter, setShankDiameter] = useState(variant.shank_diameter?.toString() || "");
   const [listPrice, setListPrice] = useState(variant.list_price.toString());
   const [stockQuantity, setStockQuantity] = useState(variant.stock_quantity.toString());
-  const [selectedTagName, setSelectedTagName] = useState<string>((variant.specifications as any)?.Tag || "none");
+  const initialAttr = (variant.specifications as any)?.Attribute || (variant.specifications as any)?.Tag || "none";
+  const [selectedAttributeName, setSelectedAttributeName] = useState<string>(initialAttr);
+  
+  const initialSpecs = (variant.specifications as Record<string, any>) || {};
+  const [customSpecs, setCustomSpecs] = useState<Record<string, string>>(() => {
+    const specs: Record<string, string> = {};
+    Object.entries(initialSpecs).forEach(([k, v]) => {
+      if (k !== "Attribute" && k !== "Tag" && k !== "ShortDescription") {
+        specs[k] = v != null ? String(v) : "";
+      }
+    });
+    return specs;
+  });
+
   const [isLoading, setIsLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -44,10 +59,12 @@ export function EditSkuModal({ isOpen, onClose, variant, availableTags }: EditSk
 
     setIsLoading(true);
     
-    const specs = { ...(variant.specifications as object) || {} } as any;
-    if (selectedTagName && selectedTagName !== "none") {
-      specs.Tag = selectedTagName;
+    const specs = { ...customSpecs } as any;
+    if (selectedAttributeName && selectedAttributeName !== "none") {
+      specs.Attribute = selectedAttributeName;
+      specs.Tag = selectedAttributeName; // backward compatibility
     } else {
+      delete specs.Attribute;
       delete specs.Tag;
     }
 
@@ -94,16 +111,16 @@ export function EditSkuModal({ isOpen, onClose, variant, availableTags }: EditSk
                 required
               />
             </div>
-            {availableTags && availableTags.length > 0 && (
+            {activeAttributes && activeAttributes.length > 0 && (
               <div className="space-y-1.5">
-                <Label className="text-xs font-semibold text-slate-700">Tag Assignment</Label>
-                <Select value={selectedTagName} onValueChange={setSelectedTagName}>
+                <Label className="text-xs font-semibold text-slate-700">Attribute Assignment</Label>
+                <Select value={selectedAttributeName} onValueChange={setSelectedAttributeName}>
                   <SelectTrigger className="h-9 text-xs border-slate-200">
-                    <SelectValue placeholder="Select Tag" />
+                    <SelectValue placeholder="Select Attribute" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="none" className="text-xs italic text-slate-400">-- No Tag --</SelectItem>
-                    {availableTags.map((t) => (
+                    <SelectItem value="none" className="text-xs italic text-slate-400">-- No Attribute --</SelectItem>
+                    {activeAttributes.map((t) => (
                       <SelectItem key={t.id} value={t.name} className="text-xs font-medium">{t.name}</SelectItem>
                     ))}
                   </SelectContent>
@@ -176,6 +193,28 @@ export function EditSkuModal({ isOpen, onClose, variant, availableTags }: EditSk
               />
             </div>
           </div>
+
+          {/* Dynamic Specifications (if present from CSV) */}
+          {Object.keys(customSpecs).length > 0 && (
+            <div className="pt-2 border-t border-slate-100">
+              <Label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block mb-2">
+                Additional Specifications
+              </Label>
+              <div className="grid grid-cols-2 gap-4">
+                {Object.entries(customSpecs).map(([key, val]) => (
+                  <div key={key} className="space-y-1.5">
+                    <Label className="text-xs font-semibold text-slate-700 capitalize">{key}</Label>
+                    <Input
+                      type="text"
+                      value={val}
+                      onChange={(e) => setCustomSpecs(prev => ({ ...prev, [key]: e.target.value }))}
+                      className="h-9 text-xs border-slate-200"
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
             <Button

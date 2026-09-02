@@ -3,7 +3,7 @@
 
 CREATE TABLE public.profiles (
   id uuid NOT NULL,
-  role text NOT NULL DEFAULT 'customer'::text CHECK (role = ANY (ARRAY['platform_owner'::text, 'customer'::text])),
+  role text NOT NULL DEFAULT 'customer'::text CHECK (role = ANY (ARRAY['admin'::text, 'customer'::text, 'platform_owner'::text])),
   title text NOT NULL CHECK (title = ANY (ARRAY['Mr'::text, 'Mrs'::text, 'Miss'::text, 'Ms'::text])),
   first_name text NOT NULL,
   last_name text NOT NULL,
@@ -22,7 +22,8 @@ CREATE TABLE public.profiles (
   created_at timestamp with time zone NOT NULL DEFAULT now(),
   updated_at timestamp with time zone NOT NULL DEFAULT now(),
   approval_status text NOT NULL DEFAULT 'pending'::text CHECK (approval_status = ANY (ARRAY['pending'::text, 'approved'::text, 'rejected'::text])),
-  user_type text NOT NULL DEFAULT 'platform_user'::text CHECK (user_type = ANY (ARRAY['platform_user'::text, 'offline_user'::text])),
+  channel text NOT NULL DEFAULT 'online'::text CHECK (channel = ANY (ARRAY['online'::text, 'offline'::text])),
+  user_type text DEFAULT 'online'::text,
   notes text,
   credit_limit numeric DEFAULT 0,
   credit_days integer DEFAULT 30,
@@ -62,7 +63,8 @@ CREATE TABLE public.product_categories (
   category_id uuid NOT NULL,
   created_at timestamp with time zone NOT NULL DEFAULT now(),
   CONSTRAINT product_categories_pkey PRIMARY KEY (product_id, category_id),
-  CONSTRAINT product_categories_category_id_fkey FOREIGN KEY (category_id) REFERENCES public.categories(id)
+  CONSTRAINT product_categories_category_id_fkey FOREIGN KEY (category_id) REFERENCES public.categories(id) ON DELETE RESTRICT,
+  CONSTRAINT product_categories_product_id_fkey FOREIGN KEY (product_id) REFERENCES public.products(id)
 );
 CREATE TABLE public.products (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
@@ -87,24 +89,43 @@ CREATE TABLE public.product_variants (
   list_price numeric NOT NULL DEFAULT 0,
   stock_quantity integer NOT NULL DEFAULT 0,
   specifications jsonb NOT NULL DEFAULT '{}'::jsonb,
+  is_archived boolean NOT NULL DEFAULT false,
+  archived_at timestamp with time zone,
   created_at timestamp with time zone NOT NULL DEFAULT now(),
   updated_at timestamp with time zone NOT NULL DEFAULT now(),
   CONSTRAINT product_variants_pkey PRIMARY KEY (id),
   CONSTRAINT product_variants_product_id_fkey FOREIGN KEY (product_id) REFERENCES public.products(id)
 );
-CREATE TABLE public.tags (
+CREATE TABLE public.inventory_logs (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  variant_id uuid,
+  product_id uuid,
+  sku_code text NOT NULL,
+  product_title text NOT NULL,
+  movement_type text NOT NULL,
+  quantity_delta integer NOT NULL,
+  balance_before integer NOT NULL,
+  balance_after integer NOT NULL,
+  reference_id text,
+  notes text,
+  created_by uuid,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT inventory_logs_pkey PRIMARY KEY (id),
+  CONSTRAINT inventory_logs_variant_id_fkey FOREIGN KEY (variant_id) REFERENCES public.product_variants(id) ON DELETE SET NULL,
+  CONSTRAINT inventory_logs_product_id_fkey FOREIGN KEY (product_id) REFERENCES public.products(id) ON DELETE SET NULL
+);
+CREATE TABLE public.attributes (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
   name text NOT NULL,
   slug text NOT NULL UNIQUE,
-  type text NOT NULL DEFAULT 'hardness'::text,
   created_at timestamp with time zone NOT NULL DEFAULT now(),
-  CONSTRAINT tags_pkey PRIMARY KEY (id)
+  CONSTRAINT attributes_pkey PRIMARY KEY (id)
 );
-CREATE TABLE public.product_tags (
+CREATE TABLE public.product_attributes (
   product_id uuid NOT NULL,
-  tag_id uuid NOT NULL,
+  attribute_id uuid NOT NULL,
   created_at timestamp with time zone NOT NULL DEFAULT now(),
-  CONSTRAINT product_tags_pkey PRIMARY KEY (product_id, tag_id),
-  CONSTRAINT product_tags_product_id_fkey FOREIGN KEY (product_id) REFERENCES public.products(id),
-  CONSTRAINT product_tags_tag_id_fkey FOREIGN KEY (tag_id) REFERENCES public.tags(id)
+  CONSTRAINT product_attributes_pkey PRIMARY KEY (product_id, attribute_id),
+  CONSTRAINT product_attributes_product_id_fkey FOREIGN KEY (product_id) REFERENCES public.products(id) ON DELETE CASCADE,
+  CONSTRAINT product_attributes_attribute_id_fkey FOREIGN KEY (attribute_id) REFERENCES public.attributes(id) ON DELETE RESTRICT
 );

@@ -349,7 +349,7 @@ export async function updateCategory(
 }
 
 /**
- * Delete a category (Strict rule: Prevent deletion if child categories exist)
+ * Delete a category (Strict rule: Prevent deletion if child categories or products exist)
  */
 export async function deleteCategory(id: string): Promise<{
   success?: boolean;
@@ -358,7 +358,17 @@ export async function deleteCategory(id: string): Promise<{
   const supabase = createAdminClient();
 
   try {
-    // 1. Check if child categories exist
+    // 1. Fetch category name
+    const { data: catData } = await supabase
+      .from("categories")
+      .select("name")
+      .eq("id", id)
+      .maybeSingle();
+
+    const typedCat = catData as { name?: string } | null;
+    const catName = typedCat?.name ? `"${typedCat.name}"` : "this category";
+
+    // 2. Check if child categories exist
     const { data: children, error: checkErr } = await supabase
       .from("categories")
       .select("id, name")
@@ -367,18 +377,44 @@ export async function deleteCategory(id: string): Promise<{
     const childList = (children || []) as Array<{ id: string; name: string }>;
     if (childList.length > 0) {
       return {
-        error: `Cannot delete this category because it contains ${childList.length} subcategory(${childList.map((c) => c.name).join(", ")}). Please re-assign or delete child categories first.`,
+        error: `Cannot delete ${catName} because it contains ${childList.length} subcategory(${childList.map((c) => c.name).join(", ")}). Please re-assign or delete child categories first.`,
       };
     }
 
-    // 2. Perform deletion
+    // 3. Check if any products are associated with this category
+    const { data: productLinks, error: prodErr } = await supabase
+      .from("product_categories")
+      .select("product_id, products(id, title)")
+      .eq("category_id", id);
+
+    if (productLinks && productLinks.length > 0) {
+      const productTitles = productLinks
+        .map((p: any) => p.products?.title)
+        .filter((t: string | undefined): t is string => Boolean(t && t.trim()));
+
+      const count = productLinks.length;
+      const productListStr = productTitles.length > 0
+        ? ` (${productTitles.slice(0, 3).map(t => `"${t}"`).join(", ")}${productTitles.length > 3 ? ` and ${productTitles.length - 3} more` : ""})`
+        : "";
+
+      return {
+        error: `Cannot delete category ${catName} because it is currently assigned to ${count} product family${count > 1 ? "ies" : ""}${productListStr}. Please remove or reassign the product(s) before deleting this category.`,
+      };
+    }
+
+    // 4. Perform deletion
     const { error } = await supabase
       .from("categories")
       .delete()
       .eq("id", id);
 
     if (error) {
-      return { error: error.message };
+      if (error.code === "23503") {
+        return {
+          error: `Cannot delete category ${catName} because it is referenced by existing products.`,
+        };
+      }
+      return { error: error.message || "Failed to delete category." };
     }
 
     revalidatePath("/admin/categories");

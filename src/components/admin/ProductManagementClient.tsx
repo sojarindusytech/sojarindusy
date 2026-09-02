@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useTransition } from "react";
-import { Product, ProductVariant, CategoryNode, Tag } from "@/types/database.types";
+import { Product, ProductVariant, CategoryNode, Attribute, Tag } from "@/types/database.types";
 import { deleteProduct, fetchProductsList } from "@/actions/product";
 import { deleteSku } from "@/actions/product-management";
 import { ProductUploadModal } from "@/components/admin/ProductUploadModal";
@@ -10,6 +10,7 @@ import { AddSkuModal } from "@/components/admin/AddSkuModal";
 import { EditSkuModal } from "@/components/admin/EditSkuModal";
 import { AppendSkuModal } from "@/components/admin/AppendSkuModal";
 import { BulkUpdateModal } from "@/components/admin/BulkUpdateModal";
+import { SkuStockLogModal } from "@/components/admin/SkuStockLogModal";
 import toast from "react-hot-toast";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -42,6 +43,7 @@ import {
   FileSpreadsheet,
   Layers,
   Sparkles,
+  History,
 } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
@@ -52,14 +54,17 @@ import { useEffect } from "react";
 interface ProductManagementClientProps {
   initialProducts: Product[];
   treeNodes?: CategoryNode[];
+  availableAttributes?: Attribute[];
   availableTags?: Tag[];
 }
 
 export function ProductManagementClient({
   initialProducts,
   treeNodes = [],
-  availableTags = [],
+  availableAttributes,
+  availableTags,
 }: ProductManagementClientProps) {
+  const activeAttributes = availableAttributes || availableTags || [];
   const searchParams = useSearchParams();
   const [products, setProducts] = useState<Product[]>(initialProducts);
   const [searchQuery, setSearchQuery] = useState("");
@@ -74,17 +79,21 @@ export function ProductManagementClient({
   const [expandedProductIds, setExpandedProductIds] = useState<Record<string, boolean>>({});
   const [selectedSkus, setSelectedSkus] = useState<Record<string, string[]>>({});
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
-  const [editingSku, setEditingSku] = useState<{ variant: ProductVariant, tags: { id: string; name: string }[] } | null>(null);
-  const [addingSkuProductId, setAddingSkuProductId] = useState<{ id: string, tags: { id: string; name: string }[] } | null>(null);
-  const [appendingSkuProductId, setAppendingSkuProductId] = useState<{ id: string, tags: Tag[] } | null>(null);
+  const [editingSku, setEditingSku] = useState<{ variant: ProductVariant, attributes: { id: string; name: string }[] } | null>(null);
+  const [addingSkuProductId, setAddingSkuProductId] = useState<{ id: string, attributes: { id: string; name: string }[] } | null>(null);
+  const [appendingSkuProductId, setAppendingSkuProductId] = useState<{ id: string, attributes: Attribute[] } | null>(null);
   const [bulkUpdatingProductId, setBulkUpdatingProductId] = useState<string | null>(null);
-  const [tagFilters, setTagFilters] = useState<Record<string, string>>({});
+  const [viewingStockLogVariant, setViewingStockLogVariant] = useState<{ variant: ProductVariant, productTitle: string } | null>(null);
+  const [attributeFilters, setAttributeFilters] = useState<Record<string, string>>({});
+  const [skuSearchQueries, setSkuSearchQueries] = useState<Record<string, string>>({});
+  const [skuStockFilters, setSkuStockFilters] = useState<Record<string, "all" | "in_stock" | "out_of_stock">>({});
+  const [selectedPath, setSelectedPath] = useState<string[]>([]);
   const [isPending, startTransition] = useTransition();
 
   const totalFamilies = products.length;
-  const totalSkus = products.reduce((acc, p) => acc + (p.variants?.length || 0), 0);
+  const totalSkus = products.reduce((acc, p) => acc + (p.variants?.filter(v => !v.is_archived).length || 0), 0);
   const totalStock = products.reduce(
-    (acc, p) => acc + (p.variants?.reduce((vAcc, v) => vAcc + (v.stock_quantity || 0), 0) || 0),
+    (acc, p) => acc + (p.variants?.filter(v => !v.is_archived).reduce((vAcc, v) => vAcc + (v.stock_quantity || 0), 0) || 0),
     0
   );
 
@@ -129,20 +138,96 @@ export function ProductManagementClient({
     const result = await deleteSku(variantId);
     if (result.error) {
       toast.error(result.error);
+    } else if (result.archived) {
+      toast.success("SKU archived (history and logs preserved).");
+      refreshProducts();
     } else {
       toast.success("SKU deleted successfully.");
       refreshProducts();
     }
   };
 
+  const activeCategoryId = selectedPath.length > 0 ? selectedPath[selectedPath.length - 1] : "all";
+
+  // Helper to collect all descendent category IDs including the root
+  const getDescendantIds = (nodes: CategoryNode[], targetId: string): Set<string> => {
+    const ids = new Set<string>();
+    let targetNode: CategoryNode | null = null;
+    
+    const findNode = (n: CategoryNode[]) => {
+      for (const node of n) {
+        if (node.id === targetId) targetNode = node;
+        if (node.children) findNode(node.children);
+      }
+    };
+    findNode(nodes);
+
+    if (targetNode) {
+      ids.add((targetNode as CategoryNode).id);
+      const addChildren = (n: CategoryNode) => {
+        if (n.children) {
+          for (const c of n.children) {
+            ids.add(c.id);
+            addChildren(c);
+          }
+        }
+      };
+      addChildren(targetNode);
+    }
+    return ids;
+  };
+
+  const activeCategoryAndDescendants = React.useMemo(() => {
+    if (activeCategoryId === "all") return new Set<string>();
+    return getDescendantIds(treeNodes, activeCategoryId);
+  }, [activeCategoryId, treeNodes]);
+
   const filteredProducts = products.filter((p) => {
     const query = searchQuery.toLowerCase().trim();
-    if (!query) return true;
+    
+    let matchCat = true;
+    if (activeCategoryId !== "all") {
+      matchCat = p.categories?.some(c => activeCategoryAndDescendants.has(c.id)) || false;
+    }
+
+    if (!query) return matchCat;
+    
     const matchTitle = p.title.toLowerCase().includes(query);
     const matchDesc = p.short_description?.toLowerCase().includes(query);
     const matchSku = p.variants?.some((v) => v.sku.toLowerCase().includes(query));
-    return matchTitle || matchDesc || matchSku;
+    
+    return matchCat && (matchTitle || matchDesc || matchSku);
   });
+
+  // Generate cascading dropdown data
+  const dropdownsToRender: { level: number; options: CategoryNode[]; selectedValue: string }[] = [];
+  let currentOptions = treeNodes;
+  let currentPathLevel = 0;
+  
+  while (currentOptions && currentOptions.length > 0) {
+    const selectedValue = selectedPath[currentPathLevel] || "all";
+    dropdownsToRender.push({ level: currentPathLevel, options: currentOptions, selectedValue });
+    
+    if (selectedValue === "all") {
+      break;
+    }
+    
+    const selectedNode = currentOptions.find(n => n.id === selectedValue);
+    if (selectedNode && selectedNode.children && selectedNode.children.length > 0) {
+      currentOptions = selectedNode.children;
+      currentPathLevel++;
+    } else {
+      break;
+    }
+  }
+
+  const handleCategorySelect = (level: number, value: string) => {
+    const newPath = [...selectedPath].slice(0, level);
+    if (value !== "all") {
+      newPath.push(value);
+    }
+    setSelectedPath(newPath);
+  };
 
   return (
     <div className="space-y-6 w-full max-w-full">
@@ -150,11 +235,8 @@ export function ProductManagementClient({
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-slate-200 pb-5">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-slate-900">
-            Products & SKU Variant Catalog
+            Product Families
           </h1>
-          <p className="text-xs text-slate-500 mt-1">
-            Manage product families, uploaded CSV SKU matrices, stock quantities, and list prices.
-          </p>
         </div>
 
         <div className="flex items-center gap-3">
@@ -186,8 +268,8 @@ export function ProductManagementClient({
       </div>
 
       {/* Search & Filter Bar */}
-      <div className="flex items-center gap-3 bg-white p-3 border border-slate-200 rounded-xl">
-        <div className="relative flex-1">
+      <div className="flex flex-col sm:flex-row items-center gap-3 bg-white p-3 border border-slate-200 rounded-xl">
+        <div className="relative flex-1 w-full">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
           <Input
             placeholder="Search by SKU Code (e.g. SIH65), product title, or parameter..."
@@ -195,6 +277,25 @@ export function ProductManagementClient({
             onChange={(e) => setSearchQuery(e.target.value)}
             className="pl-9 h-9 text-xs bg-slate-50/60 border-slate-200"
           />
+        </div>
+        <div className="flex flex-wrap gap-2 w-full sm:w-auto">
+          {dropdownsToRender.map((dropdown) => (
+            <div key={dropdown.level} className="w-full sm:w-[160px]">
+              <Select value={dropdown.selectedValue} onValueChange={(val) => handleCategorySelect(dropdown.level, val)}>
+                <SelectTrigger className="h-9 text-xs bg-slate-50/60 border-slate-200">
+                  <SelectValue placeholder="All Categories" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">{dropdown.level === 0 ? "All Categories" : "All Subcategories"}</SelectItem>
+                  {dropdown.options.map((cat) => (
+                    <SelectItem key={cat.id} value={cat.id}>
+                      {cat.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          ))}
         </div>
       </div>
 
@@ -207,7 +308,7 @@ export function ProductManagementClient({
               <TableHead className="font-bold text-slate-900 h-10">Product Family</TableHead>
               <TableHead className="font-bold text-slate-900 h-10">Slug</TableHead>
               <TableHead className="font-bold text-slate-900 h-10 text-center">SKUs</TableHead>
-              <TableHead className="font-bold text-slate-900 h-10 text-center">Tags / Series</TableHead>
+              <TableHead className="font-bold text-slate-900 h-10 text-center">Attributes</TableHead>
               <TableHead className="font-bold text-slate-900 h-10 text-right pr-4">Actions</TableHead>
             </TableRow>
           </TableHeader>
@@ -263,7 +364,7 @@ export function ProductManagementClient({
                             size="sm"
                             onClick={(e) => {
                               e.stopPropagation();
-                              setAppendingSkuProductId({ id: product.id, tags: availableTags });
+                              setAppendingSkuProductId({ id: product.id, attributes: activeAttributes });
                             }}
                             className="h-7 text-xs border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900 shadow-none"
                           >
@@ -286,7 +387,7 @@ export function ProductManagementClient({
                             variant="ghost"
                             size="icon"
                             onClick={() => handleDelete(product.id)}
-                            className="h-7 w-7 text-rose-500 hover:bg-rose-50 rounded"
+                            className="h-7 w-7 text-rose-500 hover:bg-rose-50 rounded cursor-pointer"
                           >
                             <Trash2 className="h-4 w-4" />
                           </Button>
@@ -296,36 +397,131 @@ export function ProductManagementClient({
 
                     {/* Expandable Sub-Row for SKUs */}
                     {isExpanded && (() => {
-                      const activeFilter = tagFilters[product.id] || "all";
-                      const filteredVariants = product.variants?.filter(v => activeFilter === "all" || (v.specifications as any)?.Tag === activeFilter) || [];
+                      const activeFilter = attributeFilters[product.id] || "all";
+                      const skuSearch = (skuSearchQueries[product.id] || "").trim().toLowerCase();
+                      const stockFilter = skuStockFilters[product.id] || "all";
+                      const prodAttributes = product.attributes || product.tags || [];
+
+                      // 1. Stable Deterministic Sorting so order NEVER jumps on updates
+                      const sortedVariants = [...(product.variants || [])].sort((a, b) => {
+                        if (a.created_at && b.created_at && a.created_at !== b.created_at) {
+                          return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+                        }
+                        return (a.sku || "").localeCompare(b.sku || "", undefined, { numeric: true, sensitivity: "base" });
+                      });
+
+                      // 2. Multi-Criteria Filtering (Active Series, Stock Status, and Keyword Search)
+                      const filteredVariants = sortedVariants.filter(v => {
+                        if (v.is_archived) return false;
+
+                        // Series / Attribute filter
+                        if (activeFilter !== "all") {
+                          const attrMatch = (v.specifications as any)?.Attribute === activeFilter ||
+                                            (v.specifications as any)?.Tag === activeFilter;
+                          if (!attrMatch) return false;
+                        }
+
+                        // Stock filter
+                        if (stockFilter === "in_stock" && (v.stock_quantity || 0) <= 0) return false;
+                        if (stockFilter === "out_of_stock" && (v.stock_quantity || 0) > 0) return false;
+
+                        // SKU & Dimension Search Query
+                        if (skuSearch) {
+                          const matchesSku = v.sku?.toLowerCase().includes(skuSearch);
+                          const matchesSpecs = v.specifications && Object.values(v.specifications).some(val => 
+                            String(val).toLowerCase().includes(skuSearch)
+                          );
+                          const matchesDims = [v.diameter, v.flute_length, v.overall_length, v.shank_diameter]
+                            .filter(Boolean)
+                            .some(dim => String(dim).includes(skuSearch));
+                          if (!matchesSku && !matchesSpecs && !matchesDims) return false;
+                        }
+
+                        return true;
+                      });
                       
+                      // Compute dynamic dimension and custom specification columns
+                      const hasDiameter = filteredVariants.some(v => v.diameter != null);
+                      const hasFluteLength = filteredVariants.some(v => v.flute_length != null);
+                      const hasOverallLength = filteredVariants.some(v => v.overall_length != null);
+                      const hasShankDiameter = filteredVariants.some(v => v.shank_diameter != null);
+
+                      const customSpecKeys = new Set<string>();
+                      filteredVariants.forEach(v => {
+                        if (v.specifications && typeof v.specifications === "object") {
+                          Object.keys(v.specifications).forEach(key => {
+                            if (key !== "Tag" && key !== "Attribute" && key !== "ShortDescription") {
+                              customSpecKeys.add(key);
+                            }
+                          });
+                        }
+                      });
+                      const dynamicSpecs = Array.from(customSpecKeys);
+                      const totalColumnCount = 4 + (hasDiameter ? 1 : 0) + (hasFluteLength ? 1 : 0) + (hasOverallLength ? 1 : 0) + (hasShankDiameter ? 1 : 0) + dynamicSpecs.length;
+
+                      const totalActiveSkus = product.variants?.filter(v => !v.is_archived).length || 0;
+
                       return (
                       <TableRow className="bg-slate-50/50 hover:bg-slate-50/50 border-b-slate-200">
                         <TableCell colSpan={6} className="p-0">
                           <div className="px-10 py-5 space-y-4 shadow-inner border-t border-slate-100">
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-4">
-                                <h4 className="text-[11px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-2">
-                                  <Package className="h-3.5 w-3.5" />
+                            <div className="flex flex-wrap items-center justify-between gap-3">
+                              <div className="flex flex-wrap items-center gap-2.5">
+                                <h4 className="text-[11px] font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5 mr-1">
+                                  <Package className="h-3.5 w-3.5 text-slate-500" />
                                   SKU Inventory Matrix
                                 </h4>
-                                {product.tags && product.tags.length > 0 && (
+
+                                {/* Instant SKU Search Input */}
+                                <div className="relative">
+                                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400 pointer-events-none" />
+                                  <Input
+                                    type="text"
+                                    placeholder="Search SKU or spec..."
+                                    value={skuSearchQueries[product.id] || ""}
+                                    onChange={(e) => setSkuSearchQueries(prev => ({ ...prev, [product.id]: e.target.value }))}
+                                    className="pl-8 h-7 text-xs w-[170px] bg-white border-slate-200 shadow-none focus-visible:ring-1 focus-visible:ring-slate-400"
+                                  />
+                                </div>
+
+                                {/* Attribute Series Filter */}
+                                {prodAttributes && prodAttributes.length > 0 && (
                                   <Select 
                                     value={activeFilter} 
-                                    onValueChange={(val) => setTagFilters(prev => ({ ...prev, [product.id]: val }))}
+                                    onValueChange={(val) => setAttributeFilters(prev => ({ ...prev, [product.id]: val }))}
                                   >
-                                    <SelectTrigger className="h-7 text-xs border-slate-200 w-[160px] shadow-none bg-white">
-                                      <SelectValue placeholder="Filter by Tag" />
+                                    <SelectTrigger className="h-7 text-xs border-slate-200 w-[135px] shadow-none bg-white">
+                                      <SelectValue placeholder="All Attributes" />
                                     </SelectTrigger>
                                     <SelectContent>
-                                      <SelectItem value="all" className="text-xs">All Tags</SelectItem>
-                                      {product.tags.map(t => (
+                                      <SelectItem value="all" className="text-xs">All Attributes</SelectItem>
+                                      {prodAttributes.map(t => (
                                         <SelectItem key={t.id} value={t.name} className="text-xs">{t.name}</SelectItem>
                                       ))}
                                     </SelectContent>
                                   </Select>
                                 )}
+
+                                {/* Stock Status Filter */}
+                                <Select 
+                                  value={stockFilter} 
+                                  onValueChange={(val) => setSkuStockFilters(prev => ({ ...prev, [product.id]: val as any }))}
+                                >
+                                  <SelectTrigger className="h-7 text-xs border-slate-200 w-[125px] shadow-none bg-white">
+                                    <SelectValue placeholder="All Stock" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="all" className="text-xs">All Stock</SelectItem>
+                                    <SelectItem value="in_stock" className="text-xs text-emerald-700 font-medium">In Stock (&gt;0)</SelectItem>
+                                    <SelectItem value="out_of_stock" className="text-xs text-rose-600 font-medium">Out of Stock</SelectItem>
+                                  </SelectContent>
+                                </Select>
+
+                                <span className="text-[11px] text-slate-500 font-medium pl-1">
+                                  {filteredVariants.length} of {totalActiveSkus} SKUs
+                                </span>
                               </div>
+
                               <div className="flex gap-2">
                                 <Button
                                   variant="outline"
@@ -338,15 +534,15 @@ export function ProductManagementClient({
                                 </Button>
                                 <Button
                                   size="sm"
-                                  onClick={() => setAddingSkuProductId({ id: product.id, tags: product.tags || [] })}
+                                  onClick={() => setAddingSkuProductId({ id: product.id, attributes: prodAttributes })}
                                   className="h-7 text-xs bg-[#024AE5] hover:bg-[#024AE5]/90 text-white shadow-none"
                                 >
                                   <Plus className="h-3.5 w-3.5 mr-1" /> Add SKU
                                 </Button>
                               </div>
                             </div>
-                            <div className="border border-slate-200 rounded-lg overflow-hidden bg-white shadow-sm">
-                              <Table className="w-full table-fixed text-xs">
+                            <div className="border border-slate-200 rounded-lg overflow-x-auto bg-white shadow-sm">
+                              <Table className="w-full text-xs min-w-[650px]">
                                 <TableHeader className="bg-slate-100/50">
                                   <TableRow className="hover:bg-slate-100/50 border-b-slate-200">
                                     <TableHead className="w-10 text-center px-2">
@@ -358,9 +554,13 @@ export function ProductManagementClient({
                                       />
                                     </TableHead>
                                     <TableHead className="font-bold text-slate-800 h-9">SKU CODE</TableHead>
-                                    <TableHead className="font-bold text-slate-800 h-9 text-center">FLUTE(H)</TableHead>
-                                    <TableHead className="font-bold text-slate-800 h-9 text-center">OVERALL(L)</TableHead>
-                                    <TableHead className="font-bold text-slate-800 h-9 text-center">SHANK(D2)</TableHead>
+                                    {hasDiameter && <TableHead className="font-bold text-slate-800 h-9 text-center">DIA(D)</TableHead>}
+                                    {hasFluteLength && <TableHead className="font-bold text-slate-800 h-9 text-center">FLUTE(H)</TableHead>}
+                                    {hasOverallLength && <TableHead className="font-bold text-slate-800 h-9 text-center">OVERALL(L)</TableHead>}
+                                    {hasShankDiameter && <TableHead className="font-bold text-slate-800 h-9 text-center">SHANK(D2)</TableHead>}
+                                    {dynamicSpecs.map(spec => (
+                                      <TableHead key={spec} className="font-bold text-slate-800 h-9 text-center uppercase">{spec}</TableHead>
+                                    ))}
                                     <TableHead className="font-bold text-slate-800 h-9 text-center">LIST PRICE</TableHead>
                                     <TableHead className="font-bold text-slate-800 h-9 text-center">STOCK</TableHead>
                                     <TableHead className="font-bold text-slate-800 h-9 text-right pr-4">ACTIONS</TableHead>
@@ -369,7 +569,7 @@ export function ProductManagementClient({
                                 <TableBody>
                                   {filteredVariants.length === 0 ? (
                                     <TableRow>
-                                      <TableCell colSpan={6} className="text-center py-5 text-slate-500 font-medium">No SKUs match the current filter.</TableCell>
+                                      <TableCell colSpan={totalColumnCount} className="text-center py-5 text-slate-500 font-medium">No SKUs match the current filter.</TableCell>
                                     </TableRow>
                                   ) : (
                                     filteredVariants.map((v) => (
@@ -383,9 +583,15 @@ export function ProductManagementClient({
                                           />
                                         </TableCell>
                                         <TableCell className="font-mono font-bold text-[#024AE5] py-2.5">{v.sku}</TableCell>
-                                        <TableCell className="text-center font-medium py-2.5 text-slate-600">{v.flute_length ?? "-"}</TableCell>
-                                        <TableCell className="text-center font-medium py-2.5 text-slate-600">{v.overall_length ?? "-"}</TableCell>
-                                        <TableCell className="text-center font-medium py-2.5 text-slate-600">{v.shank_diameter ?? "-"}</TableCell>
+                                        {hasDiameter && <TableCell className="text-center font-medium py-2.5 text-slate-600">{v.diameter ?? "-"}</TableCell>}
+                                        {hasFluteLength && <TableCell className="text-center font-medium py-2.5 text-slate-600">{v.flute_length ?? "-"}</TableCell>}
+                                        {hasOverallLength && <TableCell className="text-center font-medium py-2.5 text-slate-600">{v.overall_length ?? "-"}</TableCell>}
+                                        {hasShankDiameter && <TableCell className="text-center font-medium py-2.5 text-slate-600">{v.shank_diameter ?? "-"}</TableCell>}
+                                        {dynamicSpecs.map(spec => (
+                                          <TableCell key={spec} className="text-center font-medium py-2.5 text-slate-600">
+                                            {(v.specifications as any)?.[spec] ?? "-"}
+                                          </TableCell>
+                                        ))}
                                         <TableCell className="text-center font-mono font-semibold py-2.5 text-slate-900">₹{v.list_price.toFixed(2)}</TableCell>
                                         <TableCell className="text-center py-2.5">
                                           {v.stock_quantity > 0 ? (
@@ -402,8 +608,18 @@ export function ProductManagementClient({
                                           <Button
                                             variant="ghost"
                                             size="icon"
-                                            onClick={() => setEditingSku({ variant: v, tags: product.tags || [] })}
-                                            className="h-6 w-6 text-slate-500 hover:text-[#024AE5] hover:bg-slate-100 rounded mr-1"
+                                            onClick={() => setViewingStockLogVariant({ variant: v, productTitle: product.title })}
+                                            className="h-6 w-6 text-slate-500 hover:text-[#024AE5] hover:bg-slate-100 rounded mr-1 cursor-pointer"
+                                            title="View Stock Audit Log"
+                                          >
+                                            <History className="h-3.5 w-3.5" />
+                                          </Button>
+                                          <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            onClick={() => setEditingSku({ variant: v, attributes: (product.attributes || product.tags || []) })}
+                                            className="h-6 w-6 text-slate-500 hover:text-[#024AE5] hover:bg-slate-100 rounded mr-1 cursor-pointer"
+                                            title="Edit SKU"
                                           >
                                             <Edit2 className="h-3.5 w-3.5" />
                                           </Button>
@@ -411,7 +627,8 @@ export function ProductManagementClient({
                                             variant="ghost"
                                             size="icon"
                                             onClick={() => handleDeleteSku(v.id)}
-                                            className="h-6 w-6 text-rose-500 hover:bg-rose-50 rounded"
+                                            className="h-6 w-6 text-rose-500 hover:bg-rose-50 rounded cursor-pointer"
+                                            title="Delete or Archive SKU"
                                           >
                                             <Trash2 className="h-3.5 w-3.5" />
                                           </Button>
@@ -465,7 +682,8 @@ export function ProductManagementClient({
             refreshProducts();
           }}
           productId={addingSkuProductId.id}
-          availableTags={addingSkuProductId.tags}
+          availableAttributes={addingSkuProductId.attributes}
+          availableTags={addingSkuProductId.attributes}
         />
       )}
 
@@ -477,7 +695,8 @@ export function ProductManagementClient({
             refreshProducts();
           }}
           variant={editingSku.variant}
-          availableTags={editingSku.tags}
+          availableAttributes={editingSku.attributes}
+          availableTags={editingSku.attributes}
         />
       )}
 
@@ -489,7 +708,8 @@ export function ProductManagementClient({
             refreshProducts();
           }}
           productId={appendingSkuProductId.id}
-          availableTags={appendingSkuProductId.tags}
+          availableAttributes={appendingSkuProductId.attributes}
+          availableTags={appendingSkuProductId.attributes}
         />
       )}
 
@@ -504,6 +724,16 @@ export function ProductManagementClient({
           onSuccess={() => {
             refreshProducts();
           }}
+        />
+      )}
+
+      {viewingStockLogVariant && (
+        <SkuStockLogModal
+          isOpen={true}
+          onClose={() => setViewingStockLogVariant(null)}
+          variant={viewingStockLogVariant.variant}
+          productTitle={viewingStockLogVariant.productTitle}
+          onStockUpdated={() => refreshProducts()}
         />
       )}
     </div>

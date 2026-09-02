@@ -12,7 +12,8 @@ export interface CreateProductPayload {
   description?: string;
   images: ProductImage[];
   categoryIds: string[];
-  tagIds: string[];
+  attributeIds?: string[];
+  tagIds?: string[];
   variants: Array<{
     sku: string;
     diameter?: number | null;
@@ -25,20 +26,47 @@ export interface CreateProductPayload {
   }>;
 }
 
+function sortVariants(variants: any[]): ProductVariant[] {
+  if (!variants || !Array.isArray(variants)) return [];
+  return [...variants].sort((a, b) => {
+    if (a.created_at && b.created_at && a.created_at !== b.created_at) {
+      return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+    }
+    return (a.sku || "").localeCompare(b.sku || "", undefined, { numeric: true, sensitivity: "base" });
+  });
+}
+
 export async function fetchProductsList(): Promise<Product[]> {
   const supabase = createAdminClient();
 
   try {
-    const { data: dbProducts, error } = await supabase
+    // Attempt fetch with product_attributes(attributes(*))
+    let { data: dbProducts, error } = await supabase
       .from("products")
       .select(`
         *,
         variants:product_variants(*),
-        product_tags(
-          tags(*)
+        product_attributes(
+          attributes(*)
         )
       `)
       .order("created_at", { ascending: false });
+
+    // Fallback if table not yet renamed
+    if (error && error.code === "42P01") {
+      const fallback = await supabase
+        .from("products")
+        .select(`
+          *,
+          variants:product_variants(*),
+          product_tags(
+            tags(*)
+          )
+        `)
+        .order("created_at", { ascending: false });
+      dbProducts = fallback.data as any;
+      error = fallback.error;
+    }
 
     if (error) {
       console.error("fetchProductsList Supabase Error:", error);
@@ -58,9 +86,16 @@ export async function fetchProductsList(): Promise<Product[]> {
 
     const mappedProducts = dbProducts.map((p: any) => {
       const pCats = catLinks?.filter((link: any) => link.product_id === p.id) || [];
+      const attrs = 
+        p.product_attributes?.map((pa: any) => pa.attributes).filter(Boolean) ||
+        p.product_tags?.map((pt: any) => pt.tags).filter(Boolean) ||
+        [];
+
       return {
         ...p,
-        tags: p.product_tags?.map((pt: any) => pt.tags).filter(Boolean) || [],
+        variants: sortVariants(p.variants),
+        attributes: attrs,
+        tags: attrs,
         categories: pCats.map((pc: any) => pc.categories).filter(Boolean),
       };
     });
@@ -75,17 +110,33 @@ export async function fetchProductBySlug(slug: string): Promise<Product | null> 
   const supabase = createAdminClient();
 
   try {
-    const { data, error } = await supabase
+    let { data, error } = await supabase
       .from("products")
       .select(`
         *,
         variants:product_variants(*),
-        product_tags(
-          tags(*)
+        product_attributes(
+          attributes(*)
         )
       `)
       .eq("slug", slug)
       .single();
+
+    if (error && error.code === "42P01") {
+      const fallback = await supabase
+        .from("products")
+        .select(`
+          *,
+          variants:product_variants(*),
+          product_tags(
+            tags(*)
+          )
+        `)
+        .eq("slug", slug)
+        .single();
+      data = fallback.data as any;
+      error = fallback.error;
+    }
 
     const dbProduct = data as any;
 
@@ -98,9 +149,16 @@ export async function fetchProductBySlug(slug: string): Promise<Product | null> 
       .select(`categories(*)`)
       .eq("product_id", dbProduct.id);
 
+    const attrs =
+      dbProduct.product_attributes?.map((pa: any) => pa.attributes).filter(Boolean) ||
+      dbProduct.product_tags?.map((pt: any) => pt.tags).filter(Boolean) ||
+      [];
+
     const mappedProduct = {
       ...dbProduct,
-      tags: dbProduct.product_tags?.map((pt: any) => pt.tags).filter(Boolean) || [],
+      variants: sortVariants(dbProduct.variants?.filter((v: any) => !v.is_archived) || []),
+      attributes: attrs,
+      tags: attrs,
       categories: catLinks?.map((pc: any) => pc.categories).filter(Boolean) || [],
     };
 
@@ -133,17 +191,33 @@ export async function fetchProductsByCategory(categorySlug: string): Promise<Pro
 
     const productIds = linkData.map((l: any) => l.product_id);
 
-    const { data: dbProducts, error } = await supabase
+    let { data: dbProducts, error } = await supabase
       .from("products")
       .select(`
         *,
         variants:product_variants(*),
-        product_tags(
-          tags(*)
+        product_attributes(
+          attributes(*)
         )
       `)
       .in("id", productIds)
       .order("created_at", { ascending: false });
+
+    if (error && error.code === "42P01") {
+      const fallback = await supabase
+        .from("products")
+        .select(`
+          *,
+          variants:product_variants(*),
+          product_tags(
+            tags(*)
+          )
+        `)
+        .in("id", productIds)
+        .order("created_at", { ascending: false });
+      dbProducts = fallback.data as any;
+      error = fallback.error;
+    }
 
     if (error || !dbProducts || dbProducts.length === 0) return [];
 
@@ -154,9 +228,16 @@ export async function fetchProductsByCategory(categorySlug: string): Promise<Pro
 
     return dbProducts.map((p: any) => {
       const pCats = catLinks?.filter((link: any) => link.product_id === p.id) || [];
+      const attrs =
+        p.product_attributes?.map((pa: any) => pa.attributes).filter(Boolean) ||
+        p.product_tags?.map((pt: any) => pt.tags).filter(Boolean) ||
+        [];
+
       return {
         ...p,
-        tags: p.product_tags?.map((pt: any) => pt.tags).filter(Boolean) || [],
+        variants: sortVariants(p.variants),
+        attributes: attrs,
+        tags: attrs,
         categories: pCats.map((pc: any) => pc.categories).filter(Boolean),
       };
     }) as Product[];
@@ -166,7 +247,7 @@ export async function fetchProductsByCategory(categorySlug: string): Promise<Pro
 }
 
 /**
- * Creates a complete Product family with multi-images, assigned categories, tags, and imported CSV SKU variants
+ * Creates a complete Product family with multi-images, assigned categories, attributes, and imported CSV SKU variants
  */
 export async function createFullProduct(payload: CreateProductPayload): Promise<{
   success?: boolean;
@@ -215,13 +296,23 @@ export async function createFullProduct(payload: CreateProductPayload): Promise<
       await supabase.from("product_categories").insert(categoryRows as never);
     }
 
-    // 3. Link Tags
-    if (payload.tagIds && payload.tagIds.length > 0) {
-      const tagRows = payload.tagIds.map((tagId) => ({
+    // 3. Link Attributes / Tags
+    const attrIds = payload.attributeIds || payload.tagIds || [];
+    if (attrIds.length > 0) {
+      const attributeRows = attrIds.map((attrId) => ({
         product_id: productId,
-        tag_id: tagId,
+        attribute_id: attrId,
       }));
-      await supabase.from("product_tags").insert(tagRows as never);
+
+      const { error: attrErr } = await supabase.from("product_attributes").insert(attributeRows as never);
+      if (attrErr && attrErr.code === "42P01") {
+        // Fallback to product_tags
+        const tagRows = attrIds.map((tId) => ({
+          product_id: productId,
+          tag_id: tId,
+        }));
+        await supabase.from("product_tags").insert(tagRows as never);
+      }
     }
 
     // 4. Insert Variants (SKU rows from CSV)
@@ -238,12 +329,14 @@ export async function createFullProduct(payload: CreateProductPayload): Promise<
         specifications: v.specifications || {},
       }));
 
-      const { error: varErr } = await supabase
+      const { data: insertedVariantsData, error: varErr } = await supabase
         .from("product_variants")
-        .insert(variantRows as never);
+        .insert(variantRows as never)
+        .select("id, sku, stock_quantity, product_id");
 
       if (varErr) {
         // Rollback explicitly to prevent orphaned product
+        await supabase.from("product_attributes").delete().eq("product_id", productId);
         await supabase.from("product_tags").delete().eq("product_id", productId);
         await supabase.from("product_categories").delete().eq("product_id", productId);
         await supabase.from("products").delete().eq("id", productId);
@@ -252,6 +345,28 @@ export async function createFullProduct(payload: CreateProductPayload): Promise<
           return { error: "One or more SKUs in your upload already exist in the database (or there are duplicates within the CSV). Please ensure all SKUs are unique." };
         }
         return { error: `Failed to insert SKU variants: ${varErr.message}` };
+      }
+
+      const insertedVariants = (insertedVariantsData || []) as any[];
+      // Record initial inventory logs for created variants
+      if (insertedVariants && insertedVariants.length > 0) {
+        const { recordStockMovement } = await import("@/actions/inventory");
+        for (const v of insertedVariants) {
+          const stockQty = Number(v.stock_quantity) || 0;
+          if (stockQty > 0) {
+            await recordStockMovement({
+              variantId: v.id,
+              productId: v.product_id,
+              skuCode: v.sku,
+              productTitle: payload.title.trim(),
+              movementType: "INITIAL_IMPORT",
+              quantityDelta: stockQty,
+              balanceBefore: 0,
+              balanceAfter: stockQty,
+              notes: "Initial CSV batch upload",
+            });
+          }
+        }
       }
     }
 

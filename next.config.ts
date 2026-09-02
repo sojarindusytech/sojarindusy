@@ -13,6 +13,18 @@ const nextConfig: NextConfig = {
       },
     ],
   },
+  async rewrites() {
+    return [
+      {
+        source: "/products/:category+/:slug",
+        destination: "/products/:slug",
+      },
+      {
+        source: "/categories/:path+/:slug",
+        destination: "/categories/:slug",
+      },
+    ];
+  },
 };
 
 export default nextConfig;

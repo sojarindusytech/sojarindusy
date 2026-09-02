@@ -1,5 +1,5 @@
 import { fetchCategoriesTree } from "@/actions/category";
-import { fetchTags } from "@/actions/tag";
+import { fetchAttributes } from "@/actions/attribute";
 import { ProductUploadClient } from "@/components/admin/ProductUploadClient";
 import type { Metadata } from "next";
 
@@ -12,7 +12,13 @@ export const revalidate = 0;
 
 export default async function ProductUploadPage() {
   const { treeNodes } = await fetchCategoriesTree();
-  const tags = await fetchTags();
+  const attributes = await fetchAttributes();
 
-  return <ProductUploadClient treeNodes={treeNodes} availableTags={tags} />;
+  return (
+    <ProductUploadClient
+      treeNodes={treeNodes}
+      availableAttributes={attributes}
+      availableTags={attributes}
+    />
+  );
 }
