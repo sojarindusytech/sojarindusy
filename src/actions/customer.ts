@@ -21,7 +21,7 @@ export async function fetchCustomersList(): Promise<Profile[]> {
   const { data: dbProfiles, error } = await supabase
     .from("profiles")
     .select("*")
-    .neq("role", USER_ROLES.PLATFORM_OWNER) // Exclude platform administrator accounts
+    .not("role", "in", '("admin","platform_owner")') // Exclude administrator accounts
     .order("created_at", { ascending: false });
 
   if (error) {
@@ -32,11 +32,14 @@ export async function fetchCustomersList(): Promise<Profile[]> {
 
   if (dbProfiles && dbProfiles.length > 0) {
     (dbProfiles as Profile[]).forEach((p) => {
-      const isOffline = p.user_type === USER_TYPES.OFFLINE_USER;
+      const isOffline = p.channel === "offline" || p.user_type === "offline" || (p.user_type as any) === "offline_user";
+      const normalizedChannel = isOffline ? "offline" : "online";
       profilesMap.set(p.id, {
         ...p,
+        role: "customer",
         approval_status: (p.approval_status as ApprovalStatus) || APPROVAL_STATUSES.PENDING,
-        user_type: (p.user_type as UserType) || USER_TYPES.PLATFORM_USER,
+        channel: normalizedChannel,
+        user_type: normalizedChannel,
         credit_limit: p.credit_limit ?? (isOffline ? COMMERCIAL_DEFAULTS.DEFAULT_CREDIT_LIMIT : null),
         credit_days: p.credit_days ?? (isOffline ? COMMERCIAL_DEFAULTS.DEFAULT_CREDIT_DAYS : null),
       });
@@ -49,15 +52,15 @@ export async function fetchCustomersList(): Promise<Profile[]> {
     if (authData?.users) {
       authData.users.forEach((u) => {
         const meta = u.user_metadata || {};
-        if (meta.role === USER_ROLES.PLATFORM_OWNER || u.email === "admin@sojarindusy.com") {
-          return; // Skip platform owner
+        if (meta.role === "admin" || meta.role === "platform_owner" || u.email === "admin@sojarindusy.com") {
+          return; // Skip platform administrator
         }
 
         // If not already in profilesMap or needs hydration
         if (!profilesMap.has(u.id)) {
           profilesMap.set(u.id, {
             id: u.id,
-            role: USER_ROLES.CUSTOMER,
+            role: "customer",
             title: (meta.title as UserTitle) || USER_TITLES[0],
             first_name: meta.first_name || (u.email?.split("@")[0] ?? "Customer"),
             last_name: meta.last_name || "",
@@ -74,8 +77,9 @@ export async function fetchCustomersList(): Promise<Profile[]> {
             state: meta.state || "Maharashtra",
             pincode: meta.pincode || "400001",
             approval_status: (meta.approval_status as ApprovalStatus) || APPROVAL_STATUSES.PENDING,
-            user_type: USER_TYPES.PLATFORM_USER,
-            credit_limit: null, // Platform users are prepaid by default
+            channel: "online",
+            user_type: "online",
+            credit_limit: null, // Online customers are prepaid by default
             credit_days: null,
             created_at: u.created_at,
             updated_at: u.updated_at,
@@ -158,7 +162,7 @@ export async function createOfflineCustomer(formData: FormData): Promise<{
 
   const newOfflineProfile: Profile = {
     id: `off-${Date.now().toString(36)}-${Math.random().toString(36).substring(2, 6)}`,
-    role: USER_ROLES.CUSTOMER,
+    role: "customer",
     title,
     first_name: firstName,
     last_name: lastName,
@@ -175,7 +179,8 @@ export async function createOfflineCustomer(formData: FormData): Promise<{
     state,
     pincode,
     approval_status: APPROVAL_STATUSES.APPROVED, // Offline clients added directly by admin are pre-approved
-    user_type: USER_TYPES.OFFLINE_USER, // Marked as offline ERP billing account
+    channel: "offline",
+    user_type: "offline",
     credit_limit: creditLimit,
     credit_days: creditDays,
     notes,

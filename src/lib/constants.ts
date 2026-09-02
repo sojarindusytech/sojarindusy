@@ -7,38 +7,50 @@
 export const USER_TITLES = ["Mr", "Mrs", "Miss", "Ms"] as const;
 export type UserTitle = (typeof USER_TITLES)[number];
 
-// 2. User Roles
+// 2. User Roles (RBAC: Permissions & Access)
 export const USER_ROLES = {
-  PLATFORM_OWNER: "platform_owner",
+  ADMIN: "admin",
   CUSTOMER: "customer",
+  // Backward compatibility alias:
+  PLATFORM_OWNER: "admin",
 } as const;
-export type UserRole = (typeof USER_ROLES)[keyof typeof USER_ROLES];
+export type UserRole = "admin" | "customer" | "platform_owner";
 
 export const USER_ROLE_CONFIG: Record<
-  UserRole,
+  string,
   { label: string; description: string; badgeVariant: "blue" | "green" | "secondary" }
 > = {
-  [USER_ROLES.PLATFORM_OWNER]: {
-    label: "Platform Owner",
+  admin: {
+    label: "Administrator",
     description: "Full system administration and platform operations",
     badgeVariant: "blue",
   },
-  [USER_ROLES.CUSTOMER]: {
+  platform_owner: {
+    label: "Administrator",
+    description: "Full system administration and platform operations",
+    badgeVariant: "blue",
+  },
+  customer: {
     label: "Customer Account",
     description: "Industrial client, buyer, or fabrication partner",
     badgeVariant: "green",
   },
 };
 
-// 3. User Types (Platform Portal vs Offline Billing)
-export const USER_TYPES = {
-  PLATFORM_USER: "platform_user",
-  OFFLINE_USER: "offline_user",
+// 3. Customer Channels (Origin / Onboarding Channel)
+export const CUSTOMER_CHANNELS = {
+  ONLINE: "online",
+  OFFLINE: "offline",
+  // Backward compatibility aliases:
+  PLATFORM_USER: "online",
+  OFFLINE_USER: "offline",
 } as const;
-export type UserType = (typeof USER_TYPES)[keyof typeof USER_TYPES];
+export type CustomerChannel = "online" | "offline" | "platform_user" | "offline_user";
+export type UserType = CustomerChannel;
+export const USER_TYPES = CUSTOMER_CHANNELS;
 
-export const USER_TYPE_CONFIG: Record<
-  UserType,
+export const CUSTOMER_CHANNEL_CONFIG: Record<
+  string,
   {
     label: string;
     shortLabel: string;
@@ -48,23 +60,40 @@ export const USER_TYPE_CONFIG: Record<
     border: string;
   }
 > = {
-  [USER_TYPES.PLATFORM_USER]: {
-    label: "Platform User (Online Portal)",
-    shortLabel: "Platform User",
-    description: "Registered online through the web portal",
+  online: {
+    label: "Online Customer (Web Portal)",
+    shortLabel: "Online Customer",
+    description: "Self-registered through the website portal",
     badgeBg: "bg-[#024AE5]/10",
     badgeText: "text-[#024AE5]",
     border: "border-[#024AE5]/20",
   },
-  [USER_TYPES.OFFLINE_USER]: {
-    label: "Offline User (Direct ERP / Billing)",
-    shortLabel: "Offline User",
-    description: "Direct walk-in or manual account created for billing, dispatch, and ledger",
+  platform_user: {
+    label: "Online Customer (Web Portal)",
+    shortLabel: "Online Customer",
+    description: "Self-registered through the website portal",
+    badgeBg: "bg-[#024AE5]/10",
+    badgeText: "text-[#024AE5]",
+    border: "border-[#024AE5]/20",
+  },
+  offline: {
+    label: "Offline Client (Direct ERP Billing)",
+    shortLabel: "Offline Client",
+    description: "Walk-in / direct client created for manual orders and ledger accounting",
+    badgeBg: "bg-[#3C8B4F]/10",
+    badgeText: "text-[#3C8B4F]",
+    border: "border-[#3C8B4F]/20",
+  },
+  offline_user: {
+    label: "Offline Client (Direct ERP Billing)",
+    shortLabel: "Offline Client",
+    description: "Walk-in / direct client created for manual orders and ledger accounting",
     badgeBg: "bg-[#3C8B4F]/10",
     badgeText: "text-[#3C8B4F]",
     border: "border-[#3C8B4F]/20",
   },
 };
+export const USER_TYPE_CONFIG = CUSTOMER_CHANNEL_CONFIG;
 
 // 4. Customer Onboarding & Approval Statuses
 export const APPROVAL_STATUSES = {

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useTransition, useEffect } from "react";
-import { CategoryNode, Tag } from "@/types/database.types";
+import { CategoryNode, Attribute, Tag } from "@/types/database.types";
 import { CsvDataPreviewTable } from "./CsvDataPreviewTable";
 import { CategoryCheckboxTree } from "@/components/common/CategoryCheckboxTree";
 import { createFullProduct, uploadProductImage } from "@/actions/product";
@@ -53,7 +53,8 @@ import { cn } from "@/lib/utils";
 
 interface ProductUploadClientProps {
   treeNodes: CategoryNode[];
-  availableTags: Tag[];
+  availableAttributes?: Attribute[];
+  availableTags?: Tag[];
   onSuccessComplete?: () => void;
   hideHeader?: boolean;
 }
@@ -70,15 +71,17 @@ export interface ParsedCsvData {
   rows: Record<string, any>[];
 }
 
-export interface TagUploadState {
-  tagId: string;
-  tagName: string;
+export interface AttributeUploadState {
+  attributeId: string;
+  attributeName: string;
   shortDescription: string;
   file: File | null;
   csvData: ParsedCsvData | null;
   columnMapping: Record<string, string>;
   selectedRowIndices: number[];
 }
+
+export type TagUploadState = AttributeUploadState;
 
 const SYSTEM_MAPPABLE_FIELDS = [
   { key: "sku", label: "SKU Code (CODE) *", dataType: "Text" },
@@ -92,10 +95,12 @@ const SYSTEM_MAPPABLE_FIELDS = [
 
 export function ProductUploadClient({
   treeNodes,
+  availableAttributes,
   availableTags,
   onSuccessComplete,
   hideHeader = false,
 }: ProductUploadClientProps) {
+  const activeAttributes = availableAttributes || availableTags || [];
   const router = useRouter();
   const [activeStep, setActiveStep] = useState<number>(1);
   const [isPending, startTransition] = useTransition();
@@ -111,9 +116,9 @@ export function ProductUploadClient({
   // Category Checkbox Selection
   const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>([]);
 
-  // STEP 2 STATE: CSV Upload & Column Mapping per Tag
-  const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
-  const [tagUploads, setTagUploads] = useState<Record<string, TagUploadState>>({});
+  // STEP 2 STATE: CSV Upload & Column Mapping per Attribute
+  const [selectedAttributeIds, setSelectedAttributeIds] = useState<string[]>([]);
+  const [attributeUploads, setAttributeUploads] = useState<Record<string, AttributeUploadState>>({});
 
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitSuccess, setSubmitSuccess] = useState<string | null>(null);
@@ -214,7 +219,7 @@ export function ProductUploadClient({
     return { headers: rawHeaders, rows: parsedRows };
   };
 
-  const handleTagCsvFileSelected = (tagId: string, file: File) => {
+  const handleAttributeCsvFileSelected = (attributeId: string, file: File) => {
     if (!file) return;
 
     const reader = new FileReader();
@@ -242,10 +247,10 @@ export function ProductUploadClient({
         else initialMap[h] = h; // Custom attribute
       });
 
-      setTagUploads((prev) => ({
+      setAttributeUploads((prev) => ({
         ...prev,
-        [tagId]: {
-          ...prev[tagId],
+        [attributeId]: {
+          ...prev[attributeId],
           file,
           csvData: {
             fileName: file.name,
@@ -262,9 +267,9 @@ export function ProductUploadClient({
     reader.readAsText(file);
   };
 
-  const handleUpdateCsvCell = (tagId: string, rowIdx: number, header: string, newValue: string) => {
-    setTagUploads((prev) => {
-      const upload = prev[tagId];
+  const handleUpdateCsvCell = (attributeId: string, rowIdx: number, header: string, newValue: string) => {
+    setAttributeUploads((prev) => {
+      const upload = prev[attributeId];
       if (!upload || !upload.csvData) return prev;
       
       const newRows = [...upload.csvData.rows];
@@ -272,7 +277,7 @@ export function ProductUploadClient({
       
       return {
         ...prev,
-        [tagId]: {
+        [attributeId]: {
           ...upload,
           csvData: { ...upload.csvData, rows: newRows }
         }
@@ -280,25 +285,25 @@ export function ProductUploadClient({
     });
   };
 
-  const handleToggleRow = (tagId: string, rowIdx: number) => {
-    setTagUploads((prev) => {
-      const upload = prev[tagId];
+  const handleToggleRow = (attributeId: string, rowIdx: number) => {
+    setAttributeUploads((prev) => {
+      const upload = prev[attributeId];
       if (!upload) return prev;
       const currentIndices = upload.selectedRowIndices;
       const newIndices = currentIndices.includes(rowIdx)
         ? currentIndices.filter(i => i !== rowIdx)
         : [...currentIndices, rowIdx];
-      return { ...prev, [tagId]: { ...upload, selectedRowIndices: newIndices } };
+      return { ...prev, [attributeId]: { ...upload, selectedRowIndices: newIndices } };
     });
   };
 
-  const handleToggleAllRows = (tagId: string, selectAll: boolean) => {
-    setTagUploads((prev) => {
-      const upload = prev[tagId];
+  const handleToggleAllRows = (attributeId: string, selectAll: boolean) => {
+    setAttributeUploads((prev) => {
+      const upload = prev[attributeId];
       if (!upload || !upload.csvData) return prev;
       return { 
         ...prev, 
-        [tagId]: { 
+        [attributeId]: { 
           ...upload, 
           selectedRowIndices: selectAll ? upload.csvData.rows.map((_, i) => i) : [] 
         } 
@@ -306,24 +311,24 @@ export function ProductUploadClient({
     });
   };
 
-  const handleToggleTag = (tagId: string) => {
-    const isSelected = selectedTagIds.includes(tagId);
+  const handleToggleAttribute = (attributeId: string) => {
+    const isSelected = selectedAttributeIds.includes(attributeId);
     if (isSelected) {
-      setSelectedTagIds((prev) => prev.filter((id) => id !== tagId));
-      setTagUploads((prev) => {
+      setSelectedAttributeIds((prev) => prev.filter((id) => id !== attributeId));
+      setAttributeUploads((prev) => {
         const next = { ...prev };
-        delete next[tagId];
+        delete next[attributeId];
         return next;
       });
     } else {
-      setSelectedTagIds((prev) => [...prev, tagId]);
-      const tag = availableTags.find((t) => t.id === tagId);
-      if (tag) {
-        setTagUploads((prev) => ({
+      setSelectedAttributeIds((prev) => [...prev, attributeId]);
+      const attr = activeAttributes.find((t) => t.id === attributeId);
+      if (attr) {
+        setAttributeUploads((prev) => ({
           ...prev,
-          [tagId]: {
-            tagId: tag.id,
-            tagName: tag.name,
+          [attributeId]: {
+            attributeId: attr.id,
+            attributeName: attr.name,
             shortDescription: "",
             file: null,
             csvData: null,
@@ -343,14 +348,14 @@ export function ProductUploadClient({
       return;
     }
 
-    if (selectedTagIds.length === 0) {
-      setSubmitError("Please select at least one tag to upload variants for.");
+    if (selectedAttributeIds.length === 0) {
+      setSubmitError("Please select at least one attribute to upload variants for.");
       return;
     }
 
-    const uploads = Object.values(tagUploads);
+    const uploads = Object.values(attributeUploads);
     if (uploads.some(u => !u.csvData || u.csvData.rows.length === 0)) {
-      setSubmitError("Please ensure all selected tags have a CSV file uploaded.");
+      setSubmitError("Please ensure all selected attributes have a CSV file uploaded.");
       return;
     }
 
@@ -370,7 +375,10 @@ export function ProductUploadClient({
         let shank_diameter: number | null = null;
         let list_price: number = 0;
         let stock_quantity: number = 0;
-        const specifications: Record<string, any> = { Tag: upload.tagName, ShortDescription: upload.shortDescription };
+        const specifications: Record<string, any> = {
+          Attribute: upload.attributeName,
+          Tag: upload.attributeName,
+        };
 
         Object.entries(upload.columnMapping).forEach(([header, sysField]) => {
           const val = row[header];
@@ -397,13 +405,23 @@ export function ProductUploadClient({
       });
     });
 
+    const shortDescMap: Record<string, string> = {};
+    uploads.forEach(u => {
+      if (u.shortDescription?.trim()) {
+        shortDescMap[u.attributeId] = u.shortDescription.trim();
+        shortDescMap[u.attributeName] = u.shortDescription.trim();
+      }
+    });
+
     startTransition(async () => {
       const res = await createFullProduct({
         title,
+        shortDescription: Object.keys(shortDescMap).length > 0 ? JSON.stringify(shortDescMap) : "",
         description: fullDescription,
         images,
         categoryIds: selectedCategoryIds,
-        tagIds: selectedTagIds,
+        attributeIds: selectedAttributeIds,
+        tagIds: selectedAttributeIds,
         variants: variantsToInsert,
       });
 
@@ -431,9 +449,6 @@ export function ProductUploadClient({
             <h1 className="text-2xl font-bold tracking-tight text-slate-900">
               Product Upload Wizard
             </h1>
-            <p className="text-xs text-slate-500 mt-1">
-              Define Product Family metadata, multi-image titles, category hierarchy, and bulk import SKU variant matrix.
-            </p>
           </div>
 
           <div className="flex items-center gap-3">
@@ -680,47 +695,44 @@ export function ProductUploadClient({
               size="sm"
               onClick={() => setActiveStep(2)}
               disabled={!title}
-              className="h-9 px-6 text-xs bg-[#024AE5] text-white hover:bg-[#023ecc] gap-1.5 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+              className="h-9 px-6 text-xs bg-[#024AE5] text-white hover:bg-[#023ecc] gap-1.5 font-medium disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
             >
-              <span>Continue to CSV Upload & Tags</span>
+              <span>Continue to CSV Upload & Attributes</span>
               <ArrowRight className="h-4 w-4" />
             </Button>
           </div>
         </div>
       )}
 
-      {/* STEP 2 CONTENT: Tags Selection & Multiple CSV Uploads */}
+      {/* STEP 2 CONTENT: Attributes Selection & Multiple CSV Uploads */}
       {activeStep === 2 && (
         <div className="space-y-6">
-          {/* TAGS SELECTOR */}
+          {/* ATTRIBUTES SELECTOR */}
           <Card className="border border-slate-300 bg-white shadow-sm overflow-hidden rounded-xl">
             <CardHeader className="pb-3 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <CardTitle className="text-sm font-bold text-slate-900 flex items-center gap-1.5">
-                  <TagIcon className="h-4 w-4 text-[#024AE5]" />
-                  Select Tags for CSV Uploads
+                  <Sparkles className="h-4 w-4 text-[#024AE5]" />
+                  Select Attributes for CSV Uploads
                 </CardTitle>
-                <p className="text-xs text-slate-500 mt-1">
-                  Select tags below to create individual CSV upload blocks for each tag.
-                </p>
               </div>
               <div className="flex gap-2">
-                <Link href="/admin/tags" target="_blank">
+                <Link href="/admin/attributes" target="_blank">
                   <Button type="button" variant="outline" size="sm" className="h-8 text-xs border-slate-200">
-                    <Plus className="h-3.5 w-3.5 mr-1" /> Add New Tag
+                    <Plus className="h-3.5 w-3.5 mr-1" /> Add New Attribute
                   </Button>
                 </Link>
               </div>
             </CardHeader>
             <CardContent className="p-4">
               <div className="flex flex-wrap gap-2">
-                {availableTags.map((tag) => {
-                  const isSelected = selectedTagIds.includes(tag.id);
+                {activeAttributes.map((attr) => {
+                  const isSelected = selectedAttributeIds.includes(attr.id);
                   return (
                     <button
-                      key={tag.id}
+                      key={attr.id}
                       type="button"
-                      onClick={() => handleToggleTag(tag.id)}
+                      onClick={() => handleToggleAttribute(attr.id)}
                       className={cn(
                         "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium cursor-pointer transition-colors border",
                         isSelected
@@ -729,7 +741,7 @@ export function ProductUploadClient({
                       )}
                     >
                       {isSelected && <Check className="h-3.5 w-3.5" />}
-                      <span>{tag.name}</span>
+                      <span>{attr.name}</span>
                     </button>
                   );
                 })}
@@ -737,16 +749,16 @@ export function ProductUploadClient({
             </CardContent>
           </Card>
 
-          {/* UPLOAD BLOCKS FOR EACH SELECTED TAG */}
-          {selectedTagIds.map((tagId) => {
-            const upload = tagUploads[tagId];
+          {/* UPLOAD BLOCKS FOR EACH SELECTED ATTRIBUTE */}
+          {selectedAttributeIds.map((attrId) => {
+            const upload = attributeUploads[attrId];
             if (!upload) return null;
 
             return (
-              <Card key={tagId} className="border border-slate-300 bg-white shadow-sm overflow-hidden rounded-xl">
+              <Card key={attrId} className="border border-slate-300 bg-white shadow-sm overflow-hidden rounded-xl">
                 <CardHeader className="bg-slate-50/50 pb-3 border-b border-slate-200">
                   <CardTitle className="text-sm font-bold text-slate-900 flex items-center justify-between">
-                    <span>Tag Batch: <span className="text-[#024AE5] ml-1">{upload.tagName}</span></span>
+                    <span>Attribute Batch: <span className="text-[#024AE5] ml-1">{upload.attributeName}</span></span>
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="p-4 space-y-5">
@@ -754,12 +766,12 @@ export function ProductUploadClient({
                     {/* Short Description */}
                     <div className="space-y-1.5">
                       <Label className="text-xs font-semibold text-slate-700">
-                        Short Description (For {upload.tagName})
+                        Short Description (For {upload.attributeName})
                       </Label>
                       <textarea
                         value={upload.shortDescription}
-                        onChange={(e) => setTagUploads(prev => ({ ...prev, [tagId]: { ...prev[tagId], shortDescription: e.target.value } }))}
-                        placeholder={`e.g. High precision ${upload.tagName} micro diameter end mill...`}
+                        onChange={(e) => setAttributeUploads(prev => ({ ...prev, [attrId]: { ...prev[attrId], shortDescription: e.target.value } }))}
+                        placeholder={`e.g. High precision ${upload.attributeName} micro diameter end mill...`}
                         className="flex w-full rounded-md border border-slate-200 bg-transparent px-3 py-2 text-xs shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 h-24 resize-none"
                       />
                     </div>
@@ -769,21 +781,21 @@ export function ProductUploadClient({
                       <Label className="text-xs font-semibold text-slate-700">Upload CSV / Excel File <span className="text-red-500">*</span></Label>
                       <input
                         type="file"
-                        id={`csvFile-${tagId}`}
+                        id={`csvFile-${attrId}`}
                         accept=".csv,.xlsx,.xls"
                         onChange={(e) => {
                           const file = e.target.files?.[0];
-                          if (file) handleTagCsvFileSelected(tagId, file);
+                          if (file) handleAttributeCsvFileSelected(attrId, file);
                         }}
                         className="hidden"
                       />
                       <div
-                        onClick={() => document.getElementById(`csvFile-${tagId}`)?.click()}
+                        onClick={() => document.getElementById(`csvFile-${attrId}`)?.click()}
                         onDragOver={(e) => e.preventDefault()}
                         onDrop={(e) => {
                           e.preventDefault();
                           const file = e.dataTransfer.files?.[0];
-                          if (file) handleTagCsvFileSelected(tagId, file);
+                          if (file) handleAttributeCsvFileSelected(attrId, file);
                         }}
                         className="h-24 border-2 border-dashed border-slate-200 rounded-xl p-4 flex flex-col items-center justify-center text-center bg-slate-50/50 hover:bg-slate-50 transition-colors cursor-pointer"
                       >
@@ -821,11 +833,11 @@ export function ProductUploadClient({
                                 <Select
                                   value={mappedKey}
                                   onValueChange={(val) =>
-                                    setTagUploads(prev => ({
+                                    setAttributeUploads(prev => ({
                                       ...prev,
-                                      [tagId]: {
-                                        ...prev[tagId],
-                                        columnMapping: { ...prev[tagId].columnMapping, [header]: val }
+                                      [attrId]: {
+                                        ...prev[attrId],
+                                        columnMapping: { ...prev[attrId].columnMapping, [header]: val }
                                       }
                                     }))
                                   }
@@ -854,9 +866,9 @@ export function ProductUploadClient({
                         csvData={upload.csvData}
                         columnMapping={upload.columnMapping}
                         selectedRowIndices={upload.selectedRowIndices}
-                        onUpdateCell={(rowIdx, header, val) => handleUpdateCsvCell(tagId, rowIdx, header, val)}
-                        onToggleRow={(rowIdx) => handleToggleRow(tagId, rowIdx)}
-                        onToggleAllRows={(selectAll) => handleToggleAllRows(tagId, selectAll)}
+                        onUpdateCell={(rowIdx, header, val) => handleUpdateCsvCell(attrId, rowIdx, header, val)}
+                        onToggleRow={(rowIdx) => handleToggleRow(attrId, rowIdx)}
+                        onToggleAllRows={(selectAll) => handleToggleAllRows(attrId, selectAll)}
                       />
                     </div>
                   )}

@@ -95,16 +95,16 @@ export function ProductEditModal({ isOpen, onClose, product }: ProductEditModalP
             />
           </div>
 
-          {product.tags && product.tags.length > 0 ? (
+          {(product.attributes || product.tags) && (product.attributes || product.tags)!.length > 0 ? (
             <div className="space-y-3">
-              <Label className="text-xs font-semibold text-slate-700">Short Descriptions (by Tag)</Label>
-              {product.tags.map((tag) => (
-                <div key={tag.id} className="space-y-1.5 pl-3 border-l-2 border-slate-100">
-                  <Label className="text-[10px] uppercase font-bold text-[#024AE5]">{tag.name}</Label>
+              <Label className="text-xs font-semibold text-slate-700">Short Descriptions (by Attribute)</Label>
+              {(product.attributes || product.tags)!.map((attr) => (
+                <div key={attr.id} className="space-y-1.5 pl-3 border-l-2 border-slate-100">
+                  <Label className="text-[10px] uppercase font-bold text-[#024AE5]">{attr.name}</Label>
                   <textarea
-                    value={shortDescMap[tag.id] || ""}
-                    onChange={(e) => setShortDescMap(prev => ({ ...prev, [tag.id]: e.target.value }))}
-                    placeholder={`Summary for ${tag.name}...`}
+                    value={shortDescMap[attr.id] || ""}
+                    onChange={(e) => setShortDescMap(prev => ({ ...prev, [attr.id]: e.target.value }))}
+                    placeholder={`Summary for ${attr.name}...`}
                     className="flex w-full rounded-md border border-slate-200 bg-transparent px-3 py-2 text-xs shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 h-20 resize-none"
                   />
                 </div>

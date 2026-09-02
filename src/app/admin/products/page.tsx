@@ -1,6 +1,6 @@
 import { fetchProductsList } from "@/actions/product";
 import { fetchCategoriesTree } from "@/actions/category";
-import { fetchTags } from "@/actions/tag";
+import { fetchAttributes } from "@/actions/attribute";
 import { ProductManagementClient } from "@/components/admin/ProductManagementClient";
 import type { Metadata } from "next";
 
@@ -14,13 +14,14 @@ export const revalidate = 0;
 export default async function ProductsAdminPage() {
   const products = await fetchProductsList();
   const { treeNodes } = await fetchCategoriesTree();
-  const tags = await fetchTags();
+  const attributes = await fetchAttributes();
 
   return (
     <ProductManagementClient
       initialProducts={products}
       treeNodes={treeNodes}
-      availableTags={tags}
+      availableAttributes={attributes}
+      availableTags={attributes}
     />
   );
 }

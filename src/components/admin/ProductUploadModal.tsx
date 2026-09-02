@@ -1,6 +1,6 @@
 "use client";
 
-import { CategoryNode, Tag } from "@/types/database.types";
+import { Attribute, CategoryNode, Tag } from "@/types/database.types";
 import { ProductUploadClient } from "@/components/admin/ProductUploadClient";
 import {
   Dialog,
@@ -14,15 +14,19 @@ interface ProductUploadModalProps {
   isOpen: boolean;
   onClose: () => void;
   treeNodes: CategoryNode[];
-  availableTags: Tag[];
+  availableAttributes?: Attribute[];
+  availableTags?: Tag[];
 }
 
 export function ProductUploadModal({
   isOpen,
   onClose,
   treeNodes,
+  availableAttributes,
   availableTags,
 }: ProductUploadModalProps) {
+  const activeAttributes = availableAttributes || availableTags || [];
+
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="max-w-6xl h-[90vh] flex flex-col overflow-hidden p-6 bg-white">
@@ -38,7 +42,8 @@ export function ProductUploadModal({
         <div className="pt-4 flex-1 overflow-y-auto pr-2 custom-scrollbar">
           <ProductUploadClient
             treeNodes={treeNodes}
-            availableTags={availableTags}
+            availableAttributes={activeAttributes}
+            availableTags={activeAttributes}
             hideHeader={true}
             onSuccessComplete={() => {
               onClose();

@@ -21,10 +21,12 @@ interface AddSkuModalProps {
   isOpen: boolean;
   onClose: () => void;
   productId: string;
+  availableAttributes?: { id: string; name: string }[];
   availableTags?: { id: string; name: string }[];
 }
 
-export function AddSkuModal({ isOpen, onClose, productId, availableTags }: AddSkuModalProps) {
+export function AddSkuModal({ isOpen, onClose, productId, availableAttributes, availableTags }: AddSkuModalProps) {
+  const activeAttributes = availableAttributes || availableTags || [];
   const [sku, setSku] = useState("");
   const [diameter, setDiameter] = useState("");
   const [fluteLength, setFluteLength] = useState("");
@@ -32,7 +34,7 @@ export function AddSkuModal({ isOpen, onClose, productId, availableTags }: AddSk
   const [shankDiameter, setShankDiameter] = useState("");
   const [listPrice, setListPrice] = useState("");
   const [stockQuantity, setStockQuantity] = useState("0");
-  const [selectedTagName, setSelectedTagName] = useState<string>("none");
+  const [selectedAttributeName, setSelectedAttributeName] = useState<string>("none");
   const [isLoading, setIsLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -44,8 +46,9 @@ export function AddSkuModal({ isOpen, onClose, productId, availableTags }: AddSk
 
     setIsLoading(true);
     const specs: any = {};
-    if (selectedTagName && selectedTagName !== "none") {
-      specs.Tag = selectedTagName;
+    if (selectedAttributeName && selectedAttributeName !== "none") {
+      specs.Attribute = selectedAttributeName;
+      specs.Tag = selectedAttributeName; // backward compatibility
     }
 
     const result = await addSingleSku(productId, {
@@ -72,7 +75,7 @@ export function AddSkuModal({ isOpen, onClose, productId, availableTags }: AddSk
       setShankDiameter("");
       setListPrice("");
       setStockQuantity("0");
-      setSelectedTagName("none");
+      setSelectedAttributeName("none");
       onClose();
     }
   };
@@ -101,16 +104,16 @@ export function AddSkuModal({ isOpen, onClose, productId, availableTags }: AddSk
             />
           </div>
 
-          {availableTags && availableTags.length > 0 && (
+          {activeAttributes && activeAttributes.length > 0 && (
             <div className="space-y-1.5">
-              <Label className="text-xs font-semibold text-slate-700">Tag Assignment</Label>
-              <Select value={selectedTagName} onValueChange={setSelectedTagName}>
+              <Label className="text-xs font-semibold text-slate-700">Attribute Assignment</Label>
+              <Select value={selectedAttributeName} onValueChange={setSelectedAttributeName}>
                 <SelectTrigger className="h-9 text-xs border-slate-200">
-                  <SelectValue placeholder="Select Tag" />
+                  <SelectValue placeholder="Select Attribute" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="none" className="text-xs italic text-slate-400">-- No Tag --</SelectItem>
-                  {availableTags.map((t) => (
+                  <SelectItem value="none" className="text-xs italic text-slate-400">-- No Attribute --</SelectItem>
+                  {activeAttributes.map((t) => (
                     <SelectItem key={t.id} value={t.name} className="text-xs font-medium">{t.name}</SelectItem>
                   ))}
                 </SelectContent>

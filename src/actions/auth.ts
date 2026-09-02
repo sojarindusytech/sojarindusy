@@ -74,7 +74,8 @@ export async function signUpUser(formData: FormData): Promise<SignUpState> {
     state: validated.state,
     pincode: validated.pincode,
     approval_status: APPROVAL_STATUSES.PENDING,
-    user_type: USER_TYPES.PLATFORM_USER,
+    channel: "online",
+    user_type: "online",
   };
 
   // 1. Sign up user with Supabase Auth
@@ -114,7 +115,8 @@ export async function signUpUser(formData: FormData): Promise<SignUpState> {
     state: validated.state,
     pincode: validated.pincode,
     approval_status: APPROVAL_STATUSES.PENDING,
-    user_type: USER_TYPES.PLATFORM_USER,
+    channel: "online",
+    user_type: "online",
     credit_limit: COMMERCIAL_DEFAULTS.DEFAULT_CREDIT_LIMIT,
     credit_days: COMMERCIAL_DEFAULTS.DEFAULT_CREDIT_DAYS,
   };
@@ -176,8 +178,8 @@ export async function signInUser(
 
   revalidatePath("/", "layout");
 
-  if (userRole === USER_ROLES.PLATFORM_OWNER) {
-    return { redirectUrl: "/admin/dashboard" };
+  if (userRole === "admin" || userRole === "platform_owner") {
+    return { redirectUrl: "/admin/products" };
   }
 
   return { redirectUrl: "/dashboard" };

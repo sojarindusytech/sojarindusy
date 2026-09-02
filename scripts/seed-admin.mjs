@@ -61,7 +61,7 @@ async function seedAdmin() {
       password: adminPassword,
       email_confirm: true,
       user_metadata: {
-        role: "platform_owner",
+        role: "admin",
         title: "Mr",
         first_name: "Super",
         last_name: "Admin",
@@ -90,7 +90,7 @@ async function seedAdmin() {
       password: adminPassword,
       email_confirm: true,
       user_metadata: {
-        role: "platform_owner",
+        role: "admin",
         title: "Mr",
         first_name: "Super",
         last_name: "Admin",
@@ -117,7 +117,7 @@ async function seedAdmin() {
   // 2. Ensure Profile in public.profiles table
   const { error: profileError } = await supabase.from("profiles").upsert({
     id: adminUser.id,
-    role: "platform_owner",
+    role: "admin",
     title: "Mr",
     first_name: "Super",
     last_name: "Admin",

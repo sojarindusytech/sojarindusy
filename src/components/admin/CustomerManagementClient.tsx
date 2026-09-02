@@ -395,11 +395,8 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-slate-200 pb-5">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-slate-900">
-            Customers Directory
+            Customers
           </h1>
-          <p className="text-xs text-slate-500 mt-1">
-            Manage verified platform accounts, pending onboarding signups, and offline client billing records.
-          </p>
         </div>
 
         <div className="flex items-center gap-2.5">
@@ -476,15 +473,15 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
           <p className="text-[11px] text-slate-500 mt-2">Active business accounts</p>
         </Card>
 
-        {/* Platform Users */}
+        {/* Online Customers */}
         <Card
           onClick={() => {
-            setSelectedUserType(USER_TYPES.PLATFORM_USER);
+            setSelectedUserType("online");
             setSelectedStatus("all");
             setCurrentPage(1);
           }}
           className={`border bg-white shadow-none rounded-xl p-4 cursor-pointer transition-all ${
-            selectedUserType === USER_TYPES.PLATFORM_USER
+            selectedUserType === "online" || selectedUserType === "platform_user"
               ? "border-slate-400 ring-1 ring-slate-300"
               : "border-slate-200 hover:border-slate-300"
           }`}
@@ -492,7 +489,7 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
           <div className="flex items-center justify-between">
             <div>
               <p className="text-[11px] font-medium uppercase tracking-wider text-slate-500">
-                Platform Users
+                Online Customers
               </p>
               <h3 className="text-2xl font-bold text-slate-900 mt-1">{platformCount}</h3>
             </div>
@@ -500,18 +497,18 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
               <Globe className="h-4 w-4" />
             </div>
           </div>
-          <p className="text-[11px] text-slate-500 mt-2">Website online portal signups</p>
+          <p className="text-[11px] text-slate-500 mt-2">Web portal registered accounts</p>
         </Card>
 
-        {/* Offline Users */}
+        {/* Offline Clients */}
         <Card
           onClick={() => {
-            setSelectedUserType(USER_TYPES.OFFLINE_USER);
+            setSelectedUserType("offline");
             setSelectedStatus("all");
             setCurrentPage(1);
           }}
           className={`border bg-white shadow-none rounded-xl p-4 cursor-pointer transition-all ${
-            selectedUserType === USER_TYPES.OFFLINE_USER
+            selectedUserType === "offline" || selectedUserType === "offline_user"
               ? "border-slate-400 ring-1 ring-slate-300"
               : "border-slate-200 hover:border-slate-300"
           }`}
@@ -519,7 +516,7 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
           <div className="flex items-center justify-between">
             <div>
               <p className="text-[11px] font-medium uppercase tracking-wider text-slate-500">
-                Offline Customers
+                Offline Clients
               </p>
               <h3 className="text-2xl font-bold text-slate-900 mt-1">{offlineCount}</h3>
             </div>
@@ -527,7 +524,7 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
               <Store className="h-4 w-4" />
             </div>
           </div>
-          <p className="text-[11px] text-slate-500 mt-2">Direct ERP & billing accounts</p>
+          <p className="text-[11px] text-slate-500 mt-2">Direct ERP & ledger billing accounts</p>
         </Card>
 
         {/* Pending Approvals */}
@@ -579,8 +576,8 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
 
         {/* Dropdown Filters */}
         <div className="flex flex-wrap items-center gap-2.5">
-          {/* User Type Filter */}
-          <div className="w-[160px]">
+          {/* Customer Channel Filter */}
+          <div className="w-[170px]">
             <Select
               value={selectedUserType}
               onValueChange={(val) => {
@@ -589,12 +586,12 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
               }}
             >
               <SelectTrigger className="h-9 text-xs bg-white border-slate-200 text-slate-700">
-                <SelectValue placeholder="All Types" />
+                <SelectValue placeholder="All Channels" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Types</SelectItem>
-                <SelectItem value={USER_TYPES.PLATFORM_USER}>Platform Users</SelectItem>
-                <SelectItem value={USER_TYPES.OFFLINE_USER}>Offline Customers</SelectItem>
+                <SelectItem value="all">All Channels</SelectItem>
+                <SelectItem value="online">Online Customers</SelectItem>
+                <SelectItem value="offline">Offline Clients</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -779,15 +776,15 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
                       </div>
                     </TableCell>
 
-                    {/* User Type */}
+                    {/* Customer Channel */}
                     <TableCell className="py-2.5 px-3.5 whitespace-nowrap">
-                      {userType === USER_TYPES.PLATFORM_USER ? (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium bg-slate-100 text-slate-700 border border-slate-200/60">
-                          <Globe className="h-3 w-3 text-slate-500" /> Platform
+                      {userType === "online" || userType === "platform_user" ? (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium bg-blue-50 text-[#024AE5] border border-blue-200/60">
+                          <Globe className="h-3 w-3 text-[#024AE5]" /> Online
                         </span>
                       ) : (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium bg-slate-100 text-slate-700 border border-slate-200/60">
-                          <Store className="h-3 w-3 text-slate-500" /> Offline ERP
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium bg-emerald-50 text-emerald-700 border border-emerald-200/60">
+                          <Store className="h-3 w-3 text-emerald-600" /> Offline ERP
                         </span>
                       )}
                     </TableCell>

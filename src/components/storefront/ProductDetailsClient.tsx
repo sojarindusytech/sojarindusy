@@ -14,7 +14,10 @@ export function ProductDetailsClient({ product, breadcrumb, isLoggedIn = false }
   const router = useRouter();
   const [activeImageIdx, setActiveImageIdx] = useState(0);
   const [activeTab, setActiveTab] = useState("selector");
-  const [activeTagId, setActiveTagId] = useState<string | null>(product.tags && product.tags.length > 0 ? product.tags[0].id : null);
+  const prodAttributes = product.attributes || product.tags || [];
+  const [activeAttributeId, setActiveAttributeId] = useState<string | null>(
+    prodAttributes.length > 0 ? prodAttributes[0].id : null
+  );
   
   // State for quantity selection per variant
   const [quantities, setQuantities] = useState<Record<string, number>>({});
@@ -42,10 +45,13 @@ export function ProductDetailsClient({ product, breadcrumb, isLoggedIn = false }
     : category?.name;
   const images = product.images || [];
   
-  const activeTagName = product.tags?.find(t => t.id === activeTagId)?.name;
+  const activeAttributeName = prodAttributes.find(t => t.id === activeAttributeId)?.name;
   const filteredVariants = product.variants?.filter(v => {
-    if (!activeTagName) return true;
-    return v.specifications?.Tag === activeTagName;
+    if (!activeAttributeName) return true;
+    return (
+      v.specifications?.Attribute === activeAttributeName ||
+      v.specifications?.Tag === activeAttributeName
+    );
   }) || [];
 
   // Determine dynamic columns based on filtered variants
@@ -153,17 +159,17 @@ export function ProductDetailsClient({ product, breadcrumb, isLoggedIn = false }
                 <h1 className="text-2xl sm:text-3xl font-bold text-[#0F172A] tracking-tight mb-2">
                   {product.title}
                 </h1>
-                {product.tags && product.tags.length > 0 && (
+                {prodAttributes && prodAttributes.length > 0 && (
                   <p className="text-lg font-semibold text-[#024AE5] mb-4">
-                    {activeTagName ? `${activeTagName} Series` : (product.tags.length > 1 ? "Multiple Series" : `${product.tags[0].name} Series`)}
+                    {activeAttributeName ? `${activeAttributeName} Series` : (prodAttributes.length > 1 ? "Multiple Series" : `${prodAttributes[0].name} Series`)}
                   </p>
                 )}
               </div>
             </div>
 
             <div className="text-slate-600 text-sm leading-relaxed mb-8 max-w-xl">
-              {activeTagId 
-                ? (shortDescMap[activeTagId] || filteredVariants.find(v => v.specifications?.ShortDescription)?.specifications?.ShortDescription || "No specific description was provided for this series.")
+              {activeAttributeId 
+                ? (shortDescMap[activeAttributeId] || (activeAttributeName ? shortDescMap[activeAttributeName] : "") || (!product.short_description?.trim().startsWith("{") ? product.short_description : "") || "No specific description was provided for this series.")
                 : "Select a series below to view its specific description."}
             </div>
           </div>
@@ -204,22 +210,22 @@ export function ProductDetailsClient({ product, breadcrumb, isLoggedIn = false }
 
         {activeTab === "selector" && (
           <>
-            {/* Tags / Series Pills */}
-            {product.tags && product.tags.length > 0 && (
+            {/* Attributes / Series Pills */}
+            {prodAttributes && prodAttributes.length > 0 && (
               <div className="flex flex-col gap-4 mb-8">
                 <div className="flex flex-wrap items-center gap-3">
-              {product.tags.map((tag) => (
+              {prodAttributes.map((attr) => (
                 <button
-                  key={tag.id}
-                  onClick={() => setActiveTagId(tag.id)}
+                  key={attr.id}
+                  onClick={() => setActiveAttributeId(attr.id)}
                   className={cn(
-                    "px-6 py-2 rounded-md text-sm font-bold transition-colors border",
-                    activeTagId === tag.id
+                    "px-6 py-2 rounded-md text-sm font-bold transition-colors border cursor-pointer",
+                    activeAttributeId === attr.id
                       ? "bg-[#024AE5] text-white border-[#024AE5]"
                       : "bg-white text-slate-600 border-slate-200 hover:border-slate-300"
                   )}
                 >
-                  {tag.name}
+                  {attr.name}
                 </button>
               ))}
             </div>
