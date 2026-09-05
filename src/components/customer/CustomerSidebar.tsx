@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import {
@@ -96,20 +97,15 @@ export function CustomerSidebar({
     >
       {/* Sidebar Top Brand Header */}
       <div className="flex h-16 items-center justify-between px-4 border-b border-slate-100">
-        <Link href="/dashboard" className="flex items-center gap-3 overflow-hidden">
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[#024AE5] to-[#3C8B4F] text-white font-bold text-sm shadow-xs">
-            S
-          </div>
-          {!collapsed && (
-            <div className="flex flex-col">
-              <span className="text-sm font-bold tracking-tight text-slate-900 leading-tight">
-                SOJAR INDUSY
-              </span>
-              <span className="text-[9px] font-semibold uppercase tracking-wider text-slate-400">
-                CUSTOMER PORTAL
-              </span>
-            </div>
-          )}
+        <Link href="/dashboard" className="flex items-center overflow-hidden py-1">
+          <Image
+            src="/assets/sojar-logo.webp"
+            alt="Sojar Indusy"
+            width={180}
+            height={48}
+            className={cn("h-8 w-auto object-contain transition-all", collapsed ? "h-7 w-7 object-left" : "max-w-[190px]")}
+            priority
+          />
         </Link>
       </div>
 

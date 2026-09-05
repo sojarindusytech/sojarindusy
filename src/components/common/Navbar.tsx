@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { useCart } from "@/context/CartContext";
@@ -76,19 +77,16 @@ export function Navbar({ categories = [], user }: NavbarProps) {
   return (
     <header className="sticky top-0 z-50 w-full border-b border-slate-200 bg-white/95 backdrop-blur-md">
       <div className="container mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:px-6">
-        {/* Brand Logo */}
-        <Link href="/" className="flex items-center gap-3 transition-opacity hover:opacity-90">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-[#024AE5] to-[#3C8B4F] text-white">
-            <Layers className="h-5 w-5" />
-          </div>
-          <div className="flex flex-col">
-            <span className="text-base sm:text-lg font-bold tracking-tight text-slate-900">
-              Sojar Indusy
-            </span>
-            <span className="text-[10px] text-slate-400 font-medium tracking-wider uppercase">
-              Industrial Manufacturing
-            </span>
-          </div>
+        {/* Brand Logo Only */}
+        <Link href="/" className="flex items-center transition-opacity hover:opacity-90 py-1">
+          <Image
+            src="/assets/sojar-logo.webp"
+            alt="Sojar Indusy"
+            width={220}
+            height={64}
+            className="h-10 sm:h-12 w-auto object-contain"
+            priority
+          />
         </Link>
 
         {/* Navigation Links */}
