@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import Image from "next/image";
 import { Profile } from "@/types/database.types";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -55,18 +56,18 @@ export function PendingApprovalClient({
     <div className="min-h-screen bg-slate-50 flex flex-col justify-between">
       {/* Top Simple Header */}
       <header className="h-16 border-b border-slate-200 bg-white px-6 sm:px-12 flex items-center justify-between">
-        <div className="flex items-center gap-2.5">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#024AE5] text-white font-bold text-sm">
-            S
-          </div>
-          <div>
-            <span className="text-sm font-extrabold tracking-tight text-slate-900 block">
-              Sojar Indusy
-            </span>
-            <span className="text-[10px] font-semibold text-[#024AE5] uppercase tracking-wider block">
-              Enterprise Customer Portal
-            </span>
-          </div>
+        <div className="flex items-center gap-3">
+          <Image
+            src="/assets/sojar-logo.webp"
+            alt="Sojar Indusy"
+            width={160}
+            height={44}
+            className="h-9 w-auto object-contain"
+            priority
+          />
+          <span className="hidden sm:inline-block text-[11px] font-bold text-[#024AE5] bg-blue-50 px-2.5 py-1 rounded-full border border-blue-100 uppercase tracking-wider">
+            Customer Portal
+          </span>
         </div>
 
         <div className="flex items-center gap-3">

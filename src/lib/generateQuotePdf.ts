@@ -185,8 +185,13 @@ export function generateQuotePdf(
       <table class="header-table">
         <tr>
           <td style="vertical-align: top;">
-            <div class="brand-title">SOJAR INDUSY</div>
-            <div class="brand-sub">Industrial Precision Tooling & CNC Fasteners</div>
+            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 4px;">
+              <img src="/assets/sojar-logo.webp" alt="Sojar Indusy" style="height: 38px; width: 38px; object-fit: contain;" />
+              <div>
+                <div class="brand-title">SOJAR INDUSY</div>
+                <div class="brand-sub">Industrial Precision Tooling & CNC Fasteners</div>
+              </div>
+            </div>
             <div style="font-size: 10px; color: #64748b; margin-top: 6px; line-height: 1.4;">
               Plot No. W-48, MIDC Bhosari Industrial Estate, Pune, Maharashtra - 411026<br/>
               <strong>GSTIN:</strong> 27AASCS8920K1ZX &bull; <strong>Email:</strong> sales@sojarindusy.com<br/>
