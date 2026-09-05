@@ -30,6 +30,11 @@ export default async function AdminDashboardPage() {
     redirect("/login");
   }
 
+  const userRole = profile?.role;
+  if (userRole !== "admin" && userRole !== "platform_owner") {
+    redirect("/dashboard");
+  }
+
   // Fetch all orders & all profiles using Supabase (Platform Owner permissions)
   const supabase = await createClient();
   const { data: dbOrders } = await supabase

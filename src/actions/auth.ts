@@ -166,20 +166,32 @@ export async function signInUser(
     return { error: "Unable to sign in. Please try again." };
   }
 
-  // Fetch profile to determine role
+  // Fetch profile to determine role & approval status
   const { data: profile } = await supabase
     .from("profiles")
-    .select("role")
+    .select("role, approval_status")
     .eq("id", data.user.id)
     .single();
 
-  const profileData = profile as { role?: UserRole } | null;
+  const profileData = profile as { role?: UserRole; approval_status?: string } | null;
   const userRole = profileData?.role || (data.user.user_metadata?.role as UserRole) || USER_ROLES.CUSTOMER;
+  const approvalStatus = profileData?.approval_status || (data.user.user_metadata?.approval_status as string) || APPROVAL_STATUSES.PENDING;
 
+  // Route based on role & approval status
   revalidatePath("/", "layout");
 
   if (userRole === "admin" || userRole === "platform_owner") {
     return { redirectUrl: "/admin/products" };
+  }
+
+  if (approvalStatus !== APPROVAL_STATUSES.APPROVED) {
+    if (approvalStatus === APPROVAL_STATUSES.REJECTED) {
+      await supabase.auth.signOut();
+      return {
+        error: "Your enterprise account application has been rejected. Please contact support@sojarindusy.com for assistance.",
+      };
+    }
+    return { redirectUrl: "/pending-approval" };
   }
 
   return { redirectUrl: "/dashboard" };
@@ -205,7 +217,11 @@ export async function getCurrentUserProfile(): Promise<{
     return { user: null, profile: null };
   }
 
-  const { data: profile } = await supabase
+  // Fetch profile directly from database using Admin client to bypass RLS read restrictions
+  const { createAdminClient } = await import("@/lib/supabase/admin");
+  const adminDb = createAdminClient();
+
+  const { data: profile } = await adminDb
     .from("profiles")
     .select("*")
     .eq("id", user.id)

@@ -44,6 +44,40 @@ export interface OrderItem {
   quantity: number;
   unit_price: number;
   total_price: number;
+  specifications?: Record<string, any>;
+}
+
+export interface CustomerOrderDetails {
+  company_name: string;
+  contact_name: string;
+  mobile: string;
+  email: string;
+  gstin?: string | null;
+  city: string;
+  state: string;
+  pincode: string;
+}
+
+export type RFQStatus = "pending" | "reviewing" | "quoted" | "accepted" | "declined";
+
+export interface RFQ {
+  id: string;
+  rfq_number: string;
+  user_id: string;
+  company_name?: string | null;
+  contact_person?: string | null;
+  email?: string | null;
+  mobile?: string | null;
+  item_name: string;
+  quantity: string;
+  required_by_date?: string | null;
+  specifications?: string | null;
+  drawing_url?: string | null;
+  status: RFQStatus;
+  quoted_amount?: number | null;
+  admin_notes?: string | null;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface Order {
@@ -51,9 +85,18 @@ export interface Order {
   user_id: string;
   order_number: string;
   status: OrderStatus;
+  subtotal?: number;
+  gst_amount?: number;
   total_amount: number;
   items: OrderItem[];
   shipping_address: string;
+  courier_partner?: string | null;
+  awb_number?: string | null;
+  tracking_url?: string | null;
+  dispatched_at?: string | null;
+  delivered_at?: string | null;
+  invoice_number?: string | null;
+  customer_details?: CustomerOrderDetails | null;
   notes?: string | null;
   created_at: string;
   updated_at: string;

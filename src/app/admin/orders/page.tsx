@@ -1,25 +1,20 @@
-import { AdminComingSoon } from "@/components/admin/AdminComingSoon";
-import { ListOrdered } from "lucide-react";
+import { fetchAdminOrdersList } from "@/actions/order";
+import { OrderManagementClient } from "@/components/admin/OrderManagementClient";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Order List | Sojar Indusy Admin",
-  description: "Unified master order directory.",
+  title: "Order Management & Logistics | Sojar Indusy Admin",
+  description: "Manage purchase orders, fulfillment progress, and carrier tracking links.",
 };
 
-export default function OrdersListAdminPage() {
+export const dynamic = "force-dynamic";
+
+export default async function OrdersListAdminPage() {
+  const orders = await fetchAdminOrdersList();
+
   return (
-    <AdminComingSoon
-      section="Orders"
-      title="Order List"
-      description="View and filter all historical and active orders across online portal and offline channels."
-      icon={ListOrdered}
-      features={[
-        "Universal order search across order number, client name, and date range",
-        "Multi-stage status filter (Pending, Processing, Shipped, Delivered, Cancelled)",
-        "Detailed order line item breakdown and invoice downloads",
-        "Bulk status updates and customer notification dispatch",
-      ]}
-    />
+    <div className="space-y-6">
+      <OrderManagementClient initialOrders={orders} />
+    </div>
   );
 }

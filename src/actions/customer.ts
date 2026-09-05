@@ -40,8 +40,8 @@ export async function fetchCustomersList(): Promise<Profile[]> {
         approval_status: (p.approval_status as ApprovalStatus) || APPROVAL_STATUSES.PENDING,
         channel: normalizedChannel,
         user_type: normalizedChannel,
-        credit_limit: p.credit_limit ?? (isOffline ? COMMERCIAL_DEFAULTS.DEFAULT_CREDIT_LIMIT : null),
-        credit_days: p.credit_days ?? (isOffline ? COMMERCIAL_DEFAULTS.DEFAULT_CREDIT_DAYS : null),
+        credit_limit: p.credit_limit ?? (isOffline ? COMMERCIAL_DEFAULTS.OFFLINE_DEFAULT_CREDIT_LIMIT : 0),
+        credit_days: p.credit_days ?? (isOffline ? COMMERCIAL_DEFAULTS.OFFLINE_DEFAULT_CREDIT_DAYS : 0),
       });
     });
   }
@@ -152,8 +152,8 @@ export async function createOfflineCustomer(formData: FormData): Promise<{
   const city = (formData.get("city") as string)?.trim();
   const state = (formData.get("state") as string)?.trim();
   const pincode = (formData.get("pincode") as string)?.trim();
-  const creditLimit = Number(formData.get("credit_limit")) || COMMERCIAL_DEFAULTS.DEFAULT_CREDIT_LIMIT;
-  const creditDays = Number(formData.get("credit_days")) || COMMERCIAL_DEFAULTS.DEFAULT_CREDIT_DAYS;
+  const creditLimit = Number(formData.get("credit_limit")) || COMMERCIAL_DEFAULTS.OFFLINE_DEFAULT_CREDIT_LIMIT;
+  const creditDays = Number(formData.get("credit_days")) || COMMERCIAL_DEFAULTS.OFFLINE_DEFAULT_CREDIT_DAYS;
   const notes = (formData.get("notes") as string)?.trim() || null;
 
   if (!companyName || !firstName || !lastName || !email || !mobile || !companyAddress || !city || !state || !pincode) {
@@ -205,4 +205,56 @@ export async function createOfflineCustomer(formData: FormData): Promise<{
     success: true,
     message: `Offline customer "${companyName}" added successfully.`,
   };
+}
+
+/**
+ * Update authenticated customer's profile & company data
+ */
+export async function updateCustomerProfile(
+  updates: Partial<Profile>
+): Promise<{ success: boolean; error?: string }> {
+  const supabase = createAdminClient();
+  const { createClient } = await import("@/lib/supabase/server");
+  const authClient = await createClient();
+
+  const {
+    data: { user },
+  } = await authClient.auth.getUser();
+
+  if (!user) {
+    return { success: false, error: "You must be logged in to update your profile." };
+  }
+
+  try {
+    const payload: any = {
+      company_name: updates.company_name,
+      first_name: updates.first_name,
+      last_name: updates.last_name,
+      mobile: updates.mobile,
+      landline: updates.landline,
+      gstin: updates.gstin,
+      company_address: updates.company_address,
+      additional_address: updates.additional_address,
+      city: updates.city,
+      state: updates.state,
+      pincode: updates.pincode,
+      department: updates.department,
+      designation: updates.designation,
+      updated_at: new Date().toISOString(),
+    };
+
+    const { error } = await supabase
+      .from("profiles")
+      .update(payload as never)
+      .eq("id", user.id);
+
+    if (error) {
+      return { success: false, error: error.message };
+    }
+
+    revalidatePath("/dashboard", "layout");
+    return { success: true };
+  } catch (err: any) {
+    return { success: false, error: err?.message || "Failed to update profile." };
+  }
 }

@@ -36,6 +36,9 @@ export const metadata: Metadata = {
     "Next-generation B2B manufacturing marketplace for precision fasteners, valves, flanges, and engineered hardware.",
 };
 
+import { CartProvider } from "@/context/CartContext";
+import { CartDrawer } from "@/components/storefront/CartDrawer";
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -49,9 +52,12 @@ export default function RootLayout({
     >
       <body className="min-h-full flex flex-col bg-white text-slate-900 selection:bg-[#024AE5] selection:text-white">
         <ThemeProvider>
-          <GlobalHeader />
-          <main className="flex-1 bg-white">{children}</main>
-          <Footer />
+          <CartProvider>
+            <GlobalHeader />
+            <main className="flex-1 bg-white">{children}</main>
+            <Footer />
+            <CartDrawer />
+          </CartProvider>
         </ThemeProvider>
         <Toaster position="top-right" />
       </body>
