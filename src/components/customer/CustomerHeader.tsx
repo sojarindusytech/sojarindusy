@@ -86,12 +86,12 @@ export function CustomerHeader({
         {/* Cart Drawer Trigger Button */}
         <button
           onClick={() => setIsCartOpen(true)}
-          className="relative p-2 rounded-lg text-slate-500 hover:text-slate-900 hover:bg-slate-50 transition-colors cursor-pointer border border-slate-200 flex items-center justify-center h-8.5 w-8.5"
+          className="group relative p-2 rounded-lg text-[#024AE5] hover:text-[#024AE5] hover:bg-blue-50/80 transition-all duration-200 cursor-pointer border border-blue-200/60 bg-blue-50/20 flex items-center justify-center h-8.5 w-8.5 active:scale-95"
           title="Open Industrial Cart"
         >
-          <ShoppingBag className="h-4 w-4 text-slate-700" />
+          <ShoppingBag className="h-4 w-4 text-[#024AE5] group-hover:scale-110 transition-transform duration-200" />
           {itemCount > 0 && (
-            <span className="absolute -top-1.5 -right-1.5 bg-[#024AE5] text-white font-bold text-[10px] h-4 min-w-[16px] px-1 rounded-full flex items-center justify-center shadow-xs">
+            <span className="absolute -top-1.5 -right-1.5 bg-[#024AE5] text-white font-bold text-[10px] h-4 min-w-[16px] px-1 rounded-full flex items-center justify-center shadow-xs animate-in zoom-in-50 duration-200">
               {itemCount}
             </span>
           )}

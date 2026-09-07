@@ -5,7 +5,13 @@ import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { useCart } from "@/context/CartContext";
-import { Layers, ChevronRight, ChevronDown, User, LogOut, ShoppingBag, LogIn, UserPlus } from "lucide-react";
+import {
+  ChevronRight,
+  ChevronDown,
+  User,
+  LogOut,
+  ShoppingCart,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import { CategoryNode } from "@/types/database.types";
 import { createClient } from "@/lib/supabase/client";
@@ -142,45 +148,45 @@ export function Navbar({ categories = [], user }: NavbarProps) {
           </Link>
         </nav>
 
-        {/* Action Buttons */}
-        <div className="flex items-center gap-2.5">
-          {/* Cart Drawer Trigger */}
-          <button
-            onClick={() => setIsCartOpen(true)}
-            className="relative p-2 rounded-lg text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer border border-slate-200 flex items-center justify-center"
-            title="View Industrial Cart"
-          >
-            <ShoppingBag className="h-4 w-4 text-slate-700" />
-            {itemCount > 0 && (
-              <span className="absolute -top-1.5 -right-1.5 bg-[#024AE5] text-white font-bold text-[10px] h-4.5 min-w-[18px] px-1 rounded-full flex items-center justify-center shadow-xs">
-                {itemCount}
-              </span>
-            )}
-          </button>
+        {/* Action Buttons: Login, Sign Up, Blue Cart */}
+        <div className="flex items-center gap-3">
 
           {user ? (
             <div className="relative group">
-              <Button variant="ghost" className="gap-2 text-sm font-medium border border-slate-200">
+              <Button
+                variant="ghost"
+                className="gap-2 text-xs sm:text-sm font-medium rounded-full border border-slate-300 hover:border-slate-400 bg-white px-4 py-1.5 h-auto shadow-none text-slate-700"
+              >
                 <User className="h-4 w-4 text-[#024AE5]" />
-                <span>{user.email?.split('@')[0]}</span>
+                <span>{user.email?.split("@")[0]}</span>
               </Button>
-              
+
               <div className="absolute right-0 top-full hidden pt-2 group-hover:block z-50">
                 <div className="w-48 rounded-md border border-slate-200 bg-white shadow-lg py-1 flex flex-col">
                   <div className="px-4 py-2 text-xs text-slate-500 border-b border-slate-100 truncate">
                     {user.email}
                   </div>
-                  {user?.user_metadata?.role === "admin" || user?.user_metadata?.role === "platform_owner" || user?.email === "admin@sojarindusy.com" ? (
-                    <Link href="/admin/dashboard" className="px-4 py-2 text-sm font-medium text-blue-600 hover:bg-blue-50 flex items-center justify-between">
+                  {user?.user_metadata?.role === "admin" ||
+                  user?.user_metadata?.role === "platform_owner" ||
+                  user?.email === "admin@sojarindusy.com" ? (
+                    <Link
+                      href="/admin/dashboard"
+                      className="px-4 py-2 text-sm font-medium text-blue-600 hover:bg-blue-50 flex items-center justify-between"
+                    >
                       <span>Admin Portal</span>
-                      <span className="text-[10px] bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded font-bold">ADMIN</span>
+                      <span className="text-[10px] bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded font-bold">
+                        ADMIN
+                      </span>
                     </Link>
                   ) : (
-                    <Link href="/dashboard" className="px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 hover:text-[#024AE5]">
+                    <Link
+                      href="/dashboard"
+                      className="px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 hover:text-[#024AE5]"
+                    >
                       Customer Portal
                     </Link>
                   )}
-                  <button 
+                  <button
                     onClick={handleLogout}
                     className="flex items-center gap-2 w-full text-left px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50"
                   >
@@ -192,24 +198,37 @@ export function Navbar({ categories = [], user }: NavbarProps) {
             </div>
           ) : (
             <>
-              <Link href="/login">
-                <Button variant="ghost" size="sm" className="gap-1.5 text-xs sm:text-sm">
-                  <LogIn className="h-4 w-4 text-slate-500" />
-                  <span>Login</span>
-                </Button>
+              {/* Login Pill Button */}
+              <Link
+                href="/login"
+                className="rounded-full border border-slate-300 hover:border-slate-400 bg-white text-slate-700 hover:text-slate-900 px-4 sm:px-5 py-1.5 text-xs sm:text-sm font-medium transition-colors cursor-pointer shadow-none inline-flex items-center justify-center"
+              >
+                Login
               </Link>
-              <Link href="/signup">
-                <Button
-                  size="sm"
-                  variant="primary"
-                  className="gap-1.5 text-xs sm:text-sm"
-                >
-                  <UserPlus className="h-4 w-4" />
-                  <span>Sign Up</span>
-                </Button>
+
+              {/* Sign Up Pill Button */}
+              <Link
+                href="/signup"
+                className="rounded-full border border-slate-300 hover:border-slate-400 bg-white text-slate-700 hover:text-slate-900 px-4 sm:px-5 py-1.5 text-xs sm:text-sm font-medium transition-colors cursor-pointer shadow-none inline-flex items-center justify-center"
+              >
+                Sign Up
               </Link>
             </>
           )}
+
+          {/* Blue Cart Logo / Button with Animation */}
+          <button
+            onClick={() => setIsCartOpen(true)}
+            className="group relative p-2 text-[#024AE5] hover:bg-blue-50/80 rounded-full transition-all duration-200 cursor-pointer flex items-center justify-center ml-0.5 active:scale-95"
+            title="View Industrial Cart"
+          >
+            <ShoppingCart className="h-5 w-5 sm:h-5.5 sm:w-5.5 text-[#024AE5] group-hover:scale-110 transition-transform duration-200 stroke-[2.2]" />
+            {itemCount > 0 && (
+              <span className="absolute -top-0.5 -right-0.5 bg-[#024AE5] text-white font-bold text-[9px] h-4.5 min-w-[18px] px-1 rounded-full flex items-center justify-center shadow-xs animate-in zoom-in-50 duration-200">
+                {itemCount}
+              </span>
+            )}
+          </button>
         </div>
       </div>
     </header>

@@ -3,15 +3,12 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
-  Sparkles,
   ArrowRight,
   ShieldCheck,
   Truck,
   FileCheck,
   Factory,
   Clock,
-  CheckCircle2,
-  Lock,
 } from "lucide-react";
 
 export default function HomePage() {
@@ -71,59 +68,28 @@ export default function HomePage() {
 
   return (
     <div className="bg-white min-h-screen">
-      {/* Hero Section */}
-      <section className="container mx-auto max-w-6xl px-4 pt-16 pb-20 sm:px-6 sm:pt-24 sm:pb-28 text-center space-y-8">
-        <div className="inline-flex items-center gap-2 rounded-full border border-[#024AE5]/20 bg-blue-50/80 px-4 py-1.5 text-xs font-semibold text-[#024AE5] shadow-xs">
-          <Sparkles className="h-3.5 w-3.5 text-[#024AE5] animate-pulse" />
-          <span>Next-Gen B2B Industrial Marketplace &bull; Launching Soon</span>
-        </div>
+      {/* Welcome Hero Section (Directly Below Header) */}
+      <section className="container mx-auto max-w-6xl px-4 py-16 sm:py-24 sm:px-6 border-b border-slate-100">
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-8 lg:gap-12 items-start justify-between">
+          {/* Left Column: Heading */}
+          <div className="md:col-span-7 lg:col-span-7">
+            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight text-slate-900 leading-[1.15]">
+              Welcome to the <br />
+              Sojar Indusy
+            </h1>
+          </div>
 
-        <div className="space-y-4 max-w-4xl mx-auto">
-          <h1 className="text-4xl sm:text-6xl font-extrabold tracking-tight text-slate-900 leading-tight">
-            Industrial Procurement, <br className="hidden sm:inline" />
-            <span className="text-[#024AE5]">
-              Engineered for Speed & Scale
-            </span>
-          </h1>
-
-          <p className="text-lg sm:text-xl text-slate-600 max-w-2xl mx-auto leading-relaxed">
-            Sojar Indusy is building India&apos;s premier digital platform for precision engineering components, heavy valves, fasteners, and custom manufactured hardware.
-          </p>
-        </div>
-
-        {/* Action CTAs */}
-        <div className="flex flex-wrap items-center justify-center gap-4 pt-2">
-          <Link href="/signup">
-            <Button size="lg" variant="primary" className="gap-2 px-8">
-              <span>Register Your Company</span>
-              <ArrowRight className="h-4 w-4" />
-            </Button>
-          </Link>
-          <Link href="/login">
-            <Button size="lg" variant="outline-green" className="px-8">
-              Sign In to Dashboard
-            </Button>
-          </Link>
-        </div>
-
-        {/* Highlights Bar */}
-        <div className="pt-8 max-w-3xl mx-auto">
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-none">
-            <div className="text-center p-2">
-              <div className="text-2xl font-bold text-[#024AE5]">10,000+</div>
-              <div className="text-[11px] text-slate-500 font-medium mt-0.5">SKUs in Pipeline</div>
-            </div>
-            <div className="text-center p-2">
-              <div className="text-2xl font-bold text-[#3C8B4F]">100%</div>
-              <div className="text-[11px] text-slate-500 font-medium mt-0.5">Tested & Certified</div>
-            </div>
-            <div className="text-center p-2">
-              <div className="text-2xl font-bold text-[#024AE5]">Pan-India</div>
-              <div className="text-[11px] text-slate-500 font-medium mt-0.5">Supply Logistics</div>
-            </div>
-            <div className="text-center p-2">
-              <div className="text-2xl font-bold text-[#3C8B4F]">B2B Portal</div>
-              <div className="text-[11px] text-slate-500 font-medium mt-0.5">Instant Invoicing</div>
+          {/* Right Column: Narrative & Action */}
+          <div className="md:col-span-5 lg:col-span-5 space-y-6 pt-1 md:pt-2">
+            <p className="text-sm sm:text-base text-slate-700 leading-relaxed font-normal">
+              We apply our expert minds and collaborative ways of working with customers to build more resilient and stronger businesses.
+            </p>
+            <div>
+              <Link href="/products">
+                <Button className="bg-[#024AE5] hover:bg-[#0238B0] text-white font-medium text-xs sm:text-sm px-6 py-2.5 h-auto rounded-none shadow-none transition-colors cursor-pointer">
+                  View our offerings
+                </Button>
+              </Link>
             </div>
           </div>
         </div>
