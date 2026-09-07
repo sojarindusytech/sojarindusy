@@ -23,7 +23,7 @@ export const THEME_COLORS = {
   },
 } as const;
 
-export type AvailableFont = "inter" | "jakarta" | "outfit" | "geist";
+export type AvailableFont = "dm-sans" | "inter" | "jakarta" | "outfit" | "geist";
 
 export interface FontOption {
   id: AvailableFont;
@@ -34,10 +34,16 @@ export interface FontOption {
 
 export const FONT_OPTIONS: FontOption[] = [
   {
+    id: "dm-sans",
+    name: "DM Sans",
+    className: "font-dm-sans",
+    description: "Primary Brand Body Font (Default)",
+  },
+  {
     id: "inter",
     name: "Inter",
     className: "font-inter",
-    description: "Standard Industrial UI Font (Default)",
+    description: "Standard Industrial UI Font",
   },
   {
     id: "jakarta",

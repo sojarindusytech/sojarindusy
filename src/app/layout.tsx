@@ -1,31 +1,20 @@
 import type { Metadata } from "next";
-import { Inter, Plus_Jakarta_Sans, Outfit, Geist } from "next/font/google";
+import { DM_Sans } from "next/font/google";
+import localFont from "next/font/local";
 import "./globals.css";
 import { GlobalHeader } from "@/components/common/GlobalHeader";
 import { ThemeProvider } from "@/components/theme/ThemeProvider";
 import { Toaster } from "react-hot-toast";
 
-const inter = Inter({
-  variable: "--font-inter",
+const dmSans = DM_Sans({
+  variable: "--font-dm-sans",
   subsets: ["latin"],
   display: "swap",
 });
 
-const jakarta = Plus_Jakarta_Sans({
-  variable: "--font-jakarta",
-  subsets: ["latin"],
-  display: "swap",
-});
-
-const outfit = Outfit({
-  variable: "--font-outfit",
-  subsets: ["latin"],
-  display: "swap",
-});
-
-const geist = Geist({
-  variable: "--font-geist",
-  subsets: ["latin"],
+const skodaPro = localFont({
+  src: "../../public/assets/fonts/SkodaProLight.ttf",
+  variable: "--font-skoda",
   display: "swap",
 });
 
@@ -47,9 +36,9 @@ export default function RootLayout({
     <html
       lang="en"
       suppressHydrationWarning
-      className={`${inter.variable} ${jakarta.variable} ${outfit.variable} ${geist.variable} font-inter h-full antialiased`}
+      className={`${dmSans.variable} ${skodaPro.variable} font-sans h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col bg-white text-slate-900 selection:bg-[#024AE5] selection:text-white">
+      <body className="min-h-full flex flex-col bg-white text-slate-900 font-sans selection:bg-[#024AE5] selection:text-white">
         <ThemeProvider>
           <CartProvider>
             <GlobalHeader />

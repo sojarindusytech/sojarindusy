@@ -264,7 +264,7 @@ export function IndustriesWeServe() {
     <section className="container mx-auto max-w-[1400px] px-4 sm:px-6 lg:px-8 pb-24">
       <div className="space-y-6">
         {/* Section Heading */}
-        <h2 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
+        <h2 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight font-skoda">
           Industries We Serve
         </h2>
 
@@ -281,7 +281,7 @@ export function IndustriesWeServe() {
               </div>
 
               {/* Industry Title */}
-              <h3 className="mt-3.5 sm:mt-4 text-xs sm:text-sm lg:text-base font-bold text-slate-900 tracking-tight text-center">
+              <h3 className="mt-3.5 sm:mt-4 text-xs sm:text-sm lg:text-base font-bold text-slate-900 tracking-tight text-center font-skoda">
                 {ind.title}
               </h3>
             </div>
