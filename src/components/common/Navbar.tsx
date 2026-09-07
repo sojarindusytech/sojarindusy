@@ -82,7 +82,7 @@ export function Navbar({ categories = [], user }: NavbarProps) {
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-slate-200 bg-white/95 backdrop-blur-md">
-      <div className="container mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:px-6">
+      <div className="container mx-auto flex h-16 max-w-[1400px] items-center justify-between px-4 sm:px-6 lg:px-8">
         {/* Brand Logo Only */}
         <Link href="/" className="flex items-center transition-opacity hover:opacity-90 py-1">
           <Image
