@@ -12,7 +12,7 @@ interface ThemeContextType {
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [font, setFontState] = useState<AvailableFont>("inter");
+  const [font, setFontState] = useState<AvailableFont>("dm-sans");
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -22,7 +22,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       setFontState(savedFont);
       applyFontClass(savedFont);
     } else {
-      applyFontClass("inter");
+      applyFontClass("dm-sans");
     }
   }, []);
 

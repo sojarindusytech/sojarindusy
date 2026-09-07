@@ -41,7 +41,7 @@ export function ExploreCategories() {
     <section className="container mx-auto max-w-[1400px] px-4 sm:px-6 lg:px-8 pb-16">
       <div className="space-y-6">
         {/* Section Heading matching Sandvik Reference */}
-        <h2 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
+        <h2 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight font-skoda">
           Explore our product categories
         </h2>
 
