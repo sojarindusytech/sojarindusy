@@ -22,10 +22,14 @@ export async function fetchCategoryBySlug(slug: string): Promise<Category | null
       .select("*")
       .eq("slug", slug)
       .single();
-    if (error) return null;
+    if (error || !data) {
+      const fallback = SEED_CATEGORIES.find((c) => c.slug === slug);
+      return fallback || null;
+    }
     return data as Category;
   } catch (err) {
-    return null;
+    const fallback = SEED_CATEGORIES.find((c) => c.slug === slug);
+    return fallback || null;
   }
 }
 
@@ -37,7 +41,7 @@ const SEED_CATEGORIES: Category[] = [
     slug: "end-mills",
     parent_id: null,
     description: "Solid carbide and HSS end milling cutters",
-    image_url: "https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=300&q=80",
+    image_url: "/assets/category/end mills.png",
     display_order: 1,
     is_active: true,
     created_at: new Date().toISOString(),
@@ -65,7 +69,7 @@ const SEED_CATEGORIES: Category[] = [
     created_at: new Date().toISOString(),
   },
   {
-    id: "cat-[#024AE5]-ball-nose",
+    id: "cat-ball-nose",
     name: "Ball Nose End Mills",
     slug: "ball-nose-end-mills",
     parent_id: "cat-end-mills",
@@ -77,23 +81,34 @@ const SEED_CATEGORIES: Category[] = [
   },
   {
     id: "cat-drills",
-    name: "Carbide Drills",
-    slug: "carbide-drills",
+    name: "Drills",
+    slug: "drills",
     parent_id: null,
     description: "High performance internal coolant and solid carbide drills",
-    image_url: "https://images.unsplash.com/photo-1504328345606-18bbc8c9d7d1?w=300&q=80",
+    image_url: "/assets/category/drills.png",
     display_order: 2,
     is_active: true,
     created_at: new Date().toISOString(),
   },
   {
-    id: "cat-reamers",
-    name: "Precision Reamers",
-    slug: "precision-reamers",
+    id: "cat-oscillating-blades",
+    name: "Oscillating Blades",
+    slug: "oscillating-blades",
     parent_id: null,
-    description: "High precision hole finishing tooling",
-    image_url: null,
+    description: "Industrial oscillating blades and cutting attachments",
+    image_url: "/assets/category/oscillating blades.png",
     display_order: 3,
+    is_active: true,
+    created_at: new Date().toISOString(),
+  },
+  {
+    id: "cat-carbide-parts",
+    name: "Carbide Parts",
+    slug: "carbide-parts",
+    parent_id: null,
+    description: "Precision engineered carbide wear parts and specialized components",
+    image_url: "/assets/category/carbide parts.png",
+    display_order: 4,
     is_active: true,
     created_at: new Date().toISOString(),
   },

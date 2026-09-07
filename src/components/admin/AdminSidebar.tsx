@@ -136,7 +136,7 @@ export function AdminSidebar() {
   return (
     <aside
       className={cn(
-        "relative flex flex-col border-r border-slate-200 bg-white transition-all duration-300 z-30 shrink-0 select-none",
+        "relative flex flex-col border-r border-slate-200 bg-white transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] z-30 shrink-0 select-none",
         collapsed ? "w-16" : "w-64"
       )}
     >
@@ -148,7 +148,7 @@ export function AdminSidebar() {
             alt="Sojar Indusy"
             width={180}
             height={48}
-            className={cn("h-8 w-auto object-contain transition-all", collapsed ? "h-7 w-7 object-left" : "max-w-[190px]")}
+            className={cn("h-8 w-auto object-contain transition-all duration-300", collapsed ? "h-7 w-7 object-left" : "max-w-[190px]")}
             priority
           />
         </Link>
@@ -169,14 +169,14 @@ export function AdminSidebar() {
                 href={item.href}
                 title={collapsed ? item.title : undefined}
                 className={cn(
-                  "flex items-center gap-3.5 rounded-lg px-3.5 py-2.5 text-sm font-medium transition-colors",
+                  "group flex items-center gap-3.5 rounded-lg px-3.5 py-2.5 text-sm font-medium transition-all duration-200 hover:translate-x-0.5",
                   isActive
                     ? "bg-[#024AE5]/10 text-[#024AE5] font-semibold"
                     : "text-slate-700 hover:bg-slate-50 hover:text-slate-900",
-                  collapsed && "justify-center px-2"
+                  collapsed && "justify-center px-2 hover:translate-x-0"
                 )}
               >
-                <Icon className={cn("h-5 w-5 shrink-0", isActive ? "text-[#024AE5]" : "text-slate-500")} />
+                <Icon className={cn("h-5 w-5 shrink-0 transition-transform duration-200 group-hover:scale-110", isActive ? "text-[#024AE5]" : "text-slate-500")} />
                 {!collapsed && <span className="truncate">{item.title}</span>}
               </Link>
             );
@@ -194,21 +194,21 @@ export function AdminSidebar() {
                 onClick={() => toggleSection(item.id)}
                 title={collapsed ? item.title : undefined}
                 className={cn(
-                  "flex w-full items-center justify-between rounded-lg px-3.5 py-2.5 text-sm font-medium transition-colors cursor-pointer",
+                  "group flex w-full items-center justify-between rounded-lg px-3.5 py-2.5 text-sm font-medium transition-all duration-200 cursor-pointer hover:translate-x-0.5",
                   isSectionActive && !isOpen
                     ? "bg-[#024AE5]/10 text-[#024AE5] font-semibold"
                     : "text-slate-800 hover:bg-slate-50 hover:text-slate-900",
-                  collapsed && "justify-center px-2"
+                  collapsed && "justify-center px-2 hover:translate-x-0"
                 )}
               >
                 <div className="flex items-center gap-3.5">
-                  <Icon className={cn("h-5 w-5 shrink-0", isSectionActive ? "text-[#024AE5]" : "text-slate-600")} />
+                  <Icon className={cn("h-5 w-5 shrink-0 transition-transform duration-200 group-hover:scale-110", isSectionActive ? "text-[#024AE5]" : "text-slate-600")} />
                   {!collapsed && <span className="truncate">{item.title}</span>}
                 </div>
                 {!collapsed && (
                   <ChevronDown
                     className={cn(
-                      "h-4 w-4 text-slate-400 transition-transform duration-200",
+                      "h-4 w-4 text-slate-400 transition-transform duration-300 ease-in-out",
                       isOpen && "rotate-180 text-slate-700"
                     )}
                   />
@@ -217,7 +217,7 @@ export function AdminSidebar() {
 
               {/* Dropdown Children */}
               {!collapsed && isOpen && item.subItems && (
-                <div className="pl-8 pr-2 space-y-0.5 border-l-2 border-slate-100 ml-5 py-1 animate-in fade-in-50 duration-150">
+                <div className="pl-8 pr-2 space-y-0.5 border-l-2 border-slate-100 ml-5 py-1 animate-in fade-in-50 duration-200">
                   {item.subItems.map((sub) => {
                     const isChildActive = pathname === sub.href || pathname.startsWith(sub.href + "/");
                     return (
@@ -225,7 +225,7 @@ export function AdminSidebar() {
                         key={sub.href}
                         href={sub.href}
                         className={cn(
-                          "flex items-center rounded-md px-3 py-1.5 text-xs font-medium transition-colors",
+                          "flex items-center rounded-md px-3 py-1.5 text-xs font-medium transition-all duration-150 hover:translate-x-0.5",
                           isChildActive
                             ? "bg-[#024AE5]/10 text-[#024AE5] font-semibold"
                             : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
@@ -248,15 +248,15 @@ export function AdminSidebar() {
           type="button"
           onClick={() => setCollapsed(!collapsed)}
           className={cn(
-            "flex w-full items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium text-slate-500 hover:bg-slate-50 hover:text-slate-800 transition-colors cursor-pointer",
+            "group flex w-full items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium text-slate-500 hover:bg-slate-50 hover:text-slate-800 transition-all duration-200 cursor-pointer",
             collapsed && "justify-center px-0"
           )}
         >
           {collapsed ? (
-            <ChevronRight className="h-4 w-4" />
+            <ChevronRight className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-0.5" />
           ) : (
             <>
-              <ChevronLeft className="h-4 w-4" />
+              <ChevronLeft className="h-4 w-4 transition-transform duration-200 group-hover:-translate-x-0.5" />
               <span>Collapse</span>
             </>
           )}

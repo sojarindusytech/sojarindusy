@@ -91,7 +91,7 @@ export function CustomerSidebar({
   return (
     <aside
       className={cn(
-        "relative flex flex-col border-r border-slate-200 bg-white transition-all duration-300 z-30 shrink-0 select-none",
+        "relative flex flex-col border-r border-slate-200 bg-white transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] z-30 shrink-0 select-none",
         collapsed ? "w-16" : "w-64"
       )}
     >
@@ -103,7 +103,7 @@ export function CustomerSidebar({
             alt="Sojar Indusy"
             width={180}
             height={48}
-            className={cn("h-8 w-auto object-contain transition-all", collapsed ? "h-7 w-7 object-left" : "max-w-[190px]")}
+            className={cn("h-8 w-auto object-contain transition-all duration-300", collapsed ? "h-7 w-7 object-left" : "max-w-[190px]")}
             priority
           />
         </Link>
@@ -123,16 +123,16 @@ export function CustomerSidebar({
               href={item.href}
               title={collapsed ? item.title : undefined}
               className={cn(
-                "flex items-center gap-3.5 rounded-lg px-3.5 py-2.5 text-sm font-medium transition-colors",
+                "group flex items-center gap-3.5 rounded-lg px-3.5 py-2.5 text-sm font-medium transition-all duration-200 hover:translate-x-0.5",
                 isActive
                   ? "bg-[#024AE5]/10 text-[#024AE5] font-semibold"
                   : "text-slate-700 hover:bg-slate-50 hover:text-slate-900",
-                collapsed && "justify-center px-2"
+                collapsed && "justify-center px-2 hover:translate-x-0"
               )}
             >
               <Icon
                 className={cn(
-                  "h-4 w-4 shrink-0 transition-colors",
+                  "h-4 w-4 shrink-0 transition-transform duration-200 group-hover:scale-110",
                   isActive ? "text-[#024AE5]" : "text-slate-500"
                 )}
               />
@@ -151,11 +151,11 @@ export function CustomerSidebar({
           href="/products"
           title={collapsed ? "Browse Catalog" : undefined}
           className={cn(
-            "flex items-center gap-3.5 rounded-lg px-3.5 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50 hover:text-[#024AE5] transition-colors",
-            collapsed && "justify-center px-2"
+            "group flex items-center gap-3.5 rounded-lg px-3.5 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50 hover:text-[#024AE5] transition-all duration-200 hover:translate-x-0.5",
+            collapsed && "justify-center px-2 hover:translate-x-0"
           )}
         >
-          <ShoppingBag className="h-4 w-4 text-slate-500 shrink-0" />
+          <ShoppingBag className="h-4 w-4 text-slate-500 group-hover:text-[#024AE5] group-hover:scale-110 transition-transform duration-200 shrink-0" />
           {!collapsed && <span>Browse Catalog</span>}
         </Link>
       </div>
@@ -166,16 +166,16 @@ export function CustomerSidebar({
           type="button"
           onClick={toggleSidebar}
           className={cn(
-            "flex w-full items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium text-slate-500 hover:bg-slate-50 hover:text-slate-800 transition-colors cursor-pointer",
+            "group flex w-full items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium text-slate-500 hover:bg-slate-50 hover:text-slate-800 transition-all duration-200 cursor-pointer",
             collapsed && "justify-center px-0"
           )}
           title={collapsed ? "Expand Sidebar" : "Collapse Sidebar"}
         >
           {collapsed ? (
-            <ChevronRight className="h-4 w-4" />
+            <ChevronRight className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-0.5" />
           ) : (
             <>
-              <ChevronLeft className="h-4 w-4" />
+              <ChevronLeft className="h-4 w-4 transition-transform duration-200 group-hover:-translate-x-0.5" />
               <span>Collapse</span>
             </>
           )}

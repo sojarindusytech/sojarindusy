@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import { Inter, Plus_Jakarta_Sans, Outfit, Geist } from "next/font/google";
 import "./globals.css";
 import { GlobalHeader } from "@/components/common/GlobalHeader";
-import { Footer } from "@/components/common/Footer";
 import { ThemeProvider } from "@/components/theme/ThemeProvider";
 import { Toaster } from "react-hot-toast";
 
@@ -55,7 +54,6 @@ export default function RootLayout({
           <CartProvider>
             <GlobalHeader />
             <main className="flex-1 bg-white">{children}</main>
-            <Footer />
             <CartDrawer />
           </CartProvider>
         </ThemeProvider>

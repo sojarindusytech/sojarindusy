@@ -12,12 +12,11 @@ import {
   ShieldCheck,
   CheckCircle2,
   FileDown,
-  Printer,
 } from "lucide-react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { generateQuotePdf } from "@/lib/generateQuotePdf";
 import toast from "react-hot-toast";
+import { cn } from "@/lib/utils";
 
 export function CartDrawer() {
   const {
@@ -33,8 +32,6 @@ export function CartDrawer() {
   } = useCart();
   const router = useRouter();
 
-  if (!isCartOpen) return null;
-
   const handleDownloadQuote = () => {
     if (items.length === 0) {
       toast.error("Cart is empty. Add items to generate a quotation.");
@@ -45,12 +42,28 @@ export function CartDrawer() {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex justify-end bg-slate-900/40 backdrop-blur-xs transition-opacity animate-in fade-in duration-200">
-      {/* Backdrop click to close */}
-      <div className="flex-1" onClick={() => setIsCartOpen(false)} />
+    <div
+      className={cn(
+        "fixed inset-0 z-50 flex justify-end transition-all duration-300",
+        isCartOpen ? "visible pointer-events-auto" : "invisible pointer-events-none delay-300"
+      )}
+    >
+      {/* Backdrop with fade animation */}
+      <div
+        className={cn(
+          "fixed inset-0 bg-slate-900/40 backdrop-blur-xs transition-opacity duration-300 ease-in-out",
+          isCartOpen ? "opacity-100" : "opacity-0"
+        )}
+        onClick={() => setIsCartOpen(false)}
+      />
 
-      {/* Drawer Container */}
-      <div className="w-full max-w-md bg-white h-full shadow-2xl flex flex-col border-l border-slate-200 animate-in slide-in-from-right duration-300">
+      {/* Drawer Container with smooth slide-in & slide-out animation */}
+      <div
+        className={cn(
+          "relative w-full max-w-md bg-white h-full shadow-2xl flex flex-col border-l border-slate-200 z-10 transition-transform duration-300 ease-[cubic-bezier(0.16,1,0.3,1)]",
+          isCartOpen ? "translate-x-0" : "translate-x-full"
+        )}
+      >
         {/* Header */}
         <div className="p-4 sm:p-5 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
           <div className="flex items-center gap-2">
@@ -72,7 +85,7 @@ export function CartDrawer() {
         <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-3.5 divide-y divide-slate-100">
           {items.length === 0 ? (
             <div className="h-full flex flex-col items-center justify-center text-center py-16">
-              <div className="h-16 w-16 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 mb-4">
+              <div className="h-16 w-16 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 mb-4 animate-in zoom-in-75 duration-300">
                 <ShoppingBag className="h-8 w-8" />
               </div>
               <h3 className="font-bold text-slate-800 text-base mb-1">Your cart is empty</h3>
@@ -102,7 +115,7 @@ export function CartDrawer() {
               }
 
               return (
-                <div key={item.variantId} className="pt-3.5 first:pt-0 flex gap-3">
+                <div key={item.variantId} className="pt-3.5 first:pt-0 flex gap-3 group transition-all">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0">
@@ -198,7 +211,7 @@ export function CartDrawer() {
                   setIsCartOpen(false);
                   router.push("/checkout");
                 }}
-                className="w-full bg-[#024AE5] hover:bg-[#024AE5]/90 text-white font-bold text-xs h-10 shadow-none gap-2 cursor-pointer"
+                className="w-full bg-[#024AE5] hover:bg-[#024AE5]/90 text-white font-bold text-xs h-10 shadow-none gap-2 cursor-pointer transition-colors"
               >
                 <span>Proceed to Checkout</span>
                 <ArrowRight className="h-4 w-4" />
