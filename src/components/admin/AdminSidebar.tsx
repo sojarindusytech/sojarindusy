@@ -7,6 +7,8 @@ import { cn } from "@/lib/utils";
 import {
   LayoutDashboard,
   Users,
+  MessageSquare,
+  FileText,
   Package,
   ShoppingBag,
   FileSpreadsheet,
@@ -46,6 +48,12 @@ const navItems: NavSectionItem[] = [
     icon: Users,
   },
   {
+    id: "inquiries",
+    title: "Inquiries",
+    href: "/admin/inquiries",
+    icon: MessageSquare,
+  },
+  {
     id: "products",
     title: "Product Management",
     icon: Package,
@@ -73,6 +81,7 @@ const navItems: NavSectionItem[] = [
     icon: FileSpreadsheet,
     subItems: [
       { title: "Invoice", href: "/admin/invoices" },
+      { title: "RFQs", href: "/admin/rfqs" },
       { title: "Quotes", href: "/admin/quotes" },
       { title: "Debit Note", href: "/admin/debit-notes" },
       { title: "Credit Note", href: "/admin/credit-notes" },

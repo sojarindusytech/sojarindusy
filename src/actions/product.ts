@@ -1,7 +1,7 @@
 "use server";
 
 import { createAdminClient } from "@/lib/supabase/admin";
-import { Product, ProductVariant, ProductImage } from "@/types/database.types";
+import { Product, ProductVariant, ProductImage, ProductDocument } from "@/types/database.types";
 import { generateSlug, uploadCategoryImage } from "@/actions/category";
 import { revalidatePath } from "next/cache";
 
@@ -11,6 +11,7 @@ export interface CreateProductPayload {
   shortDescription?: string;
   description?: string;
   images: ProductImage[];
+  documents?: ProductDocument[];
   categoryIds: string[];
   attributeIds?: string[];
   tagIds?: string[];
@@ -40,68 +41,61 @@ export async function fetchProductsList(): Promise<Product[]> {
   const supabase = createAdminClient();
 
   try {
-    // Attempt fetch with product_attributes(attributes(*))
-    let { data: dbProducts, error } = await supabase
-      .from("products")
+    const { data: dbProducts, error }: any = await (supabase.from("products") as any)
       .select(`
         *,
-        variants:product_variants(*),
-        product_attributes(
-          attributes(*)
-        )
+        variants:product_variants(*)
       `)
       .order("created_at", { ascending: false });
 
-    // Fallback if table not yet renamed
-    if (error && error.code === "42P01") {
-      const fallback = await supabase
-        .from("products")
-        .select(`
-          *,
-          variants:product_variants(*),
-          product_tags(
-            tags(*)
-          )
-        `)
-        .order("created_at", { ascending: false });
-      dbProducts = fallback.data as any;
-      error = fallback.error;
-    }
-
     if (error) {
-      console.error("fetchProductsList Supabase Error:", error);
+      console.error("fetchProductsList Error:", error);
       return [];
     }
     if (!dbProducts || dbProducts.length === 0) {
       return [];
     }
 
-    // Workaround for missing foreign key from product_categories to products
-    const { data: catLinks } = await supabase
-      .from("product_categories")
-      .select(`
-        product_id,
-        categories(*)
-      `);
+    const productIds = dbProducts.map((p: any) => p.id);
 
-    const mappedProducts = dbProducts.map((p: any) => {
+    // Fetch categories junction
+    const { data: catLinks }: any = await (supabase.from("product_categories") as any)
+      .select(`product_id, categories(*)`)
+      .in("product_id", productIds);
+
+    // Fetch attributes junction (with fallback to product_tags)
+    let attrLinks: any[] = [];
+    const { data: paData, error: paError }: any = await (supabase.from("product_attributes") as any)
+      .select(`product_id, attributes(*)`)
+      .in("product_id", productIds);
+
+    if (!paError && paData) {
+      attrLinks = paData;
+    } else {
+      const { data: ptData }: any = await (supabase.from("product_tags") as any)
+        .select(`product_id, tags(*)`)
+        .in("product_id", productIds);
+      if (ptData) attrLinks = ptData;
+    }
+
+    return dbProducts.map((p: any) => {
       const pCats = catLinks?.filter((link: any) => link.product_id === p.id) || [];
-      const attrs = 
-        p.product_attributes?.map((pa: any) => pa.attributes).filter(Boolean) ||
-        p.product_tags?.map((pt: any) => pt.tags).filter(Boolean) ||
-        [];
+      const pAttrs =
+        attrLinks
+          ?.filter((link: any) => link.product_id === p.id)
+          .map((link: any) => link.attributes || link.tags)
+          .filter(Boolean) || [];
 
       return {
         ...p,
-        variants: sortVariants(p.variants),
-        attributes: attrs,
-        tags: attrs,
+        variants: sortVariants(p.variants?.filter((v: any) => !v.is_archived) || []),
+        attributes: pAttrs,
+        tags: pAttrs,
         categories: pCats.map((pc: any) => pc.categories).filter(Boolean),
       };
-    });
-
-    return mappedProducts as Product[];
+    }) as Product[];
   } catch (err) {
+    console.error("fetchProductsList catch:", err);
     return [];
   }
 }
@@ -110,49 +104,40 @@ export async function fetchProductBySlug(slug: string): Promise<Product | null> 
   const supabase = createAdminClient();
 
   try {
-    let { data, error } = await supabase
-      .from("products")
+    const { data: dbProduct, error }: any = await (supabase.from("products") as any)
       .select(`
         *,
-        variants:product_variants(*),
-        product_attributes(
-          attributes(*)
-        )
+        variants:product_variants(*)
       `)
       .eq("slug", slug)
       .single();
 
-    if (error && error.code === "42P01") {
-      const fallback = await supabase
-        .from("products")
-        .select(`
-          *,
-          variants:product_variants(*),
-          product_tags(
-            tags(*)
-          )
-        `)
-        .eq("slug", slug)
-        .single();
-      data = fallback.data as any;
-      error = fallback.error;
-    }
-
-    const dbProduct = data as any;
-
     if (error || !dbProduct) {
+      if (error && error.code !== "PGRST116") {
+        console.error("fetchProductBySlug Error:", error);
+      }
       return null;
     }
 
-    const { data: catLinks } = await supabase
-      .from("product_categories")
+    const { data: catLinks }: any = await (supabase.from("product_categories") as any)
       .select(`categories(*)`)
       .eq("product_id", dbProduct.id);
 
-    const attrs =
-      dbProduct.product_attributes?.map((pa: any) => pa.attributes).filter(Boolean) ||
-      dbProduct.product_tags?.map((pt: any) => pt.tags).filter(Boolean) ||
-      [];
+    let attrs: any[] = [];
+    const { data: paData, error: paError }: any = await (supabase.from("product_attributes") as any)
+      .select(`attributes(*)`)
+      .eq("product_id", dbProduct.id);
+
+    if (!paError && paData && paData.length > 0) {
+      attrs = paData.map((pa: any) => pa.attributes).filter(Boolean);
+    } else {
+      const { data: ptData }: any = await (supabase.from("product_tags") as any)
+        .select(`tags(*)`)
+        .eq("product_id", dbProduct.id);
+      if (ptData && ptData.length > 0) {
+        attrs = ptData.map((pt: any) => pt.tags).filter(Boolean);
+      }
+    }
 
     const mappedProduct = {
       ...dbProduct,
@@ -164,6 +149,7 @@ export async function fetchProductBySlug(slug: string): Promise<Product | null> 
 
     return mappedProduct as Product;
   } catch (err) {
+    console.error("fetchProductBySlug catch:", err);
     return null;
   }
 }
@@ -172,76 +158,97 @@ export async function fetchProductsByCategory(categorySlug: string): Promise<Pro
   const supabase = createAdminClient();
 
   try {
-    const { data: catData, error: catError } = await supabase
-      .from("categories")
-      .select("id")
+    const { data: catData, error: catError }: any = await (supabase.from("categories") as any)
+      .select("id, parent_id")
       .eq("slug", categorySlug)
       .single();
 
     const categoryData = catData as any;
-
     if (catError || !categoryData) return [];
 
-    const { data: linkData, error: linkError } = await supabase
-      .from("product_categories")
+    // Query all categories to gather descendant tree
+    const { data: allCategories }: any = await (supabase.from("categories") as any)
+      .select("id, parent_id");
+
+    const targetCategoryIds = new Set<string>([categoryData.id]);
+    let added = true;
+    while (added) {
+      added = false;
+      (allCategories || []).forEach((c: any) => {
+        if (c.parent_id && targetCategoryIds.has(c.parent_id) && !targetCategoryIds.has(c.id)) {
+          targetCategoryIds.add(c.id);
+          added = true;
+        }
+      });
+    }
+
+    let { data: linkData, error: linkError }: any = await (supabase.from("product_categories") as any)
       .select("product_id")
-      .eq("category_id", categoryData.id);
+      .in("category_id", Array.from(targetCategoryIds));
+
+    // Fallback: if leaf category has no direct products, check parent category
+    if ((!linkData || linkData.length === 0) && categoryData.parent_id) {
+      const { data: parentLinks }: any = await (supabase.from("product_categories") as any)
+        .select("product_id")
+        .eq("category_id", categoryData.parent_id);
+      if (parentLinks && parentLinks.length > 0) {
+        linkData = parentLinks;
+      }
+    }
 
     if (linkError || !linkData || linkData.length === 0) return [];
 
-    const productIds = linkData.map((l: any) => l.product_id);
+    const productIds = Array.from(new Set(linkData.map((l: any) => l.product_id)));
 
-    let { data: dbProducts, error } = await supabase
-      .from("products")
+    let { data: dbProducts, error }: any = await (supabase.from("products") as any)
       .select(`
         *,
-        variants:product_variants(*),
-        product_attributes(
-          attributes(*)
-        )
+        variants:product_variants(*)
       `)
       .in("id", productIds)
       .order("created_at", { ascending: false });
 
-    if (error && error.code === "42P01") {
-      const fallback = await supabase
-        .from("products")
-        .select(`
-          *,
-          variants:product_variants(*),
-          product_tags(
-            tags(*)
-          )
-        `)
-        .in("id", productIds)
-        .order("created_at", { ascending: false });
-      dbProducts = fallback.data as any;
-      error = fallback.error;
+    if (error || !dbProducts || dbProducts.length === 0) {
+      if (error) console.error("fetchProductsByCategory dbProducts error:", error);
+      return [];
     }
 
-    if (error || !dbProducts || dbProducts.length === 0) return [];
-
-    const { data: catLinks } = await supabase
-      .from("product_categories")
+    const { data: catLinks }: any = await (supabase.from("product_categories") as any)
       .select(`product_id, categories(*)`)
-      .in("product_id", dbProducts.map((p: any) => p.id));
+      .in("product_id", productIds);
+
+    let attrLinks: any[] = [];
+    const { data: paData }: any = await (supabase.from("product_attributes") as any)
+      .select(`product_id, attributes(*)`)
+      .in("product_id", productIds);
+
+    if (paData && paData.length > 0) {
+      attrLinks = paData;
+    } else {
+      const { data: ptData }: any = await (supabase.from("product_tags") as any)
+        .select(`product_id, tags(*)`)
+        .in("product_id", productIds);
+      if (ptData) attrLinks = ptData;
+    }
 
     return dbProducts.map((p: any) => {
       const pCats = catLinks?.filter((link: any) => link.product_id === p.id) || [];
-      const attrs =
-        p.product_attributes?.map((pa: any) => pa.attributes).filter(Boolean) ||
-        p.product_tags?.map((pt: any) => pt.tags).filter(Boolean) ||
-        [];
+      const pAttrs =
+        attrLinks
+          ?.filter((link: any) => link.product_id === p.id)
+          .map((link: any) => link.attributes || link.tags)
+          .filter(Boolean) || [];
 
       return {
         ...p,
-        variants: sortVariants(p.variants),
-        attributes: attrs,
-        tags: attrs,
+        variants: sortVariants(p.variants?.filter((v: any) => !v.is_archived) || []),
+        attributes: pAttrs,
+        tags: pAttrs,
         categories: pCats.map((pc: any) => pc.categories).filter(Boolean),
       };
     }) as Product[];
   } catch (err) {
+    console.error("fetchProductsByCategory error:", err);
     return [];
   }
 }
@@ -273,6 +280,7 @@ export async function createFullProduct(payload: CreateProductPayload): Promise<
         short_description: payload.shortDescription || null,
         description: payload.description || null,
         images: payload.images || [],
+        documents: payload.documents || [],
         is_active: true,
       } as never)
       .select()
@@ -401,3 +409,93 @@ export async function uploadProductImage(formData: FormData): Promise<{
 }> {
   return uploadCategoryImage(formData);
 }
+
+/**
+ * Upload product technical document (PDF, Excel, Word, CSV) to Supabase Storage.
+ * Uses the dedicated `product-documents` bucket which supports all document MIME types.
+ */
+export async function uploadProductDocument(formData: FormData): Promise<{
+  publicUrl?: string;
+  name?: string;
+  fileSize?: string;
+  fileType?: "pdf" | "excel" | "sheet" | "doc" | "other";
+  error?: string;
+}> {
+  const supabase = createAdminClient();
+  const file = formData.get("file") as File;
+
+  if (!file || file.size === 0) {
+    return { error: "No document file provided." };
+  }
+
+  const rawName = file.name;
+  const fileExt = rawName.split(".").pop()?.toLowerCase() || "";
+
+  // Validate extension on server side as a second guard
+  const ALLOWED_EXTENSIONS = ["pdf", "xlsx", "xls", "csv", "doc", "docx"];
+  if (!ALLOWED_EXTENSIONS.includes(fileExt)) {
+    return {
+      error: `File type ".${fileExt}" is not supported. Allowed: PDF, Excel (.xlsx/.xls), CSV, Word (.doc/.docx).`,
+    };
+  }
+
+  let fileType: "pdf" | "excel" | "sheet" | "doc" | "other" = "other";
+  if (fileExt === "pdf") fileType = "pdf";
+  else if (fileExt === "xlsx" || fileExt === "xls") fileType = "excel";
+  else if (fileExt === "csv") fileType = "sheet";
+  else if (fileExt === "doc" || fileExt === "docx") fileType = "doc";
+
+  // Derive a safe content-type so Supabase never rejects it
+  const MIME_MAP: Record<string, string> = {
+    pdf: "application/pdf",
+    xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    xls: "application/vnd.ms-excel",
+    csv: "text/csv",
+    doc: "application/msword",
+    docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  };
+  const contentType = MIME_MAP[fileExt] ?? "application/octet-stream";
+
+  const cleanName = rawName.replace(/[^a-zA-Z0-9._-]/g, "_");
+  const fileName = `doc_${Date.now()}_${cleanName}`;
+  const filePath = `documents/${fileName}`;
+  const fileSize =
+    file.size >= 1024 * 1024
+      ? `${(file.size / (1024 * 1024)).toFixed(1)} MB`
+      : `${(file.size / 1024).toFixed(1)} KB`;
+
+  try {
+    const arrayBuffer = await file.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+
+    const { error: uploadError } = await supabase.storage
+      .from("product-documents")
+      .upload(filePath, buffer, {
+        contentType,
+        upsert: true,
+      });
+
+    if (uploadError) {
+      console.error("uploadProductDocument storage error:", uploadError);
+      return {
+        error: `Upload failed for "${rawName}": ${uploadError.message}`,
+      };
+    }
+
+    const { data: publicUrlData } = supabase.storage
+      .from("product-documents")
+      .getPublicUrl(filePath);
+
+    return {
+      publicUrl: publicUrlData.publicUrl,
+      name: rawName,
+      fileSize,
+      fileType,
+    };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : "Unexpected error during document upload.";
+    console.error("uploadProductDocument catch:", err);
+    return { error: `Failed to upload "${rawName}": ${msg}` };
+  }
+}
+

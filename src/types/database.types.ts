@@ -5,9 +5,10 @@ import {
   ApprovalStatus,
   UserType,
   CustomerChannel,
+  QuoteStatus,
 } from "@/lib/constants";
 
-export type { UserRole, UserTitle, OrderStatus, ApprovalStatus, UserType, CustomerChannel };
+export type { UserRole, UserTitle, OrderStatus, ApprovalStatus, UserType, CustomerChannel, QuoteStatus };
 
 export interface Profile {
   id: string;
@@ -58,6 +59,44 @@ export interface CustomerOrderDetails {
   pincode: string;
 }
 
+export type ContactSubmissionStatus = "unread" | "read" | "replied" | "archived";
+
+export interface ContactSubmission {
+  id: string;
+  full_name: string;
+  email: string;
+  mobile?: string | null;
+  message: string;
+  status: ContactSubmissionStatus;
+  admin_notes?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ContactSubmissionInsert {
+  id?: string;
+  full_name: string;
+  email: string;
+  mobile?: string | null;
+  message: string;
+  status?: ContactSubmissionStatus;
+  admin_notes?: string | null;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface ContactSubmissionUpdate {
+  id?: string;
+  full_name?: string;
+  email?: string;
+  mobile?: string | null;
+  message?: string;
+  status?: ContactSubmissionStatus;
+  admin_notes?: string | null;
+  created_at?: string;
+  updated_at?: string;
+}
+
 export type RFQStatus = "pending" | "reviewing" | "quoted" | "accepted" | "declined";
 
 export interface RFQ {
@@ -78,6 +117,128 @@ export interface RFQ {
   admin_notes?: string | null;
   created_at: string;
   updated_at: string;
+}
+
+export interface RFQInsert {
+  id?: string;
+  rfq_number?: string;
+  user_id: string;
+  company_name?: string | null;
+  contact_person?: string | null;
+  email?: string | null;
+  mobile?: string | null;
+  item_name: string;
+  quantity: string;
+  required_by_date?: string | null;
+  specifications?: string | null;
+  drawing_url?: string | null;
+  status?: RFQStatus;
+  quoted_amount?: number | null;
+  admin_notes?: string | null;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface RFQUpdate {
+  id?: string;
+  rfq_number?: string;
+  user_id?: string;
+  company_name?: string | null;
+  contact_person?: string | null;
+  email?: string | null;
+  mobile?: string | null;
+  item_name?: string;
+  quantity?: string;
+  required_by_date?: string | null;
+  specifications?: string | null;
+  drawing_url?: string | null;
+  status?: RFQStatus;
+  quoted_amount?: number | null;
+  admin_notes?: string | null;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface QuoteItem {
+  id: string;
+  title: string;
+  sku: string;
+  quantity: number;
+  unit_price: number;
+  total_price: number;
+  specifications?: Record<string, any>;
+}
+
+export interface CommercialQuote {
+  id: string;
+  quote_number: string;
+  rfq_id?: string | null;
+  company_name: string;
+  contact_person: string;
+  email: string;
+  mobile: string;
+  gstin?: string | null;
+  address?: string | null;
+  items: QuoteItem[];
+  subtotal: number;
+  tax_rate: number;
+  tax_amount: number;
+  total_amount: number;
+  status: QuoteStatus;
+  valid_until: string;
+  payment_terms?: string | null;
+  delivery_terms?: string | null;
+  admin_notes?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CommercialQuoteInsert {
+  id?: string;
+  quote_number?: string;
+  rfq_id?: string | null;
+  company_name: string;
+  contact_person: string;
+  email: string;
+  mobile: string;
+  gstin?: string | null;
+  address?: string | null;
+  items: QuoteItem[];
+  subtotal: number;
+  tax_rate?: number;
+  tax_amount: number;
+  total_amount: number;
+  status?: QuoteStatus;
+  valid_until: string;
+  payment_terms?: string | null;
+  delivery_terms?: string | null;
+  admin_notes?: string | null;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface CommercialQuoteUpdate {
+  id?: string;
+  quote_number?: string;
+  rfq_id?: string | null;
+  company_name?: string;
+  contact_person?: string;
+  email?: string;
+  mobile?: string;
+  gstin?: string | null;
+  address?: string | null;
+  items?: QuoteItem[];
+  subtotal?: number;
+  tax_rate?: number;
+  tax_amount?: number;
+  total_amount?: number;
+  status?: QuoteStatus;
+  valid_until?: string;
+  payment_terms?: string | null;
+  delivery_terms?: string | null;
+  admin_notes?: string | null;
+  created_at?: string;
+  updated_at?: string;
 }
 
 export interface Order {
@@ -128,10 +289,23 @@ export interface ProductCategory {
   created_at?: string;
 }
 
+export interface ProductDocument {
+  id?: string;
+  name: string;
+  url: string;
+  file_type: "pdf" | "excel" | "sheet" | "doc" | "other";
+  file_size?: string;
+  attribute_id?: string | null;
+  attribute_name?: string | null;
+}
+
 export interface ProductImage {
   id?: string;
   url: string;
   title: string;
+  attribute_id?: string | null;
+  attribute_name?: string | null;
+  is_primary?: boolean;
 }
 
 export interface ProductVariant {
@@ -204,6 +378,7 @@ export interface Product {
   short_description?: string | null;
   description?: string | null;
   images: ProductImage[];
+  documents?: ProductDocument[];
   is_active: boolean;
   created_at?: string;
   updated_at?: string;
@@ -274,6 +449,24 @@ export interface Database {
         Row: ProductAttribute;
         Insert: ProductAttribute;
         Update: Partial<ProductAttribute>;
+        Relationships: [];
+      };
+      contact_submissions: {
+        Row: ContactSubmission;
+        Insert: ContactSubmissionInsert;
+        Update: ContactSubmissionUpdate;
+        Relationships: [];
+      };
+      rfqs: {
+        Row: RFQ;
+        Insert: RFQInsert;
+        Update: RFQUpdate;
+        Relationships: [];
+      };
+      quotes: {
+        Row: CommercialQuote;
+        Insert: CommercialQuoteInsert;
+        Update: CommercialQuoteUpdate;
         Relationships: [];
       };
     };

@@ -671,6 +671,9 @@ export function ProductManagementClient({
             refreshProducts();
           }}
           product={editingProduct}
+          treeNodes={treeNodes}
+          availableAttributes={activeAttributes}
+          availableTags={activeAttributes}
         />
       )}
 

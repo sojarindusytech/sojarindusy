@@ -16,6 +16,8 @@ import {
   Home,
   Package,
   Info,
+  HelpCircle,
+  PhoneCall,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { CategoryNode } from "@/types/database.types";
@@ -173,6 +175,30 @@ export function Navbar({ categories = [], user }: NavbarProps) {
             >
               About Us
             </Link>
+
+            <Link
+              href="/faq"
+              className={cn(
+                "rounded-md px-3.5 py-1.5 text-sm font-bold transition-colors",
+                pathname === "/faq"
+                  ? "bg-blue-50 text-[#024AE5]"
+                  : "text-slate-700 hover:bg-slate-100 hover:text-slate-900"
+              )}
+            >
+              FAQ
+            </Link>
+
+            <Link
+              href="/contact"
+              className={cn(
+                "rounded-md px-3.5 py-1.5 text-sm font-bold transition-colors",
+                pathname === "/contact"
+                  ? "bg-blue-50 text-[#024AE5]"
+                  : "text-slate-700 hover:bg-slate-100 hover:text-slate-900"
+              )}
+            >
+              Contact Us
+            </Link>
           </nav>
 
           {/* Action Buttons: Login, Sign Up, Blue Cart & Mobile Hamburger */}
@@ -184,13 +210,26 @@ export function Navbar({ categories = [], user }: NavbarProps) {
                   className="gap-2 text-xs sm:text-sm font-bold rounded-full border border-slate-300 hover:border-slate-400 bg-white px-3 sm:px-4 py-1.5 h-auto shadow-none text-slate-800"
                 >
                   <User className="h-4 w-4 text-[#024AE5]" />
-                  <span className="max-w-[100px] sm:max-w-[140px] truncate">{user.email?.split("@")[0]}</span>
+                  <span className="max-w-[100px] sm:max-w-[140px] truncate">
+                    {user.user_metadata?.full_name ||
+                      user.user_metadata?.name ||
+                      user.email?.split("@")[0]}
+                  </span>
                 </Button>
 
                 <div className="absolute right-0 top-full hidden pt-2 group-hover:block z-50">
                   <div className="w-48 rounded-md border border-slate-200 bg-white shadow-lg py-1 flex flex-col">
-                    <div className="px-4 py-2 text-xs text-slate-500 border-b border-slate-100 truncate">
-                      {user.email}
+                    <div className="px-4 py-2 text-xs text-slate-500 border-b border-slate-100">
+                      {user.user_metadata?.full_name || user.user_metadata?.name ? (
+                        <>
+                          <span className="block font-semibold text-slate-700 truncate">
+                            {user.user_metadata?.full_name || user.user_metadata?.name}
+                          </span>
+                          <span className="truncate">{user.email}</span>
+                        </>
+                      ) : (
+                        <span className="truncate">{user.email}</span>
+                      )}
                     </div>
                     {user?.user_metadata?.role === "admin" ||
                     user?.user_metadata?.role === "platform_owner" ||
@@ -397,6 +436,36 @@ export function Navbar({ categories = [], user }: NavbarProps) {
                   <Info className="h-4 w-4 text-slate-500" />
                   <span>About Us</span>
                 </Link>
+
+                <Link
+                  href="/faq"
+                  prefetch={false}
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className={cn(
+                    "flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-sm font-bold transition-colors",
+                    pathname === "/faq"
+                      ? "bg-blue-50 text-[#024AE5]"
+                      : "text-slate-700 hover:bg-slate-50 hover:text-slate-900"
+                  )}
+                >
+                  <HelpCircle className="h-4 w-4 text-slate-500" />
+                  <span>FAQ</span>
+                </Link>
+
+                <Link
+                  href="/contact"
+                  prefetch={false}
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className={cn(
+                    "flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-sm font-bold transition-colors",
+                    pathname === "/contact"
+                      ? "bg-blue-50 text-[#024AE5]"
+                      : "text-slate-700 hover:bg-slate-50 hover:text-slate-900"
+                  )}
+                >
+                  <PhoneCall className="h-4 w-4 text-slate-500" />
+                  <span>Contact Us</span>
+                </Link>
               </nav>
 
               <div className="border-t border-slate-100 pt-4" />
@@ -422,9 +491,18 @@ export function Navbar({ categories = [], user }: NavbarProps) {
               {/* User Profile or Login/Sign-up */}
               {user ? (
                 <div className="space-y-2 pt-2 border-t border-slate-100">
-                  <div className="px-3 py-2 bg-slate-50 rounded-lg text-xs text-slate-600 font-medium truncate">
-                    Signed in as <span className="font-bold text-slate-900">{user.email}</span>
-                  </div>
+                    <div className="px-3 py-2 bg-slate-50 rounded-lg text-xs text-slate-600 font-medium">
+                      {user.user_metadata?.full_name || user.user_metadata?.name ? (
+                        <>
+                          <span className="block font-bold text-slate-900 truncate">
+                            {user.user_metadata?.full_name || user.user_metadata?.name}
+                          </span>
+                          <span className="truncate text-slate-500">{user.email}</span>
+                        </>
+                      ) : (
+                        <>Signed in as <span className="font-bold text-slate-900 truncate">{user.email}</span></>
+                      )}
+                    </div>
                   {user?.user_metadata?.role === "admin" ||
                   user?.user_metadata?.role === "platform_owner" ||
                   user?.email === "admin@sojarindusy.com" ? (

@@ -2,7 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { RFQ, RFQStatus, Profile } from "@/types/database.types";
+import { RFQ, RFQStatus, RFQInsert, RFQUpdate, Profile } from "@/types/database.types";
 import { revalidatePath } from "next/cache";
 
 export async function fetchCustomerRfqsList(): Promise<RFQ[]> {
@@ -73,7 +73,7 @@ export async function submitCustomerRfq(payload: {
 
     const rfqNumber = `RFQ-${new Date().getFullYear().toString().slice(-2)}${(new Date().getMonth() + 1).toString().padStart(2, "0")}-${Math.floor(1000 + Math.random() * 9000)}`;
 
-    const newRfqData = {
+    const newRfqData: RFQInsert = {
       rfq_number: rfqNumber,
       user_id: user.id,
       company_name: profileData?.company_name || user.user_metadata?.company_name || "Enterprise Client",
@@ -85,7 +85,7 @@ export async function submitCustomerRfq(payload: {
       required_by_date: payload.required_by_date || null,
       specifications: payload.specifications?.trim() || null,
       drawing_url: payload.drawing_url?.trim() || null,
-      status: "pending" as RFQStatus,
+      status: "pending",
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     };
@@ -101,6 +101,7 @@ export async function submitCustomerRfq(payload: {
     }
 
     revalidatePath("/dashboard/rfqs");
+    revalidatePath("/admin/rfqs");
     revalidatePath("/admin/quotes");
 
     return { success: true, rfq: data as RFQ };
@@ -140,7 +141,7 @@ export async function updateRfqQuotation(
   try {
     const adminDb = createAdminClient();
 
-    const payload = {
+    const payload: RFQUpdate = {
       status: updates.status,
       quoted_amount: updates.quoted_amount !== undefined ? updates.quoted_amount : undefined,
       admin_notes: updates.admin_notes !== undefined ? updates.admin_notes : undefined,
@@ -156,6 +157,7 @@ export async function updateRfqQuotation(
       return { success: false, error: error.message };
     }
 
+    revalidatePath("/admin/rfqs");
     revalidatePath("/admin/quotes");
     revalidatePath("/dashboard/rfqs");
 

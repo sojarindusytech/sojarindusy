@@ -2,6 +2,9 @@ import Link from "next/link";
 import { HeroSlider } from "@/components/storefront/HeroSlider";
 import { ExploreCategories } from "@/components/storefront/ExploreCategories";
 import { IndustriesWeServe } from "@/components/storefront/IndustriesWeServe";
+import { EngineeringSolutions } from "@/components/storefront/EngineeringSolutions";
+import { RateUsBanner } from "@/components/storefront/RateUsBanner";
+import { DownloadBrochureSection } from "@/components/storefront/DownloadBrochureSection";
 
 export default function HomePage() {
   return (
@@ -48,6 +51,15 @@ export default function HomePage() {
 
       {/* Industries We Serve Section */}
       <IndustriesWeServe />
+
+      {/* Engineering Durable Solutions Section */}
+      <EngineeringSolutions />
+
+      {/* Rate Us / Google Review Banner Section */}
+      <RateUsBanner />
+
+      {/* Download Brochure Section */}
+      <DownloadBrochureSection />
     </div>
   );
 }

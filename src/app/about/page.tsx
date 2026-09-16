@@ -1,120 +1,134 @@
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ShieldCheck, Factory, Award, Target, ArrowRight } from "lucide-react";
-import Link from "next/link";
+import React from "react";
+import Image from "next/image";
 import type { Metadata } from "next";
+import { CheckCircle2, Target, Handshake } from "lucide-react";
 
 export const metadata: Metadata = {
   title: "About Us | Sojar Indusy",
-  description: "Learn about Sojar Indusy - Industrial manufacturing leaders in precision engineering and high-performance components.",
+  description:
+    "Learn about Sojar Indusy - Industrial manufacturing leaders in precision engineering and high-performance tooling solutions.",
 };
 
 export default function AboutPage() {
-  const values = [
+  const cards = [
     {
-      icon: <Award className="h-6 w-6 text-[#024AE5]" />,
-      title: "Precision Engineering",
-      desc: "Machining and forging components with strict micron-level dimensional controls and metallurgical integrity.",
+      id: "facilities",
+      title: "Facilities And Technology",
+      subtitle: "State-of-the-Art Facilities for Manufacturing, Research, and Testing.",
+      desc: "Our commitment to excellence is reflected in our state-of-the-art facilities. Equipped with advanced machinery, precision tools, and cutting-edge technology, our manufacturing, research, and testing units are designed to produce high-performance tooling solutions that meet the exacting demands of modern engineering and manufacturing industries. commitment to excellence drives our dedicated team of professionals to consistently deliver value and innovation to our clients.",
+      icon: <CheckCircle2 className="h-6 w-6 text-[#00A396] shrink-0 stroke-[2.2]" />,
     },
     {
-      icon: <ShieldCheck className="h-6 w-6 text-[#3C8B4F]" />,
-      title: "Certified Compliance",
-      desc: "Adherence to international manufacturing standards including ASTM, DIN, ISO, and ASME specifications.",
+      id: "mission",
+      title: "Our Mission And Value",
+      subtitle: "Driven by Excellence. Engineering Solutions Beyond Boundaries.",
+      desc: "At the core of our operations lies our mission to deliver unparalleled tooling solutions that meet the dynamic demands of modern engineering. Guided by our core values-integrity, innovation, and an unwavering commitment to customer satisfaction-we strive to build lasting trust and create meaningful value in every partnership.",
+      icon: <Target className="h-6 w-6 text-[#00A396] shrink-0 stroke-[2.2]" />,
     },
     {
-      icon: <Factory className="h-6 w-6 text-[#024AE5]" />,
-      title: "Modern Manufacturing",
-      desc: "State-of-the-art CNC machine centers, automated thread rolling, and specialized heat treatment facilities.",
+      id: "quality",
+      title: "Quality & Environmental Responsibility",
+      subtitle: "Excellence in Every Detail - Our Commitment to Quality",
+      desc: "We are committed to delivering precision, durability, and excellence in every tooling solution. Using certified materials and rigorous testing, we ensure top-quality performance while following eco-conscious practices to minimize our environmental impact.",
+      icon: (
+        <svg
+          viewBox="0 0 24 24"
+          className="h-6 w-6 text-[#00A396] shrink-0 fill-none stroke-current stroke-[2.2] stroke-linecap-round stroke-linejoin-round"
+        >
+          <path d="m12 3-1.9 2.1-2.8-.4-1 2.6-2.6 1 .4 2.8L2 13l2.1 1.9-.4 2.8 2.6 1 1 2.6 2.8-.4L12 23l1.9-2.1 2.8.4 1-2.6 2.6-1-.4-2.8L22 13l-2.1-1.9.4-2.8-2.6-1-1-2.6-2.8.4Z" />
+        </svg>
+      ),
     },
     {
-      icon: <Target className="h-6 w-6 text-[#3C8B4F]" />,
-      title: "On-Time Dispatch",
-      desc: "Dedicated supply chain logistics ensuring predictable deliveries to project sites across India.",
+      id: "trust",
+      title: "Trust In Us",
+      subtitle: "Building the Future, Together in Excellence",
+      desc: "Our clients trust us for precision-engineered tooling solutions. With a focus on quality and innovation, we deliver reliable results that inspire confidence and long-term collaboration.",
+      icon: <Handshake className="h-6 w-6 text-[#00A396] shrink-0 stroke-[2.2]" />,
     },
   ];
 
   return (
-    <div className="min-h-screen bg-white py-12">
-      <div className="container mx-auto max-w-5xl px-4 sm:px-6 space-y-12">
-        {/* Hero */}
-        <div className="text-center space-y-4 max-w-3xl mx-auto">
-          <Badge variant="blue" className="text-xs">About Sojar Indusy</Badge>
-          <h1 className="text-4xl font-extrabold tracking-tight text-slate-900">
-            Engineering the Backbone of Modern Industry
-          </h1>
-          <p className="text-base text-slate-600 leading-relaxed">
-            Sojar Indusy is an industrial manufacturing and supply chain pioneer dedicated to delivering high-performance fasteners, industrial valves, and engineered metal components to infrastructure and manufacturing powerhouses.
-          </p>
-        </div>
-
-        {/* Story Section */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center pt-4">
-          <div className="space-y-4">
-            <h2 className="text-2xl font-bold text-slate-900">
-              Our Vision & Capabilities
-            </h2>
-            <p className="text-sm text-slate-600 leading-relaxed">
-              We bridge the gap between heavy industrial manufacturing and modern digital commerce. Through our integrated B2B digital portal, corporate clients and procurement managers can track orders in real-time, view material test certificates, and configure bespoke manufacturing batches with complete transparency.
+    <div className="min-h-screen bg-white py-12 sm:py-16 lg:py-20">
+      <div className="container mx-auto max-w-[1280px] px-4 sm:px-6 lg:px-8 space-y-12 lg:space-y-16">
+        
+        {/* Top Story Section */}
+        <div className="space-y-8 lg:space-y-10">
+          <div className="space-y-3">
+            <p className="font-skoda text-sm sm:text-base font-bold text-slate-900 tracking-wide">
+              We are SOJAR INDUSY.
             </p>
-            <p className="text-sm text-slate-600 leading-relaxed">
-              Our infrastructure is engineered to serve automotive tier-1s, power generation plants, petrochemical refineries, and heavy equipment manufacturers.
-            </p>
+            <h1 className="font-skoda text-3xl sm:text-4xl lg:text-[2.6rem] font-extrabold text-slate-900 leading-[1.2] tracking-tight max-w-4xl">
+              Where Precision is crafted and Excellence is defined
+            </h1>
           </div>
 
-          <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-none space-y-4">
-            <h3 className="text-lg font-semibold text-slate-900">
-              Operational Standards
-            </h3>
-            <ul className="space-y-3 text-xs text-slate-600">
-              <li className="flex items-center gap-2">
-                <div className="h-2 w-2 rounded-full bg-[#024AE5]" />
-                <span><strong>ISO 9001:2015</strong> Certified Quality Management System</span>
-              </li>
-              <li className="flex items-center gap-2">
-                <div className="h-2 w-2 rounded-full bg-[#3C8B4F]" />
-                <span><strong>EN 10204 3.1</strong> Traceable Inspection Certificates</span>
-              </li>
-              <li className="flex items-center gap-2">
-                <div className="h-2 w-2 rounded-full bg-[#024AE5]" />
-                <span><strong>Hydrostatic & Spectro</strong> Quality Testing In-House</span>
-              </li>
-              <li className="flex items-center gap-2">
-                <div className="h-2 w-2 rounded-full bg-[#3C8B4F]" />
-                <span><strong>GSTIN Verified</strong> Corporate Billing & E-Way Bills</span>
-              </li>
-            </ul>
+          {/* Grid: 2 Text Paragraphs (Left) + Building Photo (Right) */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-start">
+            {/* Left 2 paragraphs */}
+            <div className="lg:col-span-7 space-y-6 text-slate-700 text-[0.95rem] sm:text-base leading-relaxed font-subheading">
+              <p>
+                SOJAR INDUSY stands at the forefront of precision engineering. We specialize in the design and development of high-performance tooling solutions essential for modern engineering and manufacturing. From precision carbide tools to custom wear parts; our products are crafted to deliver durability, accuracy, and innovation—empowering industries to achieve higher efficiency and reliability.
+              </p>
+              <p>
+                With over a decade of expertise in engineering design and development, provides premium-quality tooling solutions for Sojar Indusy industries such as die & mould making, medical devices, automotive, aerospace, oil & gas, power generation, and general engineering. Specializing in solid carbide tooling, the company combines reliability and innovation to deliver performance that meets the evolving demands of modern manufacturing.
+              </p>
+            </div>
+
+            {/* Right Building Image */}
+            <div className="lg:col-span-5">
+              <div className="relative w-full aspect-[16/10] sm:aspect-[16/10] rounded-xl overflow-hidden shadow-md border border-slate-200/80">
+                <Image
+                  src="/assets/images/about-us.png"
+                  alt="Sojar Indusy Manufacturing Facility"
+                  fill
+                  className="object-cover object-center"
+                  sizes="(max-width: 1024px) 100vw, 500px"
+                  priority
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Full-width concluding paragraphs */}
+          <div className="space-y-4 text-slate-700 text-[0.95rem] sm:text-base leading-relaxed font-subheading pt-2">
+            <p>
+              Our product portfolio includes premium-quality solid carbide end mills, ball nose cutters, drills, inserts, oscillating blades, and complete metalworking solutions, tailored to address complex industrial challenges. In addition, customized tungsten carbide wear parts are manufactured for precise, reliable industrial performance.
+            </p>
+            <p className="font-medium text-slate-900">
+              Certified by MSME UDYAM and ISO 9001:2015, we ensure quality, reliability, and long-term partnerships.
+            </p>
           </div>
         </div>
 
-        {/* Pillars Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 pt-6">
-          {values.map((v, idx) => (
-            <Card key={idx} className="border-slate-200 bg-white">
-              <CardHeader className="p-6 pb-2">
-                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-slate-50 mb-2 border border-slate-100">
-                  {v.icon}
-                </div>
-                <CardTitle className="text-lg font-semibold text-slate-900">{v.title}</CardTitle>
-              </CardHeader>
-              <CardContent className="p-6 pt-0">
-                <p className="text-xs text-slate-500 leading-relaxed">
-                  {v.desc}
-                </p>
-              </CardContent>
-            </Card>
+        {/* 4 Cards Section (2x2 Grid) */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-8 pt-4">
+          {cards.map((card) => (
+            <div
+              key={card.id}
+              className="rounded-2xl border border-slate-200/70 bg-[#FBFDFF] p-6 sm:p-8 space-y-3.5 shadow-xs hover:shadow-md transition-shadow duration-200"
+            >
+              {/* Card Header with Icon & Title */}
+              <div className="flex items-center gap-3">
+                {card.icon}
+                <h3 className="font-skoda text-lg sm:text-xl font-bold text-slate-900 tracking-tight">
+                  {card.title}
+                </h3>
+              </div>
+
+              {/* Subheading in Brand Blue */}
+              <p className="text-[#024AE5] font-semibold text-sm sm:text-[0.95rem] leading-snug font-skoda">
+                {card.subtitle}
+              </p>
+
+              {/* Card Body */}
+              <p className="text-slate-600 text-xs sm:text-[0.875rem] leading-relaxed font-subheading">
+                {card.desc}
+              </p>
+            </div>
           ))}
         </div>
 
-        {/* CTA */}
-        <div className="text-center pt-8 border-t border-slate-200">
-          <Link href="/signup">
-            <Button size="lg" variant="primary" className="gap-2 shadow-md">
-              <span>Join as a Corporate Partner</span>
-              <ArrowRight className="h-4 w-4" />
-            </Button>
-          </Link>
-        </div>
       </div>
     </div>
   );
