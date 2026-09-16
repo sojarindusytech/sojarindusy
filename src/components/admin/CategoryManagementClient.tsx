@@ -611,7 +611,7 @@ export function CategoryManagementClient({
                         <p className="text-xs font-medium text-slate-700">
                           Click to upload image <span className="text-slate-400 font-normal">(or drag & drop)</span>
                         </p>
-                        <p className="text-[10px] text-slate-400 mt-0.5">PNG, JPG, WebP or SVG up to 5MB</p>
+                        <p className="text-[10px] text-slate-400 mt-0.5">1:1 square image recommended (PNG, JPG, WebP or SVG up to 5MB)</p>
                       </>
                     )}
                   </div>

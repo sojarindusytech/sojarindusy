@@ -8,6 +8,7 @@ import { fetchCategoryBySlug, fetchCategoriesTree } from "@/actions/category";
 import { fetchProductsByCategory } from "@/actions/product";
 import { notFound } from "next/navigation";
 import Image from "next/image";
+import { ProductCard } from "@/components/storefront/ProductCard";
 
 export default async function CategoryPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
@@ -21,7 +22,7 @@ export default async function CategoryPage({ params }: { params: Promise<{ slug:
     .filter(c => c.parent_id === category.id && c.is_active)
     .sort((a, b) => a.display_order - b.display_order);
 
-  const products = subCategories.length === 0 ? await fetchProductsByCategory(slug) : [];
+  const products = await fetchProductsByCategory(slug);
 
   // Build breadcrumb
   let breadcrumb: typeof category[] = [];
@@ -30,6 +31,8 @@ export default async function CategoryPage({ params }: { params: Promise<{ slug:
     breadcrumb.unshift(current);
     current = flatCategories.find(c => c.id === current?.parent_id);
   }
+
+  const fullCategoryPath = breadcrumb.map(c => c.slug).join('/');
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -86,13 +89,12 @@ export default async function CategoryPage({ params }: { params: Promise<{ slug:
           <div>
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
               {subCategories.map((sub) => {
-                const fullCategoryPath = breadcrumb.map(c => c.slug).join('/');
                 const subCategoryHref = fullCategoryPath ? `/categories/${fullCategoryPath}/${sub.slug}` : `/categories/${sub.slug}`;
                 return (
                   <Link key={sub.id} href={subCategoryHref} className="block h-full">
                     <Card className="h-full transition-all hover:border-[#024AE5]/40 bg-white shadow-sm hover:shadow-md cursor-pointer flex flex-col border border-slate-200 group overflow-hidden">
-                      {/* Image Section */}
-                      <div className="w-full aspect-video bg-slate-50 relative border-b border-slate-100 flex items-center justify-center overflow-hidden">
+                      {/* Image Section (1:1 Square) */}
+                      <div className="w-full aspect-square bg-slate-50 relative border-b border-slate-100 flex items-center justify-center overflow-hidden">
                         {sub.image_url ? (
                           <Image 
                             src={sub.image_url} 
@@ -123,102 +125,35 @@ export default async function CategoryPage({ params }: { params: Promise<{ slug:
           </div>
         )}
 
-        {/* Products Grid (Only shown if no sub-categories exist) */}
-        {subCategories.length === 0 && (
-          <div>
-
         {/* Products Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {products.map((item) => {
-            const firstVariant = item.variants && item.variants.length > 0 ? item.variants[0] : null;
-            
-            const specs = firstVariant?.specifications || {};
-            const specKeys = Object.keys(specs).slice(0, 2);
+        {(products.length > 0 || subCategories.length === 0) && (
+          <div className="space-y-6 pt-2">
+            {products.length > 0 && (
+              <div className="flex items-center justify-between border-b border-slate-200 pb-3">
+                <div className="flex items-center gap-2">
+                  <Package className="h-5 w-5 text-[#024AE5]" />
+                  <h2 className="text-xl font-bold text-slate-900">
+                    Products {subCategories.length > 0 ? `in ${category.name}` : ""}
+                  </h2>
+                </div>
+                <Badge variant="outline" className="text-xs bg-blue-50 text-[#024AE5] border-blue-200 font-semibold px-2.5 py-1">
+                  {products.length} {products.length === 1 ? "Product Family" : "Product Families"}
+                </Badge>
+              </div>
+            )}
 
-            // Parse description if it is stored as JSON
-            let displayDescription = item.short_description || "";
-            if (displayDescription.startsWith('{')) {
-              try {
-                const parsed = JSON.parse(displayDescription);
-                const values = Object.values(parsed);
-                displayDescription = (values.find(v => typeof v === 'string' && v.trim() !== '') as string) || "";
-              } catch (e) {}
-            }
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+              {products.map((item) => (
+                <ProductCard key={item.id} product={item} categoryPath={fullCategoryPath} />
+              ))}
 
-            // Product Image
-            const imageUrl = item.images && item.images.length > 0 ? item.images[0].url : null;
-            const fullCategoryPath = breadcrumb.map(c => c.slug).join('/');
-            const productHref = breadcrumb.length > 0 ? `/products/${fullCategoryPath}/${item.slug}` : `/products/${item.slug}`;
-
-            return (
-              <Link key={item.id} href={productHref} className="block h-full">
-                <Card className="h-full flex flex-col justify-between transition-all hover:border-[#024AE5]/40 bg-white shadow-sm hover:shadow-md cursor-pointer group overflow-hidden">
-                  
-                  {/* Image Section */}
-                  <div className="w-full aspect-video bg-slate-50 relative border-b border-slate-100 flex items-center justify-center overflow-hidden">
-                    {imageUrl ? (
-                      <Image 
-                        src={imageUrl} 
-                        alt={item.title} 
-                        fill 
-                        className="object-cover group-hover:scale-105 transition-transform duration-500"
-                      />
-                    ) : (
-                      <div className="flex flex-col items-center justify-center text-slate-400 group-hover:text-[#024AE5] transition-colors">
-                        <Package className="h-10 w-10 mb-2 opacity-50" />
-                        <span className="text-[10px] uppercase font-semibold tracking-wider">No Image</span>
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="flex flex-col justify-between flex-1 p-4">
-                    <CardHeader className="p-0 pb-3">
-
-                      <CardTitle className="text-sm font-bold text-slate-900 line-clamp-2 leading-snug group-hover:text-[#024AE5] transition-colors" title={item.title}>
-                        {item.title}
-                      </CardTitle>
-                    </CardHeader>
-
-                    <CardContent className="p-0 space-y-2.5 text-xs">
-                      {displayDescription && (
-                        <p className="text-slate-500 line-clamp-2 text-[11px] mb-2 leading-relaxed">
-                          {displayDescription}
-                        </p>
-                      )}
-                    <div className="rounded-lg bg-slate-50 p-3 space-y-1.5 border border-slate-100">
-                      {specKeys.map(key => (
-                        <div key={key} className="flex justify-between">
-                          <span className="text-slate-500 capitalize">{key}:</span>
-                          <span className="font-semibold text-slate-800 line-clamp-1 text-right ml-2">{String(specs[key])}</span>
-                        </div>
-                      ))}
-                      {firstVariant && (
-                        <div className="flex justify-between">
-                          <span className="text-slate-500">Variants:</span>
-                          <span className="font-semibold text-[#024AE5]">{item.variants?.length || 0} Options</span>
-                        </div>
-                      )}
-                    </div>
-                  </CardContent>
-
-                  <CardFooter className="pt-0 border-t border-slate-100 py-3 flex items-center justify-end mt-3">
-                    <div className="inline-flex items-center justify-center rounded-md text-xs h-8 px-3 font-medium border border-input bg-background hover:bg-[#024AE5] hover:text-white transition-colors">
-                      View Details
-                    </div>
-                  </CardFooter>
-                  </div>
-                </Card>
-              </Link>
-            );
-          })}
-
-          {products.length === 0 && (
-            <div className="col-span-full flex flex-col items-center justify-center py-20 text-slate-500">
-              <p>No products found for this category.</p>
+              {products.length === 0 && (
+                <div className="col-span-full flex flex-col items-center justify-center py-20 text-slate-500">
+                  <p>No products found for this category.</p>
+                </div>
+              )}
             </div>
-          )}
-        </div>
-        </div>
+          </div>
         )}
       </div>
     </div>

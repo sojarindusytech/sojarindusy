@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import { fetchProductBySlug } from "@/actions/product";
 import { fetchCategoriesTree, fetchCategoryBySlug } from "@/actions/category";
 import { fetchProductsByCategory } from "@/actions/product";
@@ -58,7 +60,7 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
       .filter(c => c.parent_id === category.id && c.is_active)
       .sort((a, b) => a.display_order - b.display_order);
 
-    const products = subCategories.length === 0 ? await fetchProductsByCategory(slug) : [];
+    const products = await fetchProductsByCategory(slug);
 
     // Build breadcrumb
     let breadcrumb: typeof category[] = [];

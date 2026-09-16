@@ -196,6 +196,63 @@ export const RFQ_STATUS_CONFIG: Record<
   },
 };
 
+// Commercial Quote Statuses
+export const QUOTE_STATUSES = {
+  DRAFT: "draft",
+  SENT: "sent",
+  ACCEPTED: "accepted",
+  REJECTED: "rejected",
+  EXPIRED: "expired",
+} as const;
+export type QuoteStatus = (typeof QUOTE_STATUSES)[keyof typeof QUOTE_STATUSES];
+
+export const QUOTE_STATUS_CONFIG: Record<
+  QuoteStatus,
+  {
+    label: string;
+    badgeBg: string;
+    badgeText: string;
+    border: string;
+    badgeVariant: "secondary" | "blue" | "green" | "destructive" | "warning";
+  }
+> = {
+  draft: {
+    label: "Draft",
+    badgeBg: "bg-slate-100",
+    badgeText: "text-slate-700",
+    border: "border-slate-200",
+    badgeVariant: "secondary",
+  },
+  sent: {
+    label: "Sent to Client",
+    badgeBg: "bg-blue-50",
+    badgeText: "text-[#024AE5]",
+    border: "border-blue-200",
+    badgeVariant: "blue",
+  },
+  accepted: {
+    label: "Accepted / PO Confirmed",
+    badgeBg: "bg-emerald-50",
+    badgeText: "text-emerald-700",
+    border: "border-emerald-200",
+    badgeVariant: "green",
+  },
+  rejected: {
+    label: "Declined / Rejected",
+    badgeBg: "bg-rose-50",
+    badgeText: "text-rose-700",
+    border: "border-rose-200",
+    badgeVariant: "destructive",
+  },
+  expired: {
+    label: "Expired (>30 Days)",
+    badgeBg: "bg-amber-50",
+    badgeText: "text-amber-700",
+    border: "border-amber-200",
+    badgeVariant: "warning",
+  },
+};
+
 // 5. Order Statuses
 export const ORDER_STATUSES = {
   PENDING: "pending",

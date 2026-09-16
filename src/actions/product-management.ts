@@ -2,6 +2,145 @@
 
 import { createAdminClient } from "@/lib/supabase/admin";
 import { revalidatePath } from "next/cache";
+import { ProductImage, ProductDocument } from "@/types/database.types";
+import { recordStockMovement } from "@/actions/inventory";
+
+export interface UpdateFullProductPayload {
+  title: string;
+  shortDescription?: string;
+  description?: string;
+  images: ProductImage[];
+  documents?: ProductDocument[];
+  categoryIds?: string[];
+  attributeIds?: string[];
+  variantsToAppend?: Array<{
+    sku: string;
+    diameter?: number | null;
+    flute_length?: number | null;
+    overall_length?: number | null;
+    shank_diameter?: number | null;
+    list_price: number;
+    stock_quantity: number;
+    specifications?: Record<string, any>;
+  }>;
+}
+
+export async function updateFullProduct(
+  productId: string,
+  payload: UpdateFullProductPayload
+): Promise<{ success?: boolean; error?: string }> {
+  const supabase = createAdminClient();
+
+  if (!payload.title?.trim()) {
+    return { error: "Product title is required." };
+  }
+
+  try {
+    // 1. Update Core Product Metadata, Images, Documents, Overview Description
+    const { error: prodErr } = await supabase
+      .from("products")
+      .update({
+        title: payload.title.trim(),
+        short_description: payload.shortDescription || null,
+        description: payload.description || null,
+        images: payload.images || [],
+        documents: payload.documents || [],
+        updated_at: new Date().toISOString(),
+      } as never)
+      .eq("id", productId);
+
+    if (prodErr) {
+      if (prodErr.code === "23505") {
+        return { error: "Product with this title or slug already exists." };
+      }
+      return { error: prodErr.message };
+    }
+
+    // 2. Sync Categories if provided
+    if (payload.categoryIds !== undefined) {
+      await supabase.from("product_categories").delete().eq("product_id", productId);
+      if (payload.categoryIds.length > 0) {
+        const catRows = payload.categoryIds.map((catId) => ({
+          product_id: productId,
+          category_id: catId,
+        }));
+        await supabase.from("product_categories").insert(catRows as never);
+      }
+    }
+
+    // 3. Sync Attributes / Tags if provided
+    if (payload.attributeIds !== undefined) {
+      await supabase.from("product_attributes").delete().eq("product_id", productId);
+      await supabase.from("product_tags").delete().eq("product_id", productId);
+
+      if (payload.attributeIds.length > 0) {
+        const attrRows = payload.attributeIds.map((attrId) => ({
+          product_id: productId,
+          attribute_id: attrId,
+        }));
+
+        const { error: attrErr } = await supabase.from("product_attributes").insert(attrRows as never);
+        if (attrErr && attrErr.code === "42P01") {
+          const tagRows = payload.attributeIds.map((tId) => ({
+            product_id: productId,
+            tag_id: tId,
+          }));
+          await supabase.from("product_tags").insert(tagRows as never);
+        }
+      }
+    }
+
+    // 4. Optionally append new variants if provided from CSV
+    if (payload.variantsToAppend && payload.variantsToAppend.length > 0) {
+      const variantRows = payload.variantsToAppend.map((v) => ({
+        product_id: productId,
+        sku: v.sku,
+        diameter: v.diameter ?? null,
+        flute_length: v.flute_length ?? null,
+        overall_length: v.overall_length ?? null,
+        shank_diameter: v.shank_diameter ?? null,
+        list_price: Number(v.list_price) || 0,
+        stock_quantity: Number(v.stock_quantity) || 0,
+        specifications: v.specifications || {},
+      }));
+
+      const { data: insertedVariantsData, error: varErr } = await supabase
+        .from("product_variants")
+        .insert(variantRows as never)
+        .select("id, sku, stock_quantity, product_id");
+
+      if (varErr) {
+        return { error: `Product details saved, but failed to append some variants: ${varErr.message}` };
+      }
+
+      const insertedVariants = (insertedVariantsData || []) as any[];
+      if (insertedVariants && insertedVariants.length > 0) {
+        for (const v of insertedVariants) {
+          const stockQty = Number(v.stock_quantity) || 0;
+          if (stockQty > 0) {
+            await recordStockMovement({
+              variantId: v.id,
+              productId: v.product_id,
+              skuCode: v.sku,
+              productTitle: payload.title.trim(),
+              movementType: "INITIAL_IMPORT",
+              quantityDelta: stockQty,
+              balanceBefore: 0,
+              balanceAfter: stockQty,
+              notes: "Appended variants from product editor batch",
+            });
+          }
+        }
+      }
+    }
+
+    revalidatePath("/admin/products");
+    revalidatePath("/products");
+    return { success: true };
+  } catch (err: any) {
+    return { error: err.message || "Failed to update product." };
+  }
+}
 
 export async function updateProductMetadata(
   productId: string,
@@ -41,8 +180,6 @@ export async function updateProductMetadata(
     return { error: err.message };
   }
 }
-
-import { recordStockMovement } from "@/actions/inventory";
 
 export async function addSingleSku(
   productId: string,
