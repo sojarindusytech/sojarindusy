@@ -26,6 +26,7 @@ export const metadata: Metadata = {
 
 import { CartProvider } from "@/context/CartContext";
 import { CartDrawer } from "@/components/storefront/CartDrawer";
+import { Footer } from "@/components/common/Footer";
 
 export default function RootLayout({
   children,
@@ -38,11 +39,18 @@ export default function RootLayout({
       suppressHydrationWarning
       className={`${dmSans.variable} ${skodaPro.variable} font-sans h-full antialiased`}
     >
+      <head>
+        <link rel="preconnect" href="https://maps.google.com" />
+        <link rel="preconnect" href="https://maps.gstatic.com" crossOrigin="anonymous" />
+        <link rel="dns-prefetch" href="https://maps.google.com" />
+        <link rel="dns-prefetch" href="https://maps.gstatic.com" />
+      </head>
       <body className="min-h-full flex flex-col bg-white text-slate-900 font-sans selection:bg-[#024AE5] selection:text-white">
         <ThemeProvider>
           <CartProvider>
             <GlobalHeader />
             <main className="flex-1 bg-white">{children}</main>
+            <Footer />
             <CartDrawer />
           </CartProvider>
         </ThemeProvider>
