@@ -16,14 +16,14 @@ export default function AboutPage() {
       title: "Facilities And Technology",
       subtitle: "State-of-the-Art Facilities for Manufacturing, Research, and Testing.",
       desc: "Our commitment to excellence is reflected in our state-of-the-art facilities. Equipped with advanced machinery, precision tools, and cutting-edge technology, our manufacturing, research, and testing units are designed to produce high-performance tooling solutions that meet the exacting demands of modern engineering and manufacturing industries. commitment to excellence drives our dedicated team of professionals to consistently deliver value and innovation to our clients.",
-      icon: <CheckCircle2 className="h-6 w-6 text-[#00A396] shrink-0 stroke-[2.2]" />,
+      icon: <CheckCircle2 className="h-6 w-6 text-slate-500 shrink-0 stroke-[2.2]" />,
     },
     {
       id: "mission",
       title: "Our Mission And Value",
       subtitle: "Driven by Excellence. Engineering Solutions Beyond Boundaries.",
       desc: "At the core of our operations lies our mission to deliver unparalleled tooling solutions that meet the dynamic demands of modern engineering. Guided by our core values-integrity, innovation, and an unwavering commitment to customer satisfaction-we strive to build lasting trust and create meaningful value in every partnership.",
-      icon: <Target className="h-6 w-6 text-[#00A396] shrink-0 stroke-[2.2]" />,
+      icon: <Target className="h-6 w-6 text-slate-500 shrink-0 stroke-[2.2]" />,
     },
     {
       id: "quality",
@@ -33,7 +33,7 @@ export default function AboutPage() {
       icon: (
         <svg
           viewBox="0 0 24 24"
-          className="h-6 w-6 text-[#00A396] shrink-0 fill-none stroke-current stroke-[2.2] stroke-linecap-round stroke-linejoin-round"
+          className="h-6 w-6 text-slate-500 shrink-0 fill-none stroke-current stroke-[2.2] stroke-linecap-round stroke-linejoin-round"
         >
           <path d="m12 3-1.9 2.1-2.8-.4-1 2.6-2.6 1 .4 2.8L2 13l2.1 1.9-.4 2.8 2.6 1 1 2.6 2.8-.4L12 23l1.9-2.1 2.8.4 1-2.6 2.6-1-.4-2.8L22 13l-2.1-1.9.4-2.8-2.6-1-1-2.6-2.8.4Z" />
         </svg>
@@ -44,7 +44,7 @@ export default function AboutPage() {
       title: "Trust In Us",
       subtitle: "Building the Future, Together in Excellence",
       desc: "Our clients trust us for precision-engineered tooling solutions. With a focus on quality and innovation, we deliver reliable results that inspire confidence and long-term collaboration.",
-      icon: <Handshake className="h-6 w-6 text-[#00A396] shrink-0 stroke-[2.2]" />,
+      icon: <Handshake className="h-6 w-6 text-slate-500 shrink-0 stroke-[2.2]" />,
     },
   ];
 

@@ -28,6 +28,7 @@ import {
   RotateCcw,
   ChevronLeft,
   Download,
+  Share2,
   FileText,
   FileSpreadsheet,
   ExternalLink,
@@ -505,7 +506,7 @@ export function ProductDetailsClient({
           img.attribute_id === activeAttributeId ||
           (img.attribute_name &&
             img.attribute_name.toLowerCase().trim() ===
-              activeAttributeName?.toLowerCase().trim())
+            activeAttributeName?.toLowerCase().trim())
       );
       // Fallback: if no attribute-specific images exist, show global images
       if (filtered.length === 0) {
@@ -521,10 +522,10 @@ export function ProductDetailsClient({
     return filtered.length > 0
       ? filtered.map((img) => img.url)
       : [
-          "https://images.unsplash.com/photo-1530983823122-3bea349e5251?q=80&w=600&auto=format&fit=crop",
-          "https://images.unsplash.com/photo-1621905251189-08b45d6a269e?q=80&w=600&auto=format&fit=crop",
-          "https://images.unsplash.com/photo-1504917595217-d4dc5ebe6122?q=80&w=600&auto=format&fit=crop",
-        ];
+        "https://images.unsplash.com/photo-1530983823122-3bea349e5251?q=80&w=600&auto=format&fit=crop",
+        "https://images.unsplash.com/photo-1621905251189-08b45d6a269e?q=80&w=600&auto=format&fit=crop",
+        "https://images.unsplash.com/photo-1504917595217-d4dc5ebe6122?q=80&w=600&auto=format&fit=crop",
+      ];
   }, [allImages, activeAttributeId, activeAttributeName]);
 
   return (
@@ -578,12 +579,12 @@ export function ProductDetailsClient({
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 mb-12 items-start">
           {/* Left: Image Gallery */}
           <div className="space-y-6">
-            <div className="relative aspect-[4/3] w-full rounded-xl border border-slate-200 bg-white overflow-hidden">
+            <div className="relative aspect-square w-full rounded-xl border border-slate-200 overflow-hidden bg-slate-50">
               <Image
                 src={gallery[activeImageIdx]}
                 alt={product.title}
                 fill
-                className="object-contain p-2"
+                className="object-contain transition-transform duration-300"
               />
               {badgeText && (
                 <div className="absolute top-4 left-4">
@@ -639,20 +640,24 @@ export function ProductDetailsClient({
                 <h1 className="text-2xl sm:text-3xl font-bold text-[#0F172A] tracking-tight mb-1.5">
                   {product.title}
                 </h1>
-                {prodAttributes && prodAttributes.length > 0 && (
-                  <p className="text-base font-semibold text-[#024AE5]">
-                    {activeAttributeId === "all"
-                      ? "Attributes"
-                      : activeAttributeName
-                      ? `${activeAttributeName} Attributes`
-                      : "Attributes"}
-                  </p>
-                )}
+                {prodAttributes &&
+                  prodAttributes.length > 0 &&
+                  prodAttributes.some((a) =>
+                    a.name?.toUpperCase().includes("HRC")
+                  ) && (
+                    <div className="flex items-center gap-1.5 mt-1.5">
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-[#3C8B4F]/10 text-[#3C8B4F] border border-[#3C8B4F]/25">
+                        {activeAttributeId === "all" || !activeAttributeId
+                          ? "All HRC"
+                          : activeAttributeName || "All HRC"}
+                      </span>
+                    </div>
+                  )}
               </div>
 
-              {/* Download Data Sheet Button Placed Beside Title (Only when available for selected attribute) */}
-              {isDatasheetAvailable && (
-                <div className="flex items-center gap-2 shrink-0">
+              {/* Download + Share buttons */}
+              <div className="flex items-center gap-2 shrink-0">
+                {isDatasheetAvailable && (
                   <Button
                     variant="outline"
                     size="sm"
@@ -672,8 +677,31 @@ export function ProductDetailsClient({
                       </Badge>
                     )}
                   </Button>
-                </div>
-              )}
+                )}
+
+                {/* Share button — always visible */}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={async () => {
+                    const url = window.location.href;
+                    if (navigator.share) {
+                      try {
+                        await navigator.share({ title: product.title, url });
+                      } catch {
+                        // User cancelled share — no-op
+                      }
+                    } else {
+                      await navigator.clipboard.writeText(url);
+                      toast.success("Link copied to clipboard!");
+                    }
+                  }}
+                  className="h-9 w-9 px-0 border-slate-200 text-slate-500 hover:text-[#024AE5] hover:border-[#024AE5]/30 hover:bg-[#024AE5]/5 rounded-lg cursor-pointer transition-all"
+                  title="Share this product"
+                >
+                  <Share2 className="w-4 h-4" />
+                </Button>
+              </div>
             </div>
 
             <div className="text-slate-600 text-sm leading-relaxed mb-8 max-w-xl">

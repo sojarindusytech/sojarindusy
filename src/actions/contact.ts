@@ -14,6 +14,7 @@ export interface ContactInquiryPayload {
   email: string;
   mobile?: string;
   message: string;
+  privacyAccepted?: boolean;
 }
 
 export interface FetchSubmissionsResult {
@@ -30,7 +31,12 @@ export async function submitContactInquiry(payload: ContactInquiryPayload): Prom
   error?: string;
 }> {
   try {
-    const { fullName, email, mobile, message } = payload;
+    const { fullName, email, mobile, message, privacyAccepted } = payload;
+
+    // 0. Privacy Policy acceptance validation
+    if (privacyAccepted === false) {
+      return { success: false, error: "You must agree to our Privacy Policy to submit your message." };
+    }
 
     // 1. Full Name validation
     const trimmedName = fullName?.trim();
@@ -90,12 +96,23 @@ export async function submitContactInquiry(payload: ContactInquiryPayload): Prom
       mobile: cleanedMobile,
       message: trimmedMessage,
       status: "unread",
+      privacy_accepted: true,
       admin_notes: null,
     };
 
-    const { error } = await supabase
+    let { error } = await supabase
       .from("contact_submissions")
       .insert(insertData as never);
+
+    // Graceful fallback if database table does not yet have privacy_accepted column
+    if (error && (error.code === "42703" || error.message?.includes("privacy_accepted"))) {
+      const fallbackData = { ...insertData };
+      delete fallbackData.privacy_accepted;
+      const retry = await supabase
+        .from("contact_submissions")
+        .insert(fallbackData as never);
+      error = retry.error;
+    }
 
     if (error) {
       console.error("Supabase error submitting contact inquiry:", error);

@@ -38,7 +38,7 @@ const HARDCODED_CATEGORIES: CategoryItem[] = [
 
 export function ExploreCategories() {
   return (
-    <section className="container mx-auto max-w-[1400px] px-4 sm:px-6 lg:px-8 pb-16">
+    <section className="container mx-auto max-w-[1400px] px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
       <div className="space-y-6">
         {/* Section Heading matching Sandvik Reference */}
         <h2 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight font-skoda">

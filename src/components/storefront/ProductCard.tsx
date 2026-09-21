@@ -1,7 +1,7 @@
 import React from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowRight, Package, Layers } from "lucide-react";
+import { ArrowRight, Package } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Product } from "@/types/database.types";
@@ -98,7 +98,7 @@ export function ProductCard({ product, categoryPath }: ProductCardProps) {
     <Link href={productHref} className="block h-full group">
       <Card className="h-full flex flex-col justify-between rounded-2xl border border-slate-200/90 bg-white transition-all duration-300 hover:shadow-xl hover:shadow-blue-500/5 hover:border-[#024AE5]/50 overflow-hidden">
         {/* 1:1 Square Image Container */}
-        <div className="relative aspect-square w-full bg-slate-50/70 border-b border-slate-100 flex items-center justify-center p-4 overflow-hidden">
+        <div className="relative aspect-square w-full bg-slate-50/70 border-b border-slate-100 overflow-hidden">
           {/* Subtle Ambient Radial Glow */}
           <div className="absolute inset-0 bg-radial from-white via-transparent to-slate-100/50 opacity-60 pointer-events-none" />
 
@@ -112,12 +112,7 @@ export function ProductCard({ product, categoryPath }: ProductCardProps) {
               <span />
             )}
 
-            {variantCount > 0 && (
-              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-white/95 backdrop-blur-xs text-[#024AE5] border border-blue-200/80 shadow-2xs shrink-0">
-                <Layers className="h-3 w-3" />
-                <span>{variantCount} {variantCount === 1 ? "Option" : "Options"}</span>
-              </span>
-            )}
+
           </div>
 
           {/* Image */}
@@ -128,7 +123,7 @@ export function ProductCard({ product, categoryPath }: ProductCardProps) {
                 alt={product.title}
                 fill
                 sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 380px"
-                className="object-contain p-2 transition-transform duration-500 ease-out group-hover:scale-105"
+                className="object-contain transition-transform duration-500 ease-out group-hover:scale-105"
               />
             </div>
           ) : (
@@ -175,24 +170,9 @@ export function ProductCard({ product, categoryPath }: ProductCardProps) {
             )}
           </div>
 
-          {/* Micro Specs Banner */}
-          <div className="rounded-xl bg-slate-50/80 border border-slate-100 p-2.5 flex items-center justify-between text-xs">
-            <div className="flex items-center gap-1.5 text-slate-600">
-              <span className="h-1.5 w-1.5 rounded-full bg-[#3C8B4F]" />
-              <span className="font-medium text-[11px] text-slate-600">
-                Precision Ground
-              </span>
-            </div>
-            <div className="font-bold text-[#024AE5] text-[11px]">
-              {variantCount > 0 ? `${variantCount} Dimensions` : "Standard Series"}
-            </div>
-          </div>
 
           {/* Card Footer with CTA */}
-          <div className="pt-3 border-t border-slate-100 flex items-center justify-between mt-auto">
-            <span className="text-xs font-semibold text-slate-500 group-hover:text-slate-800 transition-colors">
-              View Catalog
-            </span>
+          <div className="pt-3 border-t border-slate-100 flex items-center justify-end mt-auto">
             <div className="inline-flex items-center gap-1.5 text-xs font-bold text-white bg-[#024AE5] group-hover:bg-[#023ecc] px-3.5 py-1.5 rounded-lg transition-all shadow-xs group-hover:shadow-md">
               <span>View Details</span>
               <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />

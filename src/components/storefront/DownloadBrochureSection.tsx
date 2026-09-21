@@ -11,11 +11,11 @@ interface DownloadBrochureSectionProps {
 }
 
 export function DownloadBrochureSection({
-  imageSrc = "/assets/images/brochure-cover.png",
+  imageSrc = "/assets/images/brochure-cover.webp",
   brochureUrl = "/assets/sojar-indusy-brochure.pdf",
 }: DownloadBrochureSectionProps) {
   return (
-    <section className="w-full bg-white py-14 sm:py-18 lg:py-24">
+    <section className="w-full bg-white py-10 sm:py-14 lg:py-16">
       <div className="container mx-auto max-w-[1240px] px-4 sm:px-6 lg:px-8">
         {/* Soft Off-White Panel */}
         <div className="bg-[#F8FAFC] border border-slate-100 rounded-3xl p-8 sm:p-12 lg:p-16">
@@ -50,10 +50,10 @@ export function DownloadBrochureSection({
                 <a
                   href={brochureUrl}
                   download="Sojar-Indusy-Brochure.pdf"
-                  className="inline-flex items-center justify-center gap-2.5 px-7 py-3 rounded-full bg-[#00A396] hover:bg-[#008F83] text-white font-medium text-sm sm:text-base transition-all duration-200 shadow-sm hover:shadow-md active:scale-95 font-body cursor-pointer"
+                  className="inline-flex items-center justify-center gap-2.5 px-8 py-3.5 rounded-lg bg-[#024AE5] hover:bg-[#013bb8] text-white font-bold text-sm sm:text-base transition-all duration-200 shadow-md hover:shadow-lg active:scale-95 cursor-pointer font-skoda"
                 >
                   <span>Download Brochure</span>
-                  <Download className="w-4 h-4 stroke-[2.2]" />
+                  <Download className="w-4 h-4 sm:w-5 sm:h-5 stroke-[2.5]" />
                 </a>
               </div>
             </div>

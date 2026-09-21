@@ -87,20 +87,20 @@ export function FAQAccordion({
           return (
             <div
               key={item.id}
-              className="rounded-xl overflow-hidden border border-slate-200/80 shadow-[0_2px_8px_rgba(0,0,0,0.03)] transition-all duration-200"
+              className="rounded-xl overflow-hidden border border-blue-100 shadow-[0_2px_8px_rgba(2,74,229,0.04)] transition-all duration-200"
             >
               {/* Question Header */}
               <button
                 type="button"
                 onClick={() => toggleItem(item.id)}
-                className="w-full flex items-center justify-between px-5 sm:px-6 py-4 sm:py-4.5 bg-[#024AE5] hover:bg-[#013BB8] text-white text-left transition-colors cursor-pointer select-none"
+                className="w-full flex items-center justify-between px-5 sm:px-6 py-4 sm:py-4.5 bg-[#eff6ff] hover:bg-[#dbeafe] text-slate-900 text-left transition-colors cursor-pointer select-none"
                 aria-expanded={isOpen}
               >
-                <span className="font-skoda text-xs sm:text-sm md:text-[0.95rem] font-bold tracking-wide uppercase pr-4">
+                <span className="font-skoda text-xs sm:text-sm md:text-[0.95rem] font-bold tracking-wide uppercase pr-4 text-slate-900">
                   {item.question}
                 </span>
 
-                <span className="shrink-0 flex items-center justify-center text-white">
+                <span className="shrink-0 flex items-center justify-center text-[#024AE5]">
                   {isOpen ? (
                     <Minus className="w-5 h-5 stroke-[2.5]" />
                   ) : (
@@ -111,7 +111,7 @@ export function FAQAccordion({
 
               {/* Collapsible Answer */}
               {isOpen && (
-                <div className="bg-white px-5 sm:px-6 py-5 sm:py-6 border-t border-slate-100 animate-in fade-in-50 duration-150">
+                <div className="bg-white px-5 sm:px-6 py-5 sm:py-6 border-t border-blue-100/80 animate-in fade-in-50 duration-150">
                   <p className="text-slate-600 text-sm sm:text-base leading-relaxed font-subheading">
                     {item.answer}
                   </p>

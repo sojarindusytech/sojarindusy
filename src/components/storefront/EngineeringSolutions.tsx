@@ -203,7 +203,7 @@ export function EngineeringSolutions() {
   ];
 
   return (
-    <section className="bg-white py-16 sm:py-20 lg:py-24 border-t border-slate-100">
+    <section className="bg-white py-10 sm:py-14 border-t border-slate-100">
       <div className="container mx-auto max-w-[1400px] px-4 sm:px-6 lg:px-8">
         {/* Section Top Header: Left Eyebrow & Title with Accent Bar, Right Narrative */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-start justify-between">

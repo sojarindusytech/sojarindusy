@@ -3,7 +3,7 @@ import Image from "next/image";
 
 export function RateUsBanner() {
   return (
-    <section className="relative w-full overflow-hidden bg-slate-950 py-12 sm:py-14 lg:py-16">
+    <section className="relative w-full overflow-hidden bg-slate-950 py-10 sm:py-12 lg:py-14">
       {/* Background Industrial Image with Dark Blue / Industrial Overlay */}
       <div className="absolute inset-0 z-0">
         <Image

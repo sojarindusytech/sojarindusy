@@ -68,6 +68,7 @@ export interface ContactSubmission {
   mobile?: string | null;
   message: string;
   status: ContactSubmissionStatus;
+  privacy_accepted?: boolean;
   admin_notes?: string | null;
   created_at: string;
   updated_at: string;
@@ -80,6 +81,7 @@ export interface ContactSubmissionInsert {
   mobile?: string | null;
   message: string;
   status?: ContactSubmissionStatus;
+  privacy_accepted?: boolean;
   admin_notes?: string | null;
   created_at?: string;
   updated_at?: string;
@@ -92,6 +94,7 @@ export interface ContactSubmissionUpdate {
   mobile?: string | null;
   message?: string;
   status?: ContactSubmissionStatus;
+  privacy_accepted?: boolean;
   admin_notes?: string | null;
   created_at?: string;
   updated_at?: string;
