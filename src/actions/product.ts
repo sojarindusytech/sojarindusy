@@ -1,6 +1,7 @@
 "use server";
 
 import { createAdminClient } from "@/lib/supabase/admin";
+import { requireAdmin } from "@/lib/auth-guard";
 import { Product, ProductVariant, ProductImage, ProductDocument } from "@/types/database.types";
 import { generateSlug, uploadCategoryImage } from "@/actions/category";
 import { revalidatePath } from "next/cache";
@@ -261,6 +262,7 @@ export async function createFullProduct(payload: CreateProductPayload): Promise<
   error?: string;
   productId?: string;
 }> {
+  await requireAdmin();
   const supabase = createAdminClient();
 
   const title = payload.title?.trim();
@@ -387,6 +389,7 @@ export async function createFullProduct(payload: CreateProductPayload): Promise<
 }
 
 export async function deleteProduct(productId: string): Promise<{ success?: boolean; error?: string }> {
+  await requireAdmin();
   const supabase = createAdminClient();
 
   try {
@@ -407,6 +410,7 @@ export async function uploadProductImage(formData: FormData): Promise<{
   publicUrl?: string;
   error?: string;
 }> {
+  await requireAdmin();
   return uploadCategoryImage(formData);
 }
 
@@ -421,6 +425,7 @@ export async function uploadProductDocument(formData: FormData): Promise<{
   fileType?: "pdf" | "excel" | "sheet" | "doc" | "other";
   error?: string;
 }> {
+  await requireAdmin();
   const supabase = createAdminClient();
   const file = formData.get("file") as File;
 

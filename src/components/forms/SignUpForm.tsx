@@ -1,8 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
-import { signUpUser } from "@/actions/auth";
+import { signUpUser, resendVerificationEmail } from "@/actions/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -29,24 +28,28 @@ import {
   Check,
   Eye,
   EyeOff,
+  Mail,
+  RefreshCw,
 } from "lucide-react";
 import Link from "next/link";
 
 export function SignUpForm() {
-  const router = useRouter();
   const [step, setStep] = useState<1 | 2>(1);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
-  const [success, setSuccess] = useState<string | null>(null);
+  const [verificationSentFor, setVerificationSentFor] = useState<string | null>(null);
+  const [resendingEmail, setResendingEmail] = useState(false);
+  const [resendNotice, setResendNotice] = useState<string | null>(null);
 
   // Password visibility states
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   // Form State
+  // `role` is deliberately absent: it is assigned server-side in signUpUser so
+  // the client cannot request an elevated role.
   const [formData, setFormData] = useState({
-    role: "customer",
     title: "Mr" as "Mr" | "Mrs" | "Miss" | "Ms",
     first_name: "",
     last_name: "",
@@ -140,7 +143,6 @@ export function SignUpForm() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
-    setSuccess(null);
     setFieldErrors({});
 
     const step2Data: Step2FormData = {
@@ -181,10 +183,7 @@ export function SignUpForm() {
       if (res.error) {
         setError(res.error);
       } else if (res.success) {
-        setSuccess(res.message || "Account created successfully!");
-        setTimeout(() => {
-          router.push("/login?registered=true");
-        }, 1500);
+        setVerificationSentFor(formData.email);
       }
     } catch (err: unknown) {
       setError(
@@ -192,6 +191,24 @@ export function SignUpForm() {
       );
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleResendConfirmation = async () => {
+    if (!verificationSentFor) return;
+    setResendingEmail(true);
+    setResendNotice(null);
+    try {
+      const res = await resendVerificationEmail(verificationSentFor);
+      if (res.error) {
+        setResendNotice(res.error);
+      } else {
+        setResendNotice("Verification email resent! Please check your inbox and spam folder.");
+      }
+    } catch {
+      setResendNotice("Failed to resend confirmation email. Please try again later.");
+    } finally {
+      setResendingEmail(false);
     }
   };
 
@@ -203,6 +220,76 @@ export function SignUpForm() {
     number: /\d/.test(formData.password),
     special: /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(formData.password),
   };
+
+  if (verificationSentFor) {
+    return (
+      <div className="w-full max-w-xl mx-auto py-4">
+        <Card className="border border-slate-200 bg-white shadow-none rounded-2xl p-8 text-center space-y-6">
+          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-[#024AE5]/10 text-[#024AE5]">
+            <Mail className="h-7 w-7 text-[#024AE5]" />
+          </div>
+
+          <div className="space-y-2">
+            <h2 className="text-2xl font-bold tracking-tight text-slate-900">
+              Verify Your Email Address
+            </h2>
+            <p className="text-xs text-slate-600 max-w-md mx-auto leading-relaxed">
+              We have dispatched a verification email to your registered business email address:
+            </p>
+            <div className="inline-block mt-1 bg-slate-100 border border-slate-200 text-slate-900 font-mono font-bold text-xs px-3 py-1.5 rounded-lg">
+              {verificationSentFor}
+            </div>
+          </div>
+
+          {resendNotice && (
+            <div className="flex items-start gap-2.5 rounded-lg border border-blue-200 bg-blue-50 p-3 text-xs text-blue-900 text-left">
+              <CheckCircle2 className="h-4 w-4 shrink-0 text-blue-600 mt-0.5" />
+              <p>{resendNotice}</p>
+            </div>
+          )}
+
+          <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-4 text-left space-y-2.5 text-xs text-slate-700">
+            <p className="font-semibold text-slate-900 uppercase tracking-wider text-[11px]">
+              Next Steps for Enterprise Activation:
+            </p>
+            <ul className="space-y-1.5 text-slate-600">
+              <li className="flex items-start gap-2">
+                <span className="font-bold text-[#024AE5]">1.</span>
+                <span>Open your email client and locate the confirmation link from Sojar Indusy.</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="font-bold text-[#024AE5]">2.</span>
+                <span>Click the confirmation link to securely verify your email address.</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="font-bold text-[#024AE5]">3.</span>
+                <span>Once verified, our commercial team will verify your GSTIN & company details and activate your account.</span>
+              </li>
+            </ul>
+          </div>
+
+          <div className="flex flex-col sm:flex-row gap-3 pt-2">
+            <Link href="/login" className="flex-1">
+              <Button variant="primary" className="w-full text-xs h-10 gap-1.5 font-semibold">
+                <span>Proceed to Sign In</span>
+                <ArrowRight className="h-4 w-4" />
+              </Button>
+            </Link>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleResendConfirmation}
+              disabled={resendingEmail}
+              className="text-xs h-10 border-slate-200 gap-1.5 text-slate-700 hover:bg-slate-50"
+            >
+              <RefreshCw className={`h-3.5 w-3.5 ${resendingEmail ? "animate-spin" : ""}`} />
+              <span>{resendingEmail ? "Resending..." : "Resend Verification Email"}</span>
+            </Button>
+          </div>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="w-full max-w-xl mx-auto py-2">
@@ -220,13 +307,6 @@ export function SignUpForm() {
               <div className="mb-4 flex items-start gap-2.5 rounded-lg border border-red-500/20 bg-red-50 p-3 text-xs text-red-800">
                 <AlertCircle className="h-4 w-4 shrink-0 text-red-600 mt-0.5" />
                 <p>{error}</p>
-              </div>
-            )}
-
-            {success && (
-              <div className="mb-4 flex items-start gap-2.5 rounded-lg border border-[#3C8B4F]/30 bg-[#3C8B4F]/10 p-3 text-xs text-[#3C8B4F]">
-                <CheckCircle2 className="h-4 w-4 shrink-0 text-[#3C8B4F] mt-0.5" />
-                <p>{success} Redirecting to login...</p>
               </div>
             )}
 

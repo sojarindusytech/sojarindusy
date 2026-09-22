@@ -174,22 +174,22 @@ export function UpdateOrderTrackingModal({
               </SelectTrigger>
               <SelectContent className="bg-white border-slate-200 shadow-lg text-xs">
                 <SelectItem value={ORDER_STATUSES.PENDING}>
-                  ⏳ Pending Review (Order Placed)
+                  Pending Review (Order Placed)
                 </SelectItem>
                 <SelectItem value={ORDER_STATUSES.CONFIRMED}>
-                  ✅ Confirmed (Stock Allocated)
+                  Confirmed (Stock Allocated)
                 </SelectItem>
                 <SelectItem value={ORDER_STATUSES.PROCESSING}>
-                  📦 Processing / Packaging (Warehouse)
+                  Processing / Packaging (Warehouse)
                 </SelectItem>
                 <SelectItem value={ORDER_STATUSES.SHIPPED}>
-                  🚚 Shipped / In Transit (Carrier Dispatched)
+                  Shipped / In Transit (Carrier Dispatched)
                 </SelectItem>
                 <SelectItem value={ORDER_STATUSES.DELIVERED}>
-                  🎉 Delivered (Completed)
+                  Delivered (Completed)
                 </SelectItem>
                 <SelectItem value={ORDER_STATUSES.CANCELLED}>
-                  ❌ Cancelled (Restock Inventory)
+                  Cancelled (Restock Inventory)
                 </SelectItem>
               </SelectContent>
             </Select>

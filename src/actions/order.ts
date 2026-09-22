@@ -2,6 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { requireAdmin, requireApprovedCustomer, guardOrError } from "@/lib/auth-guard";
 import { Order, OrderItem, CustomerOrderDetails, Profile } from "@/types/database.types";
 import { OrderStatus, ORDER_STATUSES } from "@/lib/constants";
 import { recordStockMovement } from "@/actions/inventory";
@@ -28,14 +29,14 @@ export async function createCustomerOrder(
 ): Promise<{ success: boolean; orderId?: string; orderNumber?: string; error?: string }> {
   const supabase = await createClient();
 
-  // 1. Get authenticated user
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    return { success: false, error: "Please log in to place an industrial purchase order." };
+  // 1. Authenticate and confirm the account is approved. Approval is enforced
+  // here as well as in the dashboard layout, because this action is a public
+  // endpoint that a pending account could call directly.
+  const guard = await guardOrError(requireApprovedCustomer);
+  if (!guard.ctx) {
+    return { success: false, error: "Your account must be approved before placing an order." };
   }
+  const user = { id: guard.ctx.userId, email: guard.ctx.email };
 
   if (!payload.items || payload.items.length === 0) {
     return { success: false, error: "Your order cart is empty." };
@@ -292,6 +293,7 @@ export async function updateOrderStatus(
  * 3. Fetch Master Orders List for Admin
  */
 export async function fetchAdminOrdersList(): Promise<Order[]> {
+  await requireAdmin();
   const adminClient = createAdminClient();
 
   try {

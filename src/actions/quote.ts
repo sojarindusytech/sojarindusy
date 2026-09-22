@@ -1,6 +1,7 @@
 "use server";
 
 import { createAdminClient } from "@/lib/supabase/admin";
+import { requireAdmin } from "@/lib/auth-guard";
 import {
   CommercialQuote,
   QuoteStatus,
@@ -134,6 +135,7 @@ let inMemoryQuotes: CommercialQuote[] = [
  * Fetch all commercial quotations for Admin
  */
 export async function fetchCommercialQuotesList(): Promise<CommercialQuote[]> {
+  await requireAdmin();
   try {
     const adminDb = createAdminClient();
     const { data, error } = await (adminDb as any)
@@ -163,6 +165,7 @@ export async function updateCommercialQuoteStatus(
     admin_notes?: string | null;
   }
 ): Promise<{ success: boolean; error?: string }> {
+  await requireAdmin();
   try {
     // Check in-memory store
     const idx = inMemoryQuotes.findIndex((q) => q.id === quoteId);
@@ -204,6 +207,7 @@ export async function updateCommercialQuoteStatus(
 export async function createCommercialQuote(
   payload: Omit<CommercialQuoteInsert, "id" | "quote_number" | "created_at" | "updated_at">
 ): Promise<{ success: boolean; error?: string; quote?: CommercialQuote }> {
+  await requireAdmin();
   try {
     const quoteNumber = `QT-${new Date().getFullYear().toString().slice(-2)}${(new Date().getMonth() + 1).toString().padStart(2, "0")}-${Math.floor(1000 + Math.random() * 9000)}`;
     const newQuote: CommercialQuote = {

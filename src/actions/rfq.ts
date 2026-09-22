@@ -2,6 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { requireAdmin } from "@/lib/auth-guard";
 import { RFQ, RFQStatus, RFQInsert, RFQUpdate, Profile } from "@/types/database.types";
 import { revalidatePath } from "next/cache";
 
@@ -111,6 +112,7 @@ export async function submitCustomerRfq(payload: {
 }
 
 export async function fetchAllRfqsList(): Promise<RFQ[]> {
+  await requireAdmin();
   try {
     const adminDb = createAdminClient();
     const { data, error } = await adminDb
@@ -138,6 +140,7 @@ export async function updateRfqQuotation(
     admin_notes?: string | null;
   }
 ): Promise<{ success: boolean; error?: string }> {
+  await requireAdmin();
   try {
     const adminDb = createAdminClient();
 

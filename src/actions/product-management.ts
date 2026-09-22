@@ -1,6 +1,7 @@
 "use server";
 
 import { createAdminClient } from "@/lib/supabase/admin";
+import { requireAdmin } from "@/lib/auth-guard";
 import { revalidatePath } from "next/cache";
 import { ProductImage, ProductDocument } from "@/types/database.types";
 import { recordStockMovement } from "@/actions/inventory";
@@ -29,6 +30,7 @@ export async function updateFullProduct(
   productId: string,
   payload: UpdateFullProductPayload
 ): Promise<{ success?: boolean; error?: string }> {
+  await requireAdmin();
   const supabase = createAdminClient();
 
   if (!payload.title?.trim()) {
@@ -150,6 +152,7 @@ export async function updateProductMetadata(
     description?: string;
   }
 ): Promise<{ success?: boolean; error?: string }> {
+  await requireAdmin();
   const supabase = createAdminClient();
 
   if (!payload.title?.trim()) {
@@ -194,6 +197,7 @@ export async function addSingleSku(
     specifications?: Record<string, any>;
   }
 ): Promise<{ success?: boolean; error?: string }> {
+  await requireAdmin();
   const supabase = createAdminClient();
 
   if (!payload.sku?.trim()) {
@@ -261,6 +265,7 @@ export async function bulkAppendSkus(
   }>,
   attributeIdOrTagId?: string
 ): Promise<{ success?: boolean; error?: string }> {
+  await requireAdmin();
   const supabase = createAdminClient();
 
   if (!variants || variants.length === 0) {
@@ -361,6 +366,7 @@ export async function bulkAppendSkus(
 export async function deleteSku(
   variantId: string
 ): Promise<{ success?: boolean; error?: string; archived?: boolean }> {
+  await requireAdmin();
   const supabase = createAdminClient();
 
   try {
@@ -452,6 +458,7 @@ export async function bulkUpdateSkus(
     list_price_percentage?: number;
   }
 ): Promise<{ success?: boolean; error?: string }> {
+  await requireAdmin();
   const supabase = createAdminClient();
 
   if (!variantIds || variantIds.length === 0) {
@@ -550,6 +557,7 @@ export async function updateSingleSku(
     specifications?: Record<string, any>;
   }
 ): Promise<{ success?: boolean; error?: string }> {
+  await requireAdmin();
   const supabase = createAdminClient();
 
   if (!payload.sku?.trim()) {

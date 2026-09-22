@@ -1,6 +1,7 @@
 "use server";
 
 import { createAdminClient } from "@/lib/supabase/admin";
+import { requireAdmin } from "@/lib/auth-guard";
 import { Attribute } from "@/types/database.types";
 import { revalidatePath } from "next/cache";
 
@@ -38,6 +39,7 @@ export async function fetchAttributes(): Promise<Attribute[]> {
 export async function createAttribute(
   name: string
 ): Promise<{ success?: boolean; error?: string; attribute?: Attribute }> {
+  await requireAdmin();
   const supabase = createAdminClient();
 
   const trimmedName = name.trim();
@@ -93,6 +95,7 @@ export async function createAttribute(
 }
 
 export async function deleteAttribute(id: string): Promise<{ success?: boolean; error?: string }> {
+  await requireAdmin();
   const supabase = createAdminClient();
 
   try {

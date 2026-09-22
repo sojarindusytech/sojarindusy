@@ -28,6 +28,8 @@ import { createPortal } from "react-dom";
 interface NavbarProps {
   categories?: CategoryNode[];
   user?: any;
+  /** Resolved server-side from the profiles table, never from user_metadata. */
+  isAdmin?: boolean;
 }
 
 const CategoryMenuItem = ({ node, parentPath = "" }: { node: CategoryNode, parentPath?: string }) => {
@@ -63,7 +65,7 @@ const CategoryMenuItem = ({ node, parentPath = "" }: { node: CategoryNode, paren
   );
 };
 
-export function Navbar({ categories = [], user }: NavbarProps) {
+export function Navbar({ categories = [], user, isAdmin = false }: NavbarProps) {
   const pathname = usePathname();
   const router = useRouter();
   const { itemCount, setIsCartOpen } = useCart();
@@ -231,9 +233,7 @@ export function Navbar({ categories = [], user }: NavbarProps) {
                         <span className="truncate">{user.email}</span>
                       )}
                     </div>
-                    {user?.user_metadata?.role === "admin" ||
-                    user?.user_metadata?.role === "platform_owner" ||
-                    user?.email === "admin@sojarindusy.com" ? (
+                    {isAdmin ? (
                       <Link
                         href="/admin/dashboard"
                         className="px-4 py-2 text-sm font-medium text-blue-600 hover:bg-blue-50 flex items-center justify-between"
@@ -503,9 +503,7 @@ export function Navbar({ categories = [], user }: NavbarProps) {
                         <>Signed in as <span className="font-bold text-slate-900 truncate">{user.email}</span></>
                       )}
                     </div>
-                  {user?.user_metadata?.role === "admin" ||
-                  user?.user_metadata?.role === "platform_owner" ||
-                  user?.email === "admin@sojarindusy.com" ? (
+                  {isAdmin ? (
                     <Link
                       href="/admin/dashboard"
                       prefetch={false}
