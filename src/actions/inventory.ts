@@ -1,6 +1,7 @@
 "use server";
 
 import { createAdminClient } from "@/lib/supabase/admin";
+import { requireAdmin } from "@/lib/auth-guard";
 import { InventoryLog, InventoryMovementType } from "@/types/database.types";
 import { revalidatePath } from "next/cache";
 
@@ -19,7 +20,12 @@ export interface RecordMovementParams {
 }
 
 /**
- * Record an immutable inventory movement in the stock ledger
+ * Record an immutable inventory movement in the stock ledger.
+ *
+ * Intentionally unguarded: this is an internal helper invoked from both admin
+ * actions and the approved-customer order flow, each of which authorizes the
+ * caller before reaching here. It is append-only and takes no caller-supplied
+ * identity, so it grants no privilege of its own.
  */
 export async function recordStockMovement(params: RecordMovementParams): Promise<boolean> {
   const supabase = createAdminClient();
@@ -54,6 +60,7 @@ export async function recordStockMovement(params: RecordMovementParams): Promise
  * Fetch all stock audit logs for a specific SKU variant
  */
 export async function fetchVariantStockLogs(variantId: string): Promise<InventoryLog[]> {
+  await requireAdmin();
   const supabase = createAdminClient();
 
   try {
@@ -78,6 +85,7 @@ export async function fetchVariantStockLogs(variantId: string): Promise<Inventor
  * Fetch global stock ledger logs (with optional pagination)
  */
 export async function fetchGlobalInventoryLogs(limit = 100): Promise<InventoryLog[]> {
+  await requireAdmin();
   const supabase = createAdminClient();
 
   try {
@@ -113,6 +121,7 @@ export interface AdjustStockParams {
 export async function adjustVariantStock(
   params: AdjustStockParams
 ): Promise<{ success?: boolean; error?: string; updatedStock?: number }> {
+  await requireAdmin();
   const supabase = createAdminClient();
 
   try {

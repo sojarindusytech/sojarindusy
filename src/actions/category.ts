@@ -1,6 +1,7 @@
 "use server";
 
 import { createAdminClient } from "@/lib/supabase/admin";
+import { requireAdmin } from "@/lib/auth-guard";
 import { Category, CategoryNode } from "@/types/database.types";
 import { revalidatePath } from "next/cache";
 
@@ -198,6 +199,7 @@ export async function uploadCategoryImage(formData: FormData): Promise<{
   publicUrl?: string;
   error?: string;
 }> {
+  await requireAdmin();
   const supabase = createAdminClient();
   const file = formData.get("file") as File;
 
@@ -248,6 +250,7 @@ export async function createCategory(formData: FormData): Promise<{
   error?: string;
   category?: Category;
 }> {
+  await requireAdmin();
   const supabase = createAdminClient();
 
   const name = (formData.get("name") as string)?.trim();
@@ -312,6 +315,7 @@ export async function updateCategory(
   success?: boolean;
   error?: string;
 }> {
+  await requireAdmin();
   const supabase = createAdminClient();
 
   const name = (formData.get("name") as string)?.trim();
@@ -370,6 +374,7 @@ export async function deleteCategory(id: string): Promise<{
   success?: boolean;
   error?: string;
 }> {
+  await requireAdmin();
   const supabase = createAdminClient();
 
   try {
@@ -446,6 +451,7 @@ export async function toggleCategoryStatus(
   id: string,
   is_active: boolean
 ): Promise<{ success?: boolean; error?: string }> {
+  await requireAdmin();
   const supabase = createAdminClient();
 
   try {

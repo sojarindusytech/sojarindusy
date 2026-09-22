@@ -3,18 +3,17 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { Profile } from "@/types/database.types";
 import {
-  USER_ROLES,
-  USER_TYPES,
   APPROVAL_STATUSES,
   USER_TITLES,
   COMMERCIAL_DEFAULTS,
   ApprovalStatus,
   UserTitle,
-  UserType,
 } from "@/lib/constants";
+import { requireAdmin, requireUser } from "@/lib/auth-guard";
 import { revalidatePath } from "next/cache";
 
 export async function fetchCustomersList(): Promise<Profile[]> {
+  await requireAdmin();
   const supabase = createAdminClient();
 
   // 1. Fetch all customer profiles from Supabase database using Service Role
@@ -32,7 +31,7 @@ export async function fetchCustomersList(): Promise<Profile[]> {
 
   if (dbProfiles && dbProfiles.length > 0) {
     (dbProfiles as Profile[]).forEach((p) => {
-      const isOffline = p.channel === "offline" || p.user_type === "offline" || (p.user_type as any) === "offline_user";
+      const isOffline = p.channel === "offline" || p.user_type === "offline" || (p.user_type as unknown as string) === "offline_user";
       const normalizedChannel = isOffline ? "offline" : "online";
       profilesMap.set(p.id, {
         ...p,
@@ -98,6 +97,12 @@ export async function updateCustomerApprovalStatus(
   customerId: string,
   newStatus: ApprovalStatus
 ): Promise<{ success: boolean; message: string }> {
+  await requireAdmin();
+
+  if (!Object.values(APPROVAL_STATUSES).includes(newStatus)) {
+    return { success: false, message: "Invalid approval status." };
+  }
+
   const supabase = createAdminClient();
 
   try {
@@ -110,7 +115,9 @@ export async function updateCustomerApprovalStatus(
       .eq("id", customerId);
 
     if (error) {
-      console.warn("Notice updating approval status in profiles:", error.message);
+      // Approval drives dashboard access, so a failed write must not report success.
+      console.error("Failed to update approval status:", error.message);
+      return { success: false, message: "Could not update the customer's status. Please try again." };
     }
 
     // Also update auth user metadata if auth account exists
@@ -119,8 +126,56 @@ export async function updateCustomerApprovalStatus(
         approval_status: newStatus,
       },
     }).catch(() => null);
+
+    // Notify the customer that their account is live.
+    //
+    // This sends Supabase's "Magic Link" email, whose template has been
+    // customised into the approval notification. It is routed through the
+    // Brevo SMTP configured in Supabase.
+    //
+    // Security note: the email therefore contains a single-use sign-in token,
+    // so anyone with access to the customer's inbox can enter the dashboard
+    // without the password. That is inherent to magic-link delivery and is
+    // accepted here; keep the link expiry short in Supabase Auth settings.
+    if (newStatus === APPROVAL_STATUSES.APPROVED) {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("email")
+        .eq("id", customerId)
+        .single();
+
+      let targetEmail = (profile as unknown as { email?: string } | null)?.email;
+
+      if (!targetEmail) {
+        const { data: authUserData } = await supabase.auth.admin
+          .getUserById(customerId)
+          .catch(() => ({ data: null }));
+        targetEmail = authUserData?.user?.email;
+      }
+
+      if (targetEmail) {
+        const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+        // Delivery is best-effort: the approval is already committed, so a mail
+        // failure is logged rather than reported as a failed approval.
+        await supabase.auth
+          .signInWithOtp({
+            email: targetEmail,
+            options: {
+              // Never provision an account from this path. Approval only ever
+              // targets an existing user, and leaving the default (true) would
+              // let a stale or mistyped address create a fresh auth user.
+              shouldCreateUser: false,
+              emailRedirectTo: `${siteUrl}/auth/callback?next=/dashboard`,
+            },
+          })
+          .catch((emailErr) => {
+            console.error("Approval notification email failed:", emailErr);
+          });
+      }
+    }
   } catch (err) {
-    console.warn("Database update exception handled:", err);
+    console.error("Approval status update failed:", err);
+    return { success: false, message: "Could not update the customer's status. Please try again." };
   }
 
   revalidatePath("/admin/customers");
@@ -135,6 +190,7 @@ export async function createOfflineCustomer(formData: FormData): Promise<{
   error?: string;
   message?: string;
 }> {
+  await requireAdmin();
   const supabase = createAdminClient();
 
   const title = (formData.get("title") as UserTitle) || USER_TITLES[0];
@@ -194,10 +250,12 @@ export async function createOfflineCustomer(formData: FormData): Promise<{
       .insert(newOfflineProfile as never);
 
     if (error) {
-      console.warn("Notice inserting offline customer profile:", error.message);
+      console.error("Failed to insert offline customer profile:", error.message);
+      return { error: "Could not save the customer record. Please try again." };
     }
   } catch (err) {
-    console.warn("Database insert exception handled:", err);
+    console.error("Offline customer insert failed:", err);
+    return { error: "Could not save the customer record. Please try again." };
   }
 
   revalidatePath("/admin/customers");
@@ -214,19 +272,16 @@ export async function updateCustomerProfile(
   updates: Partial<Profile>
 ): Promise<{ success: boolean; error?: string }> {
   const supabase = createAdminClient();
-  const { createClient } = await import("@/lib/supabase/server");
-  const authClient = await createClient();
 
-  const {
-    data: { user },
-  } = await authClient.auth.getUser();
-
-  if (!user) {
+  let user: { userId: string };
+  try {
+    user = await requireUser();
+  } catch {
     return { success: false, error: "You must be logged in to update your profile." };
   }
 
   try {
-    const payload: any = {
+    const payload: Partial<Profile> = {
       company_name: updates.company_name,
       first_name: updates.first_name,
       last_name: updates.last_name,
@@ -246,7 +301,7 @@ export async function updateCustomerProfile(
     const { error } = await supabase
       .from("profiles")
       .update(payload as never)
-      .eq("id", user.id);
+      .eq("id", user.userId);
 
     if (error) {
       return { success: false, error: error.message };
@@ -254,7 +309,10 @@ export async function updateCustomerProfile(
 
     revalidatePath("/dashboard", "layout");
     return { success: true };
-  } catch (err: any) {
-    return { success: false, error: err?.message || "Failed to update profile." };
+  } catch (err: unknown) {
+    return {
+      success: false,
+      error: err instanceof Error ? err.message : "Failed to update profile.",
+    };
   }
 }

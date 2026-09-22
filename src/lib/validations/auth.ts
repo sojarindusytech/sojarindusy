@@ -2,16 +2,13 @@ import { z } from "zod";
 import { USER_TITLES } from "@/lib/constants";
 
 /**
- * Standard Strong Password Regex:
+ * Strong password policy, enforced on both client and server:
  * - At least 8 characters
  * - At least one uppercase letter (A-Z)
  * - At least one lowercase letter (a-z)
  * - At least one digit (0-9)
  * - At least one special character (!@#$%^&*...)
  */
-export const passwordRegex =
-  /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]).{8,}$/;
-
 export const passwordValidation = z
   .string()
   .min(8, "Password must be at least 8 characters long.")
@@ -101,3 +98,22 @@ export const loginSchema = z.object({
   email: z.string().trim().email("Please enter a valid email address."),
   password: z.string().min(1, "Password is required."),
 });
+
+// Forgot Password Request Schema
+export const forgotPasswordSchema = z.object({
+  email: z.string().trim().email("Please enter a valid official email address."),
+});
+
+// Reset / Set Password Schema
+export const resetPasswordSchema = z
+  .object({
+    password: passwordValidation,
+    confirm_password: z.string(),
+  })
+  .refine((data) => data.password === data.confirm_password, {
+    message: "Passwords do not match.",
+    path: ["confirm_password"],
+  });
+
+export type ForgotPasswordFormData = z.infer<typeof forgotPasswordSchema>;
+export type ResetPasswordFormData = z.infer<typeof resetPasswordSchema>;

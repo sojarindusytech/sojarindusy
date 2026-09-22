@@ -16,16 +16,43 @@ function LoginForm() {
   const searchParams = useSearchParams();
   const registered = searchParams.get("registered");
   const redirectTo = searchParams.get("redirect");
+  const resetSuccess = searchParams.get("reset") === "success";
+  const verifiedSuccess = searchParams.get("verified") === "true";
+  const callbackError = searchParams.get("error");
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isUnconfirmed, setIsUnconfirmed] = useState(false);
+  const [resendingEmail, setResendingEmail] = useState(false);
+  const [resendMessage, setResendMessage] = useState<string | null>(null);
+
+  const handleResendVerification = async () => {
+    if (!email) return;
+    setResendingEmail(true);
+    setResendMessage(null);
+    try {
+      const { resendVerificationEmail } = await import("@/actions/auth");
+      const res = await resendVerificationEmail(email);
+      if (res.error) {
+        setError(res.error);
+      } else {
+        setResendMessage("Verification email resent! Please check your inbox and spam folder.");
+      }
+    } catch {
+      setError("Failed to resend confirmation email. Please try again later.");
+    } finally {
+      setResendingEmail(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    setIsUnconfirmed(false);
+    setResendMessage(null);
 
     const result = loginSchema.safeParse({ email, password });
     if (!result.success) {
@@ -40,6 +67,9 @@ function LoginForm() {
 
       if (res.error) {
         setError(res.error);
+        if (res.isEmailUnconfirmed) {
+          setIsUnconfirmed(true);
+        }
       } else {
         if (redirectTo) {
           router.push(redirectTo);
@@ -70,22 +100,68 @@ function LoginForm() {
 
       <form onSubmit={handleSubmit}>
         <CardContent className="space-y-4 p-6 pt-2 bg-white">
+          {resetSuccess && (
+            <div className="flex items-start gap-2.5 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-xs text-emerald-900">
+              <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600 mt-0.5" />
+              <p>Your password has been reset successfully! Please sign in with your new password.</p>
+            </div>
+          )}
+
+          {verifiedSuccess && (
+            <div className="flex items-start gap-2.5 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-xs text-emerald-900">
+              <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600 mt-0.5" />
+              <p>Email verified successfully! Your account is undergoing administrator approval.</p>
+            </div>
+          )}
+
           {registered && (
             <div className="flex items-start gap-2.5 rounded-lg border border-[#3C8B4F]/30 bg-[#3C8B4F]/10 p-3 text-xs text-[#3C8B4F]">
-              <CheckCircle2 className="h-4 w-4 shrink-0 text-[#3C8B4F]" />
+              <CheckCircle2 className="h-4 w-4 shrink-0 text-[#3C8B4F] mt-0.5" />
               <p>Registration complete! Please enter your credentials to log in.</p>
+            </div>
+          )}
+
+          {callbackError && (
+            <div className="flex items-start gap-2.5 rounded-lg border border-amber-500/20 bg-amber-50 p-3 text-xs text-amber-900">
+              <AlertCircle className="h-4 w-4 shrink-0 text-amber-600 mt-0.5" />
+              <p>The authorization link was invalid or has expired. Please try again or request a new link.</p>
             </div>
           )}
 
           {error && (
             <div className="flex items-start gap-2.5 rounded-lg border border-red-500/20 bg-red-50 p-3 text-xs text-red-800">
-              <AlertCircle className="h-4 w-4 shrink-0 text-red-600" />
-              <p>{error}</p>
+              <AlertCircle className="h-4 w-4 shrink-0 text-red-600 mt-0.5" />
+              <div className="space-y-1.5 flex-1">
+                <p>{error}</p>
+                {isUnconfirmed && (
+                  <div className="pt-1">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={handleResendVerification}
+                      disabled={resendingEmail}
+                      className="h-7 text-[11px] border-red-200 text-red-700 hover:bg-red-100"
+                    >
+                      {resendingEmail ? "Resending..." : "Resend Verification Email"}
+                    </Button>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {resendMessage && (
+            <div className="flex items-start gap-2.5 rounded-lg border border-blue-200 bg-blue-50 p-3 text-xs text-blue-900">
+              <CheckCircle2 className="h-4 w-4 shrink-0 text-blue-600 mt-0.5" />
+              <p>{resendMessage}</p>
             </div>
           )}
 
           <div className="space-y-1.5">
-            <Label htmlFor="email">Email</Label>
+            <Label htmlFor="email" className="text-xs font-semibold text-slate-700">
+              Email
+            </Label>
             <Input
               id="email"
               type="email"
@@ -93,18 +169,29 @@ function LoginForm() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
+              className="h-10 text-xs border-slate-200"
             />
           </div>
 
           <div className="space-y-1.5">
-            <Label htmlFor="password">Password</Label>
+            <div className="flex items-center justify-between">
+              <Label htmlFor="password" className="text-xs font-semibold text-slate-700">
+                Password
+              </Label>
+              <Link
+                href="/forgot-password"
+                className="text-xs font-medium text-[#024AE5] hover:underline"
+              >
+                Forgot Password?
+              </Link>
+            </div>
             <div className="relative">
               <Input
                 id="password"
                 type={showPassword ? "text" : "password"}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="pr-10"
+                className="pr-10 h-10 text-xs border-slate-200"
                 required
               />
               <button
@@ -130,7 +217,7 @@ function LoginForm() {
             size="lg"
             variant="primary"
             disabled={loading}
-            className="w-full gap-2"
+            className="w-full gap-2 text-xs h-10 font-semibold"
           >
             {loading ? (
               "Signing In..."

@@ -68,8 +68,6 @@ const navItems: NavSectionItem[] = [
     title: "Orders",
     icon: ShoppingBag,
     subItems: [
-      { title: "Sales Orders", href: "/admin/sales-orders" },
-      { title: "Purchase Orders", href: "/admin/purchase-orders" },
       { title: "Order List", href: "/admin/orders" },
       { title: "Order Returns", href: "/admin/order-returns" },
       { title: "Dispatch / Delivery", href: "/admin/dispatch" },
@@ -145,12 +143,12 @@ export function AdminSidebar() {
   return (
     <aside
       className={cn(
-        "relative flex flex-col border-r border-slate-200 bg-white transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] z-30 shrink-0 select-none",
+        "sticky top-0 h-screen flex flex-col border-r border-slate-200 bg-white transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] z-30 shrink-0 select-none",
         collapsed ? "w-16" : "w-64"
       )}
     >
       {/* Sidebar Top Logo */}
-      <div className="flex h-16 items-center justify-between px-4 border-b border-slate-100">
+      <div className="flex h-16 shrink-0 items-center justify-between px-4 border-b border-slate-100">
         <Link href="/admin/dashboard" className="flex items-center overflow-hidden py-1">
           <Image
             src="/assets/sojar-logo.webp"
@@ -164,7 +162,7 @@ export function AdminSidebar() {
       </div>
 
       {/* Scrollable Nav List */}
-      <div className="flex-1 overflow-y-auto px-3 py-3 space-y-1.5">
+      <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-3 py-3 space-y-1.5 [scrollbar-width:thin] [scrollbar-color:#CBD5E1_transparent]">
         {navItems.map((item) => {
           const Icon = item.icon;
           const hasSubItems = item.subItems && item.subItems.length > 0;
@@ -252,7 +250,7 @@ export function AdminSidebar() {
       </div>
 
       {/* Collapse Toggle Footer */}
-      <div className="border-t border-slate-100 p-3">
+      <div className="shrink-0 border-t border-slate-100 p-3">
         <button
           type="button"
           onClick={() => setCollapsed(!collapsed)}

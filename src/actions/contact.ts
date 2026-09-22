@@ -1,6 +1,7 @@
 "use server";
 
 import { createAdminClient } from "@/lib/supabase/admin";
+import { requireAdmin } from "@/lib/auth-guard";
 import {
   ContactSubmission,
   ContactSubmissionStatus,
@@ -139,6 +140,7 @@ export async function submitContactInquiry(payload: ContactInquiryPayload): Prom
  * Administrative action to fetch all contact submissions
  */
 export async function fetchContactSubmissions(): Promise<FetchSubmissionsResult> {
+  await requireAdmin();
   try {
     const supabase = createAdminClient();
 
@@ -176,6 +178,7 @@ export async function updateContactSubmission(
     admin_notes?: string | null;
   }
 ): Promise<{ success: boolean; error?: string }> {
+  await requireAdmin();
   try {
     if (!id) return { success: false, error: "Missing submission ID" };
 
@@ -214,6 +217,7 @@ export async function updateContactSubmission(
 export async function deleteContactSubmission(
   id: string
 ): Promise<{ success: boolean; error?: string }> {
+  await requireAdmin();
   try {
     if (!id) return { success: false, error: "Missing submission ID" };
 

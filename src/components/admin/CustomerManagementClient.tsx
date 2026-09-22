@@ -292,7 +292,7 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
       const userType = c.user_type || USER_TYPES.PLATFORM_USER;
       const matchesType = selectedUserType === "all" || userType === selectedUserType;
 
-      const status = c.approval_status || APPROVAL_STATUSES.APPROVED;
+      const status = c.approval_status || APPROVAL_STATUSES.PENDING;
       const matchesStatus = selectedStatus === "all" || status === selectedStatus;
 
       return matchesSearch && matchesType && matchesStatus;
@@ -378,6 +378,8 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
     const { customer, targetStatus } = confirmDialog;
     setConfirmDialog(null);
 
+    const previousStatus = customer.approval_status || APPROVAL_STATUSES.PENDING;
+
     startTransition(async () => {
       setCustomers((prev) =>
         prev.map((c) => (c.id === customer.id ? { ...c, approval_status: targetStatus } : c))
@@ -385,7 +387,20 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
       if (viewingCustomer && viewingCustomer.id === customer.id) {
         setViewingCustomer((prev) => (prev ? { ...prev, approval_status: targetStatus } : null));
       }
-      await updateCustomerApprovalStatus(customer.id, targetStatus);
+
+      const res = await updateCustomerApprovalStatus(customer.id, targetStatus);
+
+      // Roll the optimistic update back on failure. Approval controls dashboard
+      // access, so the admin must never be shown a status the database rejected.
+      if (!res.success) {
+        setCustomers((prev) =>
+          prev.map((c) => (c.id === customer.id ? { ...c, approval_status: previousStatus } : c))
+        );
+        if (viewingCustomer && viewingCustomer.id === customer.id) {
+          setViewingCustomer((prev) => (prev ? { ...prev, approval_status: previousStatus } : null));
+        }
+        setFormError(res.message);
+      }
     });
   };
 
@@ -411,7 +426,7 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
                   .concat(
                     filteredAndSortedCustomers.map(
                       (c) =>
-                        `"${c.company_name}","${c.title} ${c.first_name} ${c.last_name}","${c.email}","${c.mobile}","${c.gstin || "-"}","${c.city}","${c.state}","${formatDate(c.created_at)}","${c.user_type || USER_TYPES.PLATFORM_USER}","${c.approval_status || APPROVAL_STATUSES.APPROVED}"`
+                        `"${c.company_name}","${c.title} ${c.first_name} ${c.last_name}","${c.email}","${c.mobile}","${c.gstin || "-"}","${c.city}","${c.state}","${formatDate(c.created_at)}","${c.user_type || USER_TYPES.PLATFORM_USER}","${c.approval_status || APPROVAL_STATUSES.PENDING}"`
                     )
                   )
                   .join("\n");
@@ -723,7 +738,7 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
             ) : (
               paginatedCustomers.map((customer) => {
                 const userType = customer.user_type || USER_TYPES.PLATFORM_USER;
-                const approvalStatus = customer.approval_status || APPROVAL_STATUSES.APPROVED;
+                const approvalStatus = customer.approval_status || APPROVAL_STATUSES.PENDING;
 
                 return (
                   <TableRow

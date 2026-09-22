@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useTransition } from "react";
+import Image from "next/image";
 import { ContactSubmission, ContactSubmissionStatus } from "@/types/database.types";
 import {
   updateContactSubmission,
@@ -51,7 +52,6 @@ import {
   AlertCircle,
   FileText,
   Save,
-  MessageCircle,
 } from "lucide-react";
 import toast from "react-hot-toast";
 
@@ -486,10 +486,16 @@ export function InquiriesManagementClient({
                               href={`https://wa.me/${inquiry.mobile.replace(/[^0-9]/g, "")}`}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="text-emerald-600 hover:text-emerald-700"
+                              className="inline-flex items-center justify-center hover:opacity-80 transition-opacity"
                               title="Message on WhatsApp"
                             >
-                              <MessageCircle className="w-3.5 h-3.5" />
+                              <Image
+                                src="/assets/icons/whatsapp.svg"
+                                alt="WhatsApp"
+                                width={14}
+                                height={14}
+                                className="w-3.5 h-3.5 shrink-0"
+                              />
                             </a>
                           </div>
                         ) : (
@@ -616,9 +622,15 @@ export function InquiriesManagementClient({
                       href={`https://wa.me/${selectedInquiry.mobile.replace(/[^0-9]/g, "")}`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="inline-flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-colors"
+                      className="inline-flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-colors shadow-xs hover:shadow-sm"
                     >
-                      <MessageCircle className="w-3.5 h-3.5" />
+                      <Image
+                        src="/assets/icons/whatsapp.svg"
+                        alt="WhatsApp"
+                        width={16}
+                        height={16}
+                        className="w-4 h-4 shrink-0"
+                      />
                       <span>Chat on WhatsApp</span>
                       <ExternalLink className="w-3 h-3 opacity-70" />
                     </a>
