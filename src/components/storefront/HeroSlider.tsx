@@ -39,8 +39,8 @@ export function HeroSlider() {
         onMouseEnter={() => setPaused(true)}
         onMouseLeave={() => setPaused(false)}
       >
-        {/* Slides — 100% full width edge-to-edge with slightly reduced height */}
-        <div className="relative w-full aspect-[2/1] sm:aspect-[22/9] lg:aspect-[23/9]">
+        {/* Slides — 100% full width edge-to-edge preserving full bottom whitespace and content */}
+        <div className="relative w-full aspect-[740/366] sm:aspect-[1520/625]">
           {SLIDES.map((slide, idx) => (
             <div
               key={idx}
@@ -53,7 +53,7 @@ export function HeroSlider() {
                 src={slide.mobile}
                 alt={slide.alt}
                 fill
-                className="object-cover object-center sm:hidden"
+                className="object-contain object-bottom sm:hidden"
                 priority={idx <= 1}
                 loading={idx <= 1 ? "eager" : "lazy"}
                 sizes="(max-width: 640px) 100vw, 1px"
@@ -63,7 +63,7 @@ export function HeroSlider() {
                 src={slide.desktop}
                 alt={slide.alt}
                 fill
-                className="object-cover object-center hidden sm:block"
+                className="object-contain object-bottom hidden sm:block"
                 priority={idx <= 1}
                 loading={idx <= 1 ? "eager" : "lazy"}
                 sizes="(max-width: 640px) 1px, (max-width: 1536px) 100vw, 1536px"
@@ -88,7 +88,7 @@ export function HeroSlider() {
           </button>
 
           {/* Dot indicators */}
-          <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-20 flex items-center gap-1.5">
+          <div className="absolute bottom-2.5 sm:bottom-3.5 left-1/2 -translate-x-1/2 z-20 flex items-center gap-1.5 bg-black/25 backdrop-blur-xs px-2.5 py-1 rounded-full">
             {SLIDES.map((_, idx) => (
               <button
                 key={idx}
@@ -97,7 +97,7 @@ export function HeroSlider() {
                 className={`rounded-full transition-all duration-300 cursor-pointer ${
                   idx === current
                     ? "bg-white w-5 h-2"
-                    : "bg-white/50 hover:bg-white/75 w-2 h-2"
+                    : "bg-white/50 hover:bg-white/80 w-2 h-2"
                 }`}
               />
             ))}

@@ -57,14 +57,16 @@ export function PendingApprovalClient({
       {/* Top Simple Header */}
       <header className="h-16 border-b border-slate-200 bg-white px-6 sm:px-12 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <Image
-            src="/assets/sojar-logo.svg"
-            alt="Sojar Solutions"
-            width={160}
-            height={44}
-            className="h-9 w-auto object-contain"
-            priority
-          />
+          <Link href="/" title="Sojar Solutions Home" className="flex items-center">
+            <Image
+              src="/assets/sojar-logo.svg"
+              alt="Sojar Solutions"
+              width={160}
+              height={44}
+              className="h-9 w-auto object-contain"
+              priority
+            />
+          </Link>
           <span className="hidden sm:inline-block text-[11px] font-bold text-[#024AE5] bg-blue-50 px-2.5 py-1 rounded-full border border-blue-100 uppercase tracking-wider">
             Customer Portal
           </span>
@@ -118,7 +120,7 @@ export function PendingApprovalClient({
             <Button
               onClick={handleRefresh}
               disabled={isRefreshing}
-              className="bg-[#024AE5] hover:bg-[#024AE5]/90 text-white text-xs font-bold h-9 px-4 shadow-none gap-2 shrink-0 cursor-pointer"
+              className="bg-[#024AE5] hover:bg-[#024AE5]/90 text-white text-xs font-bold h-9 px-4 shadow-none gap-2 shrink-0 cursor-pointer w-full sm:w-auto justify-center"
             >
               <RefreshCw className={`h-3.5 w-3.5 ${isRefreshing ? "animate-spin" : ""}`} />
               <span>Check Verification Status</span>

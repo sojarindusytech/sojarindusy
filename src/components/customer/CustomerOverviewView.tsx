@@ -252,10 +252,10 @@ export function CustomerOverviewView({
             <p className="text-xs text-blue-100 leading-relaxed">
               Submit your engineering drawings and tolerances for custom solid carbide end mills or non-standard fasteners.
             </p>
-            <Link href="/dashboard/rfqs" className="inline-block pt-1">
+            <Link href="/dashboard/rfqs" className="inline-block pt-1 w-full sm:w-auto">
               <Button
                 size="sm"
-                className="bg-white text-[#024AE5] hover:bg-slate-100 text-xs font-bold h-8 px-3.5 shadow-none"
+                className="w-full sm:w-auto bg-white text-[#024AE5] hover:bg-slate-100 text-xs font-bold h-8 px-3.5 shadow-none justify-center"
               >
                 Submit Custom RFQ
               </Button>
@@ -292,7 +292,7 @@ export function CustomerOverviewView({
                 <Button
                   variant="outline"
                   size="sm"
-                  className="w-full text-xs font-semibold h-8 border-slate-200 text-slate-700 shadow-none"
+                  className="w-full text-xs font-semibold h-8 border-slate-200 text-slate-700 shadow-none justify-center"
                 >
                   Manage Facility & GST Details
                 </Button>
@@ -308,19 +308,19 @@ export function CustomerOverviewView({
           open={!!activeOrderDetails}
           onOpenChange={(open) => !open && setActiveOrderDetails(null)}
         >
-          <DialogContent className="max-w-2xl bg-white p-6 rounded-2xl shadow-xl">
+          <DialogContent className="max-w-2xl w-[95vw] sm:w-full p-4 sm:p-6 rounded-xl sm:rounded-2xl shadow-xl max-h-[90vh] overflow-y-auto">
             <DialogHeader className="pb-3 border-b border-slate-200">
-              <div className="flex items-center justify-between pr-8">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pr-6">
                 <div className="flex items-center gap-2">
-                  <Boxes className="h-5 w-5 text-[#024AE5]" />
-                  <DialogTitle className="text-lg font-bold text-slate-900">
+                  <Boxes className="h-5 w-5 text-[#024AE5] shrink-0" />
+                  <DialogTitle className="text-base sm:text-lg font-bold text-slate-900">
                     {activeOrderDetails.status === ORDER_STATUSES.DELIVERED
                       ? `GST Tax Invoice #${activeOrderDetails.invoice_number || activeOrderDetails.order_number.replace("ORD-", "INV-")}`
                       : `Purchase Order #${activeOrderDetails.order_number}`}
                   </DialogTitle>
                 </div>
                 <span
-                  className={`inline-flex items-center px-2.5 py-0.5 rounded text-xs font-bold border ${
+                  className={`inline-flex items-center px-2.5 py-0.5 rounded text-xs font-bold border self-start sm:self-auto ${
                     ORDER_STATUS_CONFIG[activeOrderDetails.status]?.badgeBg
                   } ${ORDER_STATUS_CONFIG[activeOrderDetails.status]?.badgeText} ${
                     ORDER_STATUS_CONFIG[activeOrderDetails.status]?.border
@@ -351,7 +351,7 @@ export function CustomerOverviewView({
                   </span>
                 </div>
               )}
-              <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200 text-xs">
+              <div className="bg-slate-50 p-3 sm:p-3.5 rounded-xl border border-slate-200 text-xs">
                 <span className="text-slate-400 block text-[10px] font-bold uppercase">
                   Delivery Destination
                 </span>
@@ -360,8 +360,8 @@ export function CustomerOverviewView({
                 </p>
               </div>
 
-              <div className="border border-slate-200 rounded-xl overflow-hidden">
-                <Table>
+              <div className="border border-slate-200 rounded-xl overflow-x-auto [scrollbar-width:thin]">
+                <Table className="min-w-[480px]">
                   <TableHeader className="bg-slate-50">
                     <TableRow className="text-xs">
                       <TableHead className="font-bold text-slate-700">Item / SKU</TableHead>
@@ -396,7 +396,7 @@ export function CustomerOverviewView({
               </div>
 
               <div className="flex justify-end pt-2">
-                <div className="w-64 space-y-1.5 text-xs">
+                <div className="w-full sm:w-64 space-y-1.5 text-xs">
                   <div className="flex justify-between text-slate-600">
                     <span>Taxable Subtotal</span>
                     <span className="font-mono">
@@ -416,6 +416,17 @@ export function CustomerOverviewView({
                     </span>
                   </div>
                 </div>
+              </div>
+
+              <div className="flex justify-end pt-2 border-t border-slate-100">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setActiveOrderDetails(null)}
+                  className="w-full sm:w-auto h-9 sm:h-8 text-xs border-slate-200 shadow-none cursor-pointer"
+                >
+                  Close
+                </Button>
               </div>
             </div>
           </DialogContent>

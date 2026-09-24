@@ -255,8 +255,8 @@ export function OrderManagementClient({ initialOrders }: OrderManagementClientPr
 
       {/* Master Orders Table */}
       <div className="border border-slate-200 rounded-xl bg-white overflow-hidden">
-        <div className="overflow-x-auto">
-          <Table>
+        <div className="overflow-x-auto [scrollbar-width:thin]">
+          <Table className="min-w-[850px]">
             <TableHeader className="bg-slate-50/80">
               <TableRow className="border-b border-slate-200 text-xs">
                 <TableHead className="font-bold text-slate-700 py-3">Order Number & Date</TableHead>
@@ -424,17 +424,17 @@ export function OrderManagementClient({ initialOrders }: OrderManagementClientPr
       {/* Full Order Details Modal */}
       {viewOrder && (
         <Dialog open={!!viewOrder} onOpenChange={(open) => !open && setViewOrder(null)}>
-          <DialogContent className="max-w-2xl bg-white p-6 rounded-2xl shadow-xl">
+          <DialogContent className="max-w-2xl w-[95vw] sm:w-full p-4 sm:p-6 rounded-xl sm:rounded-2xl shadow-xl max-h-[90vh] overflow-y-auto">
             <DialogHeader className="pb-3 border-b border-slate-200">
-              <div className="flex items-center justify-between pr-8">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pr-6">
                 <div className="flex items-center gap-2">
-                  <Package className="h-5 w-5 text-[#024AE5]" />
-                  <DialogTitle className="text-lg font-bold text-slate-900">
+                  <Package className="h-5 w-5 text-[#024AE5] shrink-0" />
+                  <DialogTitle className="text-base sm:text-lg font-bold text-slate-900">
                     Order #{viewOrder.order_number}
                   </DialogTitle>
                 </div>
                 <span
-                  className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-bold border ${
+                  className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-bold border self-start sm:self-auto ${
                     ORDER_STATUS_CONFIG[viewOrder.status]?.badgeBg
                   } ${ORDER_STATUS_CONFIG[viewOrder.status]?.badgeText} ${
                     ORDER_STATUS_CONFIG[viewOrder.status]?.border
@@ -457,7 +457,7 @@ export function OrderManagementClient({ initialOrders }: OrderManagementClientPr
 
             <div className="space-y-4 pt-2">
               {/* Client & Shipping Grid */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs bg-slate-50 p-3.5 rounded-xl border border-slate-200">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs bg-slate-50 p-3 sm:p-3.5 rounded-xl border border-slate-200">
                 <div>
                   <span className="text-slate-400 block text-[10px] font-bold uppercase">
                     Client Details
@@ -492,8 +492,8 @@ export function OrderManagementClient({ initialOrders }: OrderManagementClientPr
               </div>
 
               {/* Line Items Table */}
-              <div className="border border-slate-200 rounded-xl overflow-hidden">
-                <Table>
+              <div className="border border-slate-200 rounded-xl overflow-x-auto [scrollbar-width:thin]">
+                <Table className="min-w-[480px]">
                   <TableHeader className="bg-slate-50">
                     <TableRow className="text-xs">
                       <TableHead className="font-bold text-slate-700">SKU / Item</TableHead>
@@ -529,7 +529,7 @@ export function OrderManagementClient({ initialOrders }: OrderManagementClientPr
 
               {/* Invoicing Summary */}
               <div className="flex justify-end pt-2">
-                <div className="w-64 space-y-1.5 text-xs">
+                <div className="w-full sm:w-64 space-y-1.5 text-xs">
                   <div className="flex justify-between text-slate-600">
                     <span>Subtotal</span>
                     <span className="font-mono">
@@ -549,6 +549,17 @@ export function OrderManagementClient({ initialOrders }: OrderManagementClientPr
                     </span>
                   </div>
                 </div>
+              </div>
+
+              <div className="flex justify-end pt-2 border-t border-slate-100">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setViewOrder(null)}
+                  className="w-full sm:w-auto h-9 sm:h-8 text-xs border-slate-200 shadow-none cursor-pointer"
+                >
+                  Close
+                </Button>
               </div>
             </div>
           </DialogContent>

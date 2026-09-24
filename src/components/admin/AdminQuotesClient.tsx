@@ -326,13 +326,13 @@ export function AdminQuotesClient({ initialQuotes }: AdminQuotesClientProps) {
             </div>
           </div>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full sm:w-auto">
           <Button
             variant="outline"
             size="sm"
             onClick={handleRefresh}
             disabled={isRefreshing}
-            className="border-slate-200 text-slate-700 hover:bg-slate-50"
+            className="w-full sm:w-auto justify-center border-slate-200 text-slate-700 hover:bg-slate-50 h-9 sm:h-8"
           >
             <RefreshCw className={`w-4 h-4 mr-2 ${isRefreshing ? "animate-spin" : ""}`} />
             Refresh
@@ -340,7 +340,7 @@ export function AdminQuotesClient({ initialQuotes }: AdminQuotesClientProps) {
           <Button
             size="sm"
             onClick={() => setIsCreateOpen(true)}
-            className="bg-[#024AE5] hover:bg-[#024AE5]/90 text-white font-medium shadow-sm"
+            className="w-full sm:w-auto justify-center bg-[#024AE5] hover:bg-[#024AE5]/90 text-white font-medium shadow-sm h-9 sm:h-8"
           >
             <Plus className="w-4 h-4 mr-2" />
             Create Quotation
@@ -459,8 +459,8 @@ export function AdminQuotesClient({ initialQuotes }: AdminQuotesClientProps) {
 
       {/* Commercial Quotes Table */}
       <Card className="bg-white border border-slate-200 shadow-sm rounded-xl overflow-hidden">
-        <div className="overflow-x-auto">
-          <Table>
+        <div className="overflow-x-auto [scrollbar-width:thin]">
+          <Table className="min-w-[900px]">
             <TableHeader className="bg-slate-50/75 border-b border-slate-200">
               <TableRow>
                 <TableHead className="w-[180px] font-semibold text-slate-700">Quote Number</TableHead>
@@ -712,9 +712,9 @@ export function AdminQuotesClient({ initialQuotes }: AdminQuotesClientProps) {
 
       {/* View Items Breakdown Modal */}
       <Dialog open={!!viewingQuote} onOpenChange={(open) => !open && setViewingQuote(null)}>
-        <DialogContent className="sm:max-w-[650px] p-6 pr-12">
+        <DialogContent className="max-w-2xl w-[95vw] sm:w-full p-4 sm:p-6 rounded-xl sm:rounded-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="text-lg font-bold text-slate-900 flex items-center gap-2">
+            <DialogTitle className="text-base sm:text-lg font-bold text-slate-900 flex items-center gap-2">
               <Layers className="w-5 h-5 text-[#024AE5]" />
               Quotation Line Items Breakdown
             </DialogTitle>
@@ -729,8 +729,8 @@ export function AdminQuotesClient({ initialQuotes }: AdminQuotesClientProps) {
 
           {viewingQuote && (
             <div className="space-y-4 pt-2">
-              <div className="border border-slate-200 rounded-lg overflow-hidden">
-                <Table>
+              <div className="border border-slate-200 rounded-lg overflow-x-auto [scrollbar-width:thin]">
+                <Table className="min-w-[480px]">
                   <TableHeader className="bg-slate-50">
                     <TableRow>
                       <TableHead className="text-xs">SKU & Title</TableHead>
@@ -797,7 +797,7 @@ export function AdminQuotesClient({ initialQuotes }: AdminQuotesClientProps) {
 
       {/* Create New Quotation Modal */}
       <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-        <DialogContent className="sm:max-w-[750px] max-h-[90vh] overflow-y-auto p-6 pr-12">
+        <DialogContent className="max-w-2xl w-[95vw] sm:w-full max-h-[90vh] overflow-y-auto p-4 sm:p-6 rounded-xl sm:rounded-2xl">
           <DialogHeader>
             <DialogTitle className="text-lg font-bold text-slate-900 flex items-center gap-2">
               <Plus className="w-5 h-5 text-[#024AE5]" />
@@ -978,13 +978,14 @@ export function AdminQuotesClient({ initialQuotes }: AdminQuotesClientProps) {
               </div>
             </div>
 
-            <div className="pt-2 flex items-center justify-end gap-2 border-t border-slate-100">
+            <div className="pt-2 flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-2 border-t border-slate-100">
               <Button
                 type="button"
                 variant="outline"
                 size="sm"
                 onClick={() => setIsCreateOpen(false)}
                 disabled={isCreating}
+                className="w-full sm:w-auto h-9 sm:h-8"
               >
                 Cancel
               </Button>
@@ -992,7 +993,7 @@ export function AdminQuotesClient({ initialQuotes }: AdminQuotesClientProps) {
                 type="submit"
                 size="sm"
                 disabled={isCreating}
-                className="bg-[#024AE5] hover:bg-[#024AE5]/90 text-white font-medium shadow-sm"
+                className="w-full sm:w-auto h-9 sm:h-8 bg-[#024AE5] hover:bg-[#024AE5]/90 text-white font-medium shadow-sm justify-center"
               >
                 {isCreating ? (
                   <>

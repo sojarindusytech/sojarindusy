@@ -129,7 +129,7 @@ export function CustomerRfqsView({ initialRfqs }: CustomerRfqsViewProps) {
       {/* Top Header & New RFQ Action */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
-          <h1 className="text-xl font-bold text-slate-900 tracking-tight">
+          <h1 className="text-lg sm:text-xl font-bold text-slate-900 tracking-tight">
             Custom Tooling & Fastener RFQs
           </h1>
           <p className="text-xs text-slate-500">
@@ -140,7 +140,7 @@ export function CustomerRfqsView({ initialRfqs }: CustomerRfqsViewProps) {
         <Button
           size="sm"
           onClick={handleOpenSubmitModal}
-          className="bg-[#024AE5] hover:bg-[#024AE5]/90 text-white text-xs font-bold h-8.5 px-4 shadow-none gap-1.5 cursor-pointer self-start sm:self-auto"
+          className="w-full sm:w-auto bg-[#024AE5] hover:bg-[#024AE5]/90 text-white text-xs font-bold h-9 sm:h-8.5 px-4 shadow-none gap-1.5 cursor-pointer justify-center"
         >
           <Plus className="h-3.5 w-3.5" />
           <span>Send New RFQ</span>
@@ -148,16 +148,16 @@ export function CustomerRfqsView({ initialRfqs }: CustomerRfqsViewProps) {
       </div>
 
       {/* Filter & Search Toolbar */}
-      <div className="bg-white p-3.5 rounded-xl border border-slate-200 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 shadow-xs">
+      <div className="bg-white p-3 sm:p-3.5 rounded-xl border border-slate-200 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 shadow-xs">
         {/* Search */}
-        <div className="relative flex-1 max-w-md">
+        <div className="relative flex-1 max-w-full md:max-w-md">
           <Search className="absolute left-3 top-2.5 h-3.5 w-3.5 text-slate-400" />
           <Input
             type="text"
             placeholder="Search by RFQ # or item description..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="h-9 pl-9 text-xs border-slate-200 bg-slate-50/50 focus-visible:bg-white"
+            className="h-9 pl-9 text-xs border-slate-200 bg-slate-50/50 focus-visible:bg-white w-full"
           />
           {searchQuery && (
             <button
@@ -170,11 +170,11 @@ export function CustomerRfqsView({ initialRfqs }: CustomerRfqsViewProps) {
         </div>
 
         {/* Dropdown Filters */}
-        <div className="flex flex-wrap items-center gap-2.5">
-          <div className="flex items-center gap-1.5">
-            <Filter className="h-3.5 w-3.5 text-slate-400 shrink-0" />
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 w-full md:w-auto">
+          <div className="flex items-center gap-1.5 flex-1 sm:flex-initial">
+            <Filter className="h-3.5 w-3.5 text-slate-400 shrink-0 hidden sm:block" />
             <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="h-9 w-44 text-xs font-semibold bg-slate-50/50 border-slate-200 shadow-none">
+              <SelectTrigger className="h-9 w-full sm:w-44 text-xs font-semibold bg-slate-50/50 border-slate-200 shadow-none">
                 <SelectValue placeholder="All Statuses" />
               </SelectTrigger>
               <SelectContent className="bg-white border-slate-200 shadow-lg text-xs">
@@ -196,7 +196,7 @@ export function CustomerRfqsView({ initialRfqs }: CustomerRfqsViewProps) {
                 setSearchQuery("");
                 setStatusFilter("ALL");
               }}
-              className="h-9 text-xs text-slate-500 hover:text-slate-800 gap-1 px-2.5"
+              className="h-9 text-xs text-slate-500 hover:text-slate-800 gap-1 px-2.5 w-full sm:w-auto justify-center"
             >
               <RotateCcw className="h-3 w-3" />
               <span>Reset</span>
@@ -207,8 +207,8 @@ export function CustomerRfqsView({ initialRfqs }: CustomerRfqsViewProps) {
 
       {/* RFQ Table */}
       <Card className="border-slate-200 bg-white shadow-none rounded-xl overflow-hidden">
-        <div className="overflow-x-auto">
-          <Table>
+        <div className="overflow-x-auto [scrollbar-width:thin]">
+          <Table className="min-w-[700px]">
             <TableHeader className="bg-slate-50">
               <TableRow className="text-xs">
                 <TableHead className="font-bold text-slate-700">RFQ Number</TableHead>
@@ -307,12 +307,11 @@ export function CustomerRfqsView({ initialRfqs }: CustomerRfqsViewProps) {
       </Card>
 
       {/* MODAL 1: SEND NEW RFQ */}
-      <Dialog open={isSubmitModalOpen} onOpenChange={setIsSubmitModalOpen}>
-        <DialogContent className="max-w-xl bg-white p-6 rounded-2xl shadow-xl">
+      <Dialog open={isSubmitModalOpen} onOpenChange={setIsSubmitModalOpen}>        <DialogContent className="max-w-lg w-[95vw] sm:w-full bg-white p-4 sm:p-6 rounded-xl sm:rounded-2xl shadow-xl">
           <DialogHeader className="pb-3 border-b border-slate-200">
             <div className="flex items-center gap-2">
               <FileText className="h-5 w-5 text-[#024AE5]" />
-              <DialogTitle className="text-lg font-bold text-slate-900">
+              <DialogTitle className="text-base sm:text-lg font-bold text-slate-900">
                 Submit Request for Quotation (RFQ)
               </DialogTitle>
             </div>
@@ -333,7 +332,7 @@ export function CustomerRfqsView({ initialRfqs }: CustomerRfqsViewProps) {
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <Label className="text-xs font-semibold text-slate-700">Estimated Batch Quantity *</Label>
                 <Input
@@ -380,20 +379,20 @@ export function CustomerRfqsView({ initialRfqs }: CustomerRfqsViewProps) {
               />
             </div>
 
-            <div className="flex justify-end gap-2.5 pt-3 border-t border-slate-100">
+            <div className="flex flex-col sm:flex-row justify-end gap-2 sm:gap-2.5 pt-3 border-t border-slate-100">
               <Button
                 type="button"
                 variant="outline"
                 onClick={() => setIsSubmitModalOpen(false)}
                 disabled={isSubmitting}
-                className="h-8.5 text-xs border-slate-200 shadow-none cursor-pointer"
+                className="w-full sm:w-auto h-9 sm:h-8.5 text-xs border-slate-200 shadow-none cursor-pointer justify-center"
               >
                 Cancel
               </Button>
               <Button
                 type="submit"
                 disabled={isSubmitting}
-                className="h-8.5 text-xs bg-[#024AE5] hover:bg-[#024AE5]/90 text-white shadow-none px-5 font-bold cursor-pointer gap-1.5"
+                className="w-full sm:w-auto h-9 sm:h-8.5 text-xs bg-[#024AE5] hover:bg-[#024AE5]/90 text-white shadow-none px-5 font-bold cursor-pointer gap-1.5 justify-center"
               >
                 {isSubmitting ? (
                   <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -410,7 +409,7 @@ export function CustomerRfqsView({ initialRfqs }: CustomerRfqsViewProps) {
       {/* MODAL 2: VIEW RFQ DETAILS */}
       {selectedRfq && (
         <Dialog open={!!selectedRfq} onOpenChange={(open) => !open && setSelectedRfq(null)}>
-          <DialogContent className="max-w-xl bg-white p-6 rounded-2xl shadow-xl">
+          <DialogContent className="max-w-xl w-[95vw] sm:w-full bg-white p-4 sm:p-6 rounded-xl sm:rounded-2xl shadow-xl">
             <DialogHeader className="pb-3 border-b border-slate-200">
               <div className="flex items-center justify-between pr-8">
                 <div className="flex items-center gap-2">
@@ -531,16 +530,16 @@ export function CustomerRfqsView({ initialRfqs }: CustomerRfqsViewProps) {
               )}
 
               {/* Engineering Hotline */}
-              <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 flex items-center justify-between text-xs">
+              <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 text-xs">
                 <div className="flex items-center gap-2 text-slate-700">
-                  <Phone className="h-4 w-4 text-[#024AE5]" />
+                  <Phone className="h-4 w-4 text-[#024AE5] shrink-0" />
                   <span>Technical Tooling Desk: <strong>+91 (020) 2712-8940</strong></span>
                 </div>
                 <Button
                   size="sm"
                   variant="outline"
                   onClick={() => setSelectedRfq(null)}
-                  className="h-7 text-xs border-slate-200 shadow-none cursor-pointer"
+                  className="w-full sm:w-auto h-8 text-xs border-slate-200 shadow-none cursor-pointer justify-center"
                 >
                   Close
                 </Button>

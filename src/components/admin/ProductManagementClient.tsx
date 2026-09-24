@@ -239,11 +239,11 @@ export function ProductManagementClient({
           </h1>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 w-full sm:w-auto">
           <Button
             size="sm"
             onClick={() => setIsUploadModalOpen(true)}
-            className="h-9 px-4 text-xs bg-[#024AE5] text-white hover:bg-[#023ecc] gap-2 font-bold cursor-pointer shadow-xs"
+            className="w-full sm:w-auto justify-center h-9 px-4 text-xs bg-[#024AE5] text-white hover:bg-[#023ecc] gap-2 font-bold cursor-pointer shadow-xs"
           >
             <Plus className="h-4 w-4 stroke-[2.5]" />
             <span>Add New Product</span>
@@ -301,7 +301,8 @@ export function ProductManagementClient({
 
       {/* Products & SKU Matrix Cards */}
       <div className="border border-slate-200 rounded-xl overflow-hidden bg-white shadow-sm mt-6">
-        <Table className="w-full text-xs">
+        <div className="overflow-x-auto [scrollbar-width:thin]">
+          <Table className="min-w-[850px] w-full text-xs">
           <TableHeader className="bg-slate-50 border-b border-slate-200">
             <TableRow className="hover:bg-slate-50">
               <TableHead className="w-10 text-center"></TableHead>
@@ -464,7 +465,7 @@ export function ProductManagementClient({
                       return (
                       <TableRow className="bg-slate-50/50 hover:bg-slate-50/50 border-b-slate-200">
                         <TableCell colSpan={6} className="p-0">
-                          <div className="px-10 py-5 space-y-4 shadow-inner border-t border-slate-100">
+                          <div className="px-3 sm:px-10 py-4 sm:py-5 space-y-4 shadow-inner border-t border-slate-100">
                             <div className="flex flex-wrap items-center justify-between gap-3">
                               <div className="flex flex-wrap items-center gap-2.5">
                                 <h4 className="text-[11px] font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5 mr-1">
@@ -541,8 +542,8 @@ export function ProductManagementClient({
                                 </Button>
                               </div>
                             </div>
-                            <div className="border border-slate-200 rounded-lg overflow-x-auto bg-white shadow-sm">
-                              <Table className="w-full text-xs min-w-[650px]">
+                            <div className="border border-slate-200 rounded-lg overflow-x-auto [scrollbar-width:thin] bg-white shadow-sm">
+                              <Table className="w-full text-xs min-w-[700px]">
                                 <TableHeader className="bg-slate-100/50">
                                   <TableRow className="hover:bg-slate-100/50 border-b-slate-200">
                                     <TableHead className="w-10 text-center px-2">
@@ -650,6 +651,7 @@ export function ProductManagementClient({
             )}
           </TableBody>
         </Table>
+        </div>
       </div>
 
       {/* Add Product / CSV Upload Dialog Modal */}

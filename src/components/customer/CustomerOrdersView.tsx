@@ -125,29 +125,30 @@ export function CustomerOrdersView({ orders }: CustomerOrdersViewProps) {
   return (
     <div className="space-y-4">
       {/* Header Title & Actions */}
+      {/* Header Title & Actions */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
-          <h1 className="text-xl font-bold text-slate-900 tracking-tight">
+          <h1 className="text-lg sm:text-xl font-bold text-slate-900 tracking-tight">
             Industrial Orders & Logistics Tracking
           </h1>
           <p className="text-xs text-slate-500">
             Real-time status tracking, carrier AWB numbers, and live consignment links.
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          <Link href="/dashboard/rfqs">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
+          <Link href="/dashboard/rfqs" className="w-full sm:w-auto">
             <Button
               size="sm"
-              className="bg-[#3C8B4F] hover:bg-[#347844] text-white text-xs font-bold h-8.5 shadow-none gap-1.5 cursor-pointer"
+              className="w-full sm:w-auto bg-[#3C8B4F] hover:bg-[#347844] text-white text-xs font-bold h-9 sm:h-8.5 shadow-none gap-1.5 cursor-pointer justify-center"
             >
               <Plus className="h-3.5 w-3.5" />
               <span>Request Custom RFQ</span>
             </Button>
           </Link>
-          <Link href="/products">
+          <Link href="/products" className="w-full sm:w-auto">
             <Button
               size="sm"
-              className="bg-[#024AE5] hover:bg-[#024AE5]/90 text-white text-xs font-bold h-8.5 shadow-none gap-1.5 cursor-pointer"
+              className="w-full sm:w-auto bg-[#024AE5] hover:bg-[#024AE5]/90 text-white text-xs font-bold h-9 sm:h-8.5 shadow-none gap-1.5 cursor-pointer justify-center"
             >
               <ShoppingBag className="h-3.5 w-3.5" />
               <span>Browse Products</span>
@@ -157,16 +158,16 @@ export function CustomerOrdersView({ orders }: CustomerOrdersViewProps) {
       </div>
 
       {/* Clean Filter & Search Toolbar with shadcn Dropdowns */}
-      <div className="bg-white p-3.5 rounded-xl border border-slate-200 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 shadow-xs">
+      <div className="bg-white p-3 sm:p-3.5 rounded-xl border border-slate-200 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 shadow-xs">
         {/* Search Bar */}
-        <div className="relative flex-1 max-w-md">
+        <div className="relative flex-1 max-w-full md:max-w-md">
           <Search className="absolute left-3 top-2.5 h-3.5 w-3.5 text-slate-400" />
           <Input
             type="text"
             placeholder="Search by Order #, SKU, or Carrier AWB..."
             value={orderSearch}
             onChange={(e) => setOrderSearch(e.target.value)}
-            className="h-9 pl-9 text-xs border-slate-200 bg-slate-50/50 focus-visible:bg-white"
+            className="h-9 pl-9 text-xs border-slate-200 bg-slate-50/50 focus-visible:bg-white w-full"
           />
           {orderSearch && (
             <button
@@ -179,12 +180,12 @@ export function CustomerOrdersView({ orders }: CustomerOrdersViewProps) {
         </div>
 
         {/* Dropdowns & Reset Action */}
-        <div className="flex flex-wrap items-center gap-2.5">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 w-full md:w-auto">
           {/* Status Dropdown Filter */}
-          <div className="flex items-center gap-1.5">
-            <Filter className="h-3.5 w-3.5 text-slate-400 shrink-0" />
+          <div className="flex items-center gap-1.5 flex-1 sm:flex-initial">
+            <Filter className="h-3.5 w-3.5 text-slate-400 shrink-0 hidden sm:block" />
             <Select value={orderStatusFilter} onValueChange={(val) => setOrderStatusFilter(val)}>
-              <SelectTrigger className="h-9 w-44 text-xs font-semibold bg-slate-50/50 border-slate-200 shadow-none">
+              <SelectTrigger className="h-9 w-full sm:w-44 text-xs font-semibold bg-slate-50/50 border-slate-200 shadow-none">
                 <SelectValue placeholder="All Statuses" />
               </SelectTrigger>
               <SelectContent className="bg-white border-slate-200 shadow-lg text-xs">
@@ -199,10 +200,10 @@ export function CustomerOrdersView({ orders }: CustomerOrdersViewProps) {
           </div>
 
           {/* Sort By Dropdown */}
-          <div className="flex items-center gap-1.5">
-            <ArrowUpDown className="h-3.5 w-3.5 text-slate-400 shrink-0" />
+          <div className="flex items-center gap-1.5 flex-1 sm:flex-initial">
+            <ArrowUpDown className="h-3.5 w-3.5 text-slate-400 shrink-0 hidden sm:block" />
             <Select value={sortBy} onValueChange={(val: any) => setSortBy(val)}>
-              <SelectTrigger className="h-9 w-44 text-xs font-semibold bg-slate-50/50 border-slate-200 shadow-none">
+              <SelectTrigger className="h-9 w-full sm:w-44 text-xs font-semibold bg-slate-50/50 border-slate-200 shadow-none">
                 <SelectValue placeholder="Sort Orders" />
               </SelectTrigger>
               <SelectContent className="bg-white border-slate-200 shadow-lg text-xs">
@@ -223,7 +224,7 @@ export function CustomerOrdersView({ orders }: CustomerOrdersViewProps) {
                 setOrderSearch("");
                 setOrderStatusFilter("ALL");
               }}
-              className="h-9 text-xs text-slate-500 hover:text-slate-800 gap-1 px-2.5"
+              className="h-9 text-xs text-slate-500 hover:text-slate-800 gap-1 px-2.5 w-full sm:w-auto justify-center"
               title="Reset search & filters"
             >
               <RotateCcw className="h-3 w-3" />
@@ -317,11 +318,11 @@ export function CustomerOrdersView({ orders }: CustomerOrdersViewProps) {
 
                 {/* 5-Step Visual Progress Timeline */}
                 {ord.status !== ORDER_STATUSES.CANCELLED && (
-                  <div className="pt-2 pb-1">
-                    <div className="relative flex items-center justify-between">
-                      <div className="absolute left-4 right-4 top-3 h-0.5 bg-slate-200 -z-0" />
+                  <div className="pt-2 pb-1 overflow-x-auto [scrollbar-width:none]">
+                    <div className="relative flex items-center justify-between min-w-[420px] px-2">
+                      <div className="absolute left-6 right-6 top-3 h-0.5 bg-slate-200 -z-0" />
                       <div
-                        className="absolute left-4 top-3 h-0.5 bg-[#024AE5] -z-0 transition-all duration-500"
+                        className="absolute left-6 top-3 h-0.5 bg-[#024AE5] -z-0 transition-all duration-500"
                         style={{
                           width: `${Math.max(0, ((currentStep - 1) / (steps.length - 1)) * 100)}%`,
                         }}
@@ -362,13 +363,13 @@ export function CustomerOrdersView({ orders }: CustomerOrdersViewProps) {
 
                 {/* Live Carrier Tracking Box */}
                 {(ord.courier_partner || ord.awb_number || ord.tracking_url) && (
-                  <div className="bg-blue-50/70 border border-blue-200/80 rounded-xl p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="bg-blue-50/70 border border-blue-200/80 rounded-xl p-3 sm:p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                     <div className="flex items-center gap-3">
                       <div className="h-9 w-9 rounded-lg bg-blue-600 text-white flex items-center justify-center shrink-0">
                         <Truck className="h-5 w-5" />
                       </div>
                       <div className="space-y-0.5">
-                        <div className="text-xs font-bold text-slate-900 flex items-center gap-2">
+                        <div className="text-xs font-bold text-slate-900 flex flex-wrap items-center gap-1.5 sm:gap-2">
                           <span>Carrier: {ord.courier_partner || "Direct Dispatch"}</span>
                           {ord.dispatched_at && (
                             <span className="text-[10px] text-blue-700 bg-blue-100/80 px-1.5 py-0.2 rounded font-medium">
@@ -401,13 +402,13 @@ export function CustomerOrdersView({ orders }: CustomerOrdersViewProps) {
                         href={ord.tracking_url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="inline-flex items-center justify-center gap-1.5 bg-[#024AE5] hover:bg-[#024AE5]/90 text-white text-xs font-bold px-3.5 py-2 rounded-lg shadow-xs transition-colors shrink-0"
+                        className="inline-flex items-center justify-center gap-1.5 bg-[#024AE5] hover:bg-[#024AE5]/90 text-white text-xs font-bold px-3.5 py-2 rounded-lg shadow-xs transition-colors w-full sm:w-auto"
                       >
                         <span>Track Live Shipment</span>
                         <ExternalLink className="h-3.5 w-3.5" />
                       </a>
                     ) : (
-                      <span className="text-[11px] text-blue-700 font-semibold bg-white/70 px-2.5 py-1 rounded border border-blue-200 shrink-0">
+                      <span className="text-[11px] text-blue-700 font-semibold bg-white/70 px-2.5 py-1 rounded border border-blue-200 text-center">
                         In Transit
                       </span>
                     )}
@@ -433,7 +434,7 @@ export function CustomerOrdersView({ orders }: CustomerOrdersViewProps) {
                       variant="ghost"
                       size="sm"
                       onClick={() => setActiveOrderDetails(ord)}
-                      className="text-[#024AE5] hover:text-[#024AE5]/80 hover:bg-blue-50 text-xs font-bold gap-1.5 h-8 px-2.5 cursor-pointer self-end sm:self-auto"
+                      className="text-[#024AE5] hover:text-[#024AE5]/80 hover:bg-blue-50 text-xs font-bold gap-1.5 h-8 px-2.5 cursor-pointer w-full sm:w-auto justify-center"
                     >
                       <Receipt className="h-3.5 w-3.5" />
                       <span>View Tax Invoice</span>
@@ -443,7 +444,7 @@ export function CustomerOrdersView({ orders }: CustomerOrdersViewProps) {
                       variant="ghost"
                       size="sm"
                       onClick={() => setActiveOrderDetails(ord)}
-                      className="text-slate-700 hover:text-slate-900 hover:bg-slate-100 text-xs font-semibold gap-1.5 h-8 px-2.5 cursor-pointer self-end sm:self-auto"
+                      className="text-slate-700 hover:text-slate-900 hover:bg-slate-100 text-xs font-semibold gap-1.5 h-8 px-2.5 cursor-pointer w-full sm:w-auto justify-center"
                     >
                       <Eye className="h-3.5 w-3.5" />
                       <span>Order Details</span>
@@ -462,19 +463,19 @@ export function CustomerOrdersView({ orders }: CustomerOrdersViewProps) {
           open={!!activeOrderDetails}
           onOpenChange={(open) => !open && setActiveOrderDetails(null)}
         >
-          <DialogContent className="max-w-2xl bg-white p-6 rounded-2xl shadow-xl">
+          <DialogContent className="max-w-2xl w-[95vw] sm:w-full bg-white p-4 sm:p-6 rounded-xl sm:rounded-2xl shadow-xl">
             <DialogHeader className="pb-3 border-b border-slate-200">
-              <div className="flex items-center justify-between pr-8">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pr-6 sm:pr-8">
                 <div className="flex items-center gap-2">
-                  <Boxes className="h-5 w-5 text-[#024AE5]" />
-                  <DialogTitle className="text-lg font-bold text-slate-900">
+                  <Boxes className="h-5 w-5 text-[#024AE5] shrink-0" />
+                  <DialogTitle className="text-base sm:text-lg font-bold text-slate-900 truncate">
                     {activeOrderDetails.status === ORDER_STATUSES.DELIVERED
                       ? `GST Tax Invoice #${activeOrderDetails.invoice_number || activeOrderDetails.order_number.replace("ORD-", "INV-")}`
                       : `Purchase Order #${activeOrderDetails.order_number}`}
                   </DialogTitle>
                 </div>
                 <span
-                  className={`inline-flex items-center px-2.5 py-0.5 rounded text-xs font-bold border ${
+                  className={`inline-flex items-center px-2.5 py-0.5 rounded text-xs font-bold border self-start sm:self-auto ${
                     ORDER_STATUS_CONFIG[activeOrderDetails.status]?.badgeBg
                   } ${ORDER_STATUS_CONFIG[activeOrderDetails.status]?.badgeText} ${
                     ORDER_STATUS_CONFIG[activeOrderDetails.status]?.border
@@ -505,7 +506,7 @@ export function CustomerOrdersView({ orders }: CustomerOrdersViewProps) {
                   </span>
                 </div>
               )}
-              <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200 text-xs">
+              <div className="bg-slate-50 p-3 sm:p-3.5 rounded-xl border border-slate-200 text-xs">
                 <span className="text-slate-400 block text-[10px] font-bold uppercase">
                   Delivery Destination
                 </span>
@@ -519,8 +520,8 @@ export function CustomerOrdersView({ orders }: CustomerOrdersViewProps) {
                 )}
               </div>
 
-              <div className="border border-slate-200 rounded-xl overflow-hidden">
-                <Table>
+              <div className="border border-slate-200 rounded-xl overflow-x-auto [scrollbar-width:thin]">
+                <Table className="min-w-[480px]">
                   <TableHeader className="bg-slate-50">
                     <TableRow className="text-xs">
                       <TableHead className="font-bold text-slate-700">Item / SKU</TableHead>
@@ -555,7 +556,7 @@ export function CustomerOrdersView({ orders }: CustomerOrdersViewProps) {
               </div>
 
               <div className="flex justify-end pt-2">
-                <div className="w-64 space-y-1.5 text-xs">
+                <div className="w-full sm:w-64 space-y-1.5 text-xs">
                   <div className="flex justify-between text-slate-600">
                     <span>Taxable Subtotal</span>
                     <span className="font-mono">

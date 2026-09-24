@@ -414,7 +414,7 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
           </h1>
         </div>
 
-        <div className="flex items-center gap-2.5">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 w-full sm:w-auto">
           <Button
             type="button"
             variant="outline"
@@ -438,7 +438,7 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
               link.click();
               document.body.removeChild(link);
             }}
-            className="gap-1.5 text-xs border-slate-200 text-slate-700 hover:bg-slate-50 shadow-none cursor-pointer"
+            className="w-full sm:w-auto justify-center gap-1.5 text-xs border-slate-200 text-slate-700 hover:bg-slate-50 shadow-none cursor-pointer h-9 sm:h-8"
           >
             <Download className="h-3.5 w-3.5 text-slate-500" />
             <span>Export CSV</span>
@@ -451,7 +451,7 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
               resetAddForm();
               setIsAddModalOpen(true);
             }}
-            className="gap-1.5 text-xs bg-[#024AE5] text-white hover:bg-[#023ecc] shadow-none cursor-pointer font-medium"
+            className="w-full sm:w-auto justify-center gap-1.5 text-xs bg-[#024AE5] text-white hover:bg-[#023ecc] shadow-none cursor-pointer font-medium h-9 sm:h-8"
           >
             <UserPlus className="h-3.5 w-3.5" />
             <span>+ Add Customer</span>
@@ -653,8 +653,9 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
 
       {/* Customers Data Table */}
       <div className="rounded-xl border border-slate-200 bg-white shadow-none overflow-hidden">
-        <Table className="w-full table-fixed">
-          <TableHeader className="bg-slate-50/80 border-b border-slate-200">
+        <div className="overflow-x-auto [scrollbar-width:thin]">
+          <Table className="min-w-[950px] w-full table-fixed">
+            <TableHeader className="bg-slate-50/80 border-b border-slate-200">
             <TableRow className="hover:bg-transparent border-0">
               {/* Customer & Company (24%) */}
               <TableHead
@@ -889,6 +890,7 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
             )}
           </TableBody>
         </Table>
+        </div>
 
         {/* Pagination Bar */}
         <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-3.5 py-2.5 border-t border-slate-200 bg-slate-50/60">
