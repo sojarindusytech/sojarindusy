@@ -166,8 +166,10 @@ export function CustomerInvoicesView({ orders }: CustomerInvoicesViewProps) {
                   <span className="text-[10px] font-bold text-slate-400 uppercase block">
                     Billed By
                   </span>
-                  <div className="font-bold text-slate-900 mt-0.5">SOJAR INDUSY</div>
-                  <div className="text-slate-500">Plot No. W-48, MIDC Bhosari, Pune 411026</div>
+                  <div className="font-bold text-slate-900 mt-0.5">SOJAR SOLUTIONS</div>
+                  <div className="text-slate-500 leading-tight">
+                    Plot No. 7, Behind Hotel La Carta, Near Silvassa Road lines, N.H. No. 8, GIDC Char Rasta, Vapi, Valsad-396191, Gujarat, India
+                  </div>
                   <div className="text-slate-500 font-mono text-[11px] mt-0.5">
                     GSTIN: 27AASCS8920K1ZX
                   </div>

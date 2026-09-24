@@ -236,7 +236,7 @@ export async function signInUser(
     if (approvalStatus === APPROVAL_STATUSES.REJECTED) {
       await supabase.auth.signOut();
       return {
-        error: "Your enterprise account application has been rejected. Please contact support@sojarindusy.com for assistance.",
+        error: "Your enterprise account application has been rejected. Please contact support@sojarsolutions.com for assistance.",
       };
     }
     return { redirectUrl: "/pending-approval" };
@@ -399,7 +399,7 @@ export async function getCurrentUserProfile(): Promise<{
       mobile: meta.mobile || "-",
       landline: meta.landline || null,
       email: user.email || "",
-      company_name: meta.company_name || "Sojar Indusy Partner",
+      company_name: meta.company_name || "Sojar Solutions Partner",
       company_address: meta.company_address || "Industrial Area",
       additional_address: meta.additional_address || null,
       gstin: meta.gstin || null,

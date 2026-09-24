@@ -3,7 +3,7 @@ import { AdminRfqsClient } from "@/components/admin/AdminRfqsClient";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Customer RFQs | Sojar Indusy Admin",
+  title: "Customer RFQs | Sojar Solutions Admin",
   description: "Review incoming customer custom tooling and fastener RFQs, inspect CAD drawings, and prepare estimates.",
 };
 

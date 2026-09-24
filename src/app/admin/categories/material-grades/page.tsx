@@ -3,7 +3,7 @@ import { Tags } from "lucide-react";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Material Grades & HRC Series | Categories | Sojar Indusy Admin",
+  title: "Material Grades & HRC Series | Categories | Sojar Solutions Admin",
   description: "Manage hardness grades (HRC 45, HRC 55, HRC 65) and carbide substrate series.",
 };
 

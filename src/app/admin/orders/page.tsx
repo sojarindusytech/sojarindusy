@@ -3,7 +3,7 @@ import { OrderManagementClient } from "@/components/admin/OrderManagementClient"
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Order Management & Logistics | Sojar Indusy Admin",
+  title: "Order Management & Logistics | Sojar Solutions Admin",
   description: "Manage purchase orders, fulfillment progress, and carrier tracking links.",
 };
 

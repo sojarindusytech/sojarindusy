@@ -3,7 +3,7 @@ import { Tags } from "lucide-react";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Tool Types | Categories | Sojar Indusy Admin",
+  title: "Tool Types | Categories | Sojar Solutions Admin",
   description: "Manage CNC Tool Types (Flat End Mill, Ball Nose, Corner Radius, Chamfer Mill, etc.).",
 };
 

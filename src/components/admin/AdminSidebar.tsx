@@ -151,8 +151,8 @@ export function AdminSidebar() {
       <div className="flex h-16 shrink-0 items-center justify-between px-4 border-b border-slate-100">
         <Link href="/admin/dashboard" className="flex items-center overflow-hidden py-1">
           <Image
-            src="/assets/sojar-logo.webp"
-            alt="Sojar Indusy"
+            src="/assets/sojar-logo.svg"
+            alt="Sojar Solutions"
             width={180}
             height={48}
             className={cn("h-8 w-auto object-contain transition-all duration-300", collapsed ? "h-7 w-7 object-left" : "max-w-[190px]")}

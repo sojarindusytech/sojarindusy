@@ -3,7 +3,7 @@ import { CategoryManagementClient } from "@/components/admin/CategoryManagementC
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Categories & Hierarchy | Sojar Indusy Admin",
+  title: "Categories & Hierarchy | Sojar Solutions Admin",
   description: "WordPress-style nested category taxonomy management.",
 };
 

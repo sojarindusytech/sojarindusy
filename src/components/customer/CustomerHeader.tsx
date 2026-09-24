@@ -97,7 +97,7 @@ export function CustomerHeader({
           )}
         </button>
 
-        {/* Sojar Indusy Customer Profile Pill with Dropdown indicator (Admin Layout Standard) */}
+        {/* Sojar Solutions Customer Profile Pill with Dropdown indicator (Admin Layout Standard) */}
         <div className="relative group">
           <button
             type="button"

@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Account Verification Pending | Sojar Indusy",
+  title: "Account Verification Pending | Sojar Solutions",
   description: "Your enterprise account is currently awaiting verification and approval.",
 };
 

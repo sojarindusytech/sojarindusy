@@ -3,7 +3,7 @@ import { RotateCcw } from "lucide-react";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Order Returns | Sojar Indusy Admin",
+  title: "Order Returns | Sojar Solutions Admin",
   description: "RMA and returns management.",
 };
 

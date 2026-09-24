@@ -1,16 +1,28 @@
 import { fetchCategoriesTree } from "@/actions/category";
 import { Navbar } from "./Navbar";
-import { createClient } from "@/lib/supabase/server";
-import { getAuthContext, isAdminRole } from "@/lib/auth-guard";
+import { getCurrentUserProfile } from "@/actions/auth";
+import { isAdminRole } from "@/lib/auth-guard";
 
 export async function GlobalHeader() {
-  const { treeNodes } = await fetchCategoriesTree();
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const [{ treeNodes }, { user, profile }] = await Promise.all([
+    fetchCategoriesTree(),
+    getCurrentUserProfile(),
+  ]);
 
-  // Resolved here from the profiles table rather than in the Navbar from
-  // `user_metadata`, which the account holder can write to.
-  const ctx = user ? await getAuthContext() : null;
+  const isAdmin = isAdminRole(profile?.role);
+  const companyName = profile?.company_name || null;
+  const userName = profile
+    ? `${profile.first_name || ""} ${profile.last_name || ""}`.trim() || null
+    : null;
 
-  return <Navbar categories={treeNodes} user={user} isAdmin={isAdminRole(ctx?.role)} />;
+  return (
+    <Navbar
+      categories={treeNodes}
+      user={user}
+      isAdmin={isAdmin}
+      companyName={companyName}
+      userName={userName}
+    />
+  );
 }
+

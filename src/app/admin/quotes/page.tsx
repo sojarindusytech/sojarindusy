@@ -3,7 +3,7 @@ import { AdminQuotesClient } from "@/components/admin/AdminQuotesClient";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Commercial Quotations | Sojar Indusy Admin",
+  title: "Commercial Quotations | Sojar Solutions Admin",
   description: "Manage commercial quotations, itemized pricing, GST calculations, and official PDF generation.",
 };
 

@@ -12,9 +12,9 @@ import { ProductCard } from "@/components/storefront/ProductCard";
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "Industrial Product Catalog | Sojar Indusy",
+  title: "Industrial Product Catalog | Sojar Solutions",
   description:
-    "Browse high-precision solid carbide cutting tools, CNC end mills, fasteners, and engineered tooling components by Sojar Indusy.",
+    "Browse high-precision solid carbide cutting tools, CNC end mills, fasteners, and engineered tooling components by Sojar Solutions.",
 };
 
 export default async function ProductsPage() {

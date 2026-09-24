@@ -332,7 +332,7 @@ export function ContactSection() {
                   Your message was sent!
                 </h3>
                 <p className="text-sm sm:text-base text-slate-600 font-subheading leading-relaxed">
-                  Thank you for reaching out to Sojar Indusy. Our technical and commercial engineering team will review your inquiry and get back to you within 24 hours.
+                  Thank you for reaching out to Sojar Solutions. Our technical and commercial engineering team will review your inquiry and get back to you within 24 hours.
                 </p>
               </div>
 
@@ -549,7 +549,7 @@ export function ContactSection() {
                     >
                       Privacy Policy
                     </a>{" "}
-                    and consent to having Sojar Indusy store and process your details to respond to your inquiry.{" "}
+                    and consent to having Sojar Solutions store and process your details to respond to your inquiry.{" "}
                     <span className="text-red-500 font-bold" title="Mandatory">*</span>
                   </span>
                 </label>
@@ -677,7 +677,7 @@ export function ContactSection() {
               </div>
               <div className="text-center space-y-1">
                 <p className="text-xs sm:text-sm font-bold text-slate-700 font-skoda">
-                  Loading Sojar Indusy Map...
+                  Loading Sojar Solutions Map...
                 </p>
                 <p className="text-[11px] text-slate-400 font-subheading">
                   Plot No. 7, GIDC Char Rasta, Vapi, Gujarat
@@ -687,7 +687,7 @@ export function ContactSection() {
           )}
 
           <iframe
-            title="Sojar Indusy Location Map"
+            title="Sojar Solutions Location Map"
             src="https://maps.google.com/maps?q=Sojar+Indusy,+GIDC+Char+Rasta,+Vapi,+Gujarat&cid=2849366181503425652&t=m&z=15&output=embed&iwloc=near"
             onLoad={() => setIsMapLoaded(true)}
             className={`w-full h-full border-0 transition-opacity duration-700 ease-in-out ${

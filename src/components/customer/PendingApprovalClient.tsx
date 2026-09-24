@@ -58,8 +58,8 @@ export function PendingApprovalClient({
       <header className="h-16 border-b border-slate-200 bg-white px-6 sm:px-12 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <Image
-            src="/assets/sojar-logo.webp"
-            alt="Sojar Indusy"
+            src="/assets/sojar-logo.svg"
+            alt="Sojar Solutions"
             width={160}
             height={44}
             className="h-9 w-auto object-contain"
@@ -126,7 +126,7 @@ export function PendingApprovalClient({
           </div>
 
           <p className="text-xs sm:text-sm text-slate-600 leading-relaxed max-w-3xl">
-            Your enterprise account for <strong className="text-slate-900">{profile?.company_name || "your organization"}</strong> is currently awaiting commercial verification by the Sojar Indusy administrative team. Once approved, live industrial pricing, credit facilities, automated ordering, and courier tracking will be unlocked.
+            Your enterprise account for <strong className="text-slate-900">{profile?.company_name || "your organization"}</strong> is currently awaiting commercial verification by the Sojar Solutions administrative team. Once approved, live industrial pricing, credit facilities, automated ordering, and courier tracking will be unlocked.
           </p>
         </div>
 
@@ -255,7 +255,7 @@ export function PendingApprovalClient({
                   Support Email
                 </span>
                 <div className="font-medium text-slate-800 text-xs">
-                  admin@sojarindusy.com
+                  admin@sojarsolutions.com
                 </div>
               </div>
             </div>
@@ -265,7 +265,7 @@ export function PendingApprovalClient({
 
       {/* Footer */}
       <footer className="py-4 text-center text-xs text-slate-400 border-t border-slate-200 bg-white">
-        &copy; {new Date().getFullYear()} Sojar Indusy Tech &bull; Bhosari MIDC Industrial Estate, Pune, Maharashtra.
+        &copy; {new Date().getFullYear()} Sojar Solutions &bull; Plot No. 7, GIDC Char Rasta, Vapi, Gujarat, India
       </footer>
     </div>
   );

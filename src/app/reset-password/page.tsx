@@ -179,7 +179,7 @@ export default function ResetPasswordPage() {
               Set New Password
             </CardTitle>
             <p className="mt-1.5 text-xs text-slate-500">
-              Create a new secure password for your Sojar Indusy enterprise account.
+              Create a new secure password for your Sojar Solutions enterprise account.
             </p>
           </div>
         </CardHeader>

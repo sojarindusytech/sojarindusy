@@ -3,7 +3,7 @@ import { ClipboardCheck } from "lucide-react";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Delivery Challans | Sojar Indusy Admin",
+  title: "Delivery Challans | Sojar Solutions Admin",
   description: "Material dispatch challans and job work vouchers.",
 };
 

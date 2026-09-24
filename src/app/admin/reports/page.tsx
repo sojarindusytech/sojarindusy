@@ -3,7 +3,7 @@ import { BarChart3 } from "lucide-react";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Analytics & Reports | Sojar Indusy Admin",
+  title: "Analytics & Reports | Sojar Solutions Admin",
   description: "Executive business intelligence, sales trends, and production metrics.",
 };
 

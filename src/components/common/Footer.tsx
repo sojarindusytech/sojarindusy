@@ -50,7 +50,7 @@ export function Footer() {
             </h2>
 
             <p className="text-slate-600 text-sm sm:text-base leading-relaxed max-w-lg font-subheading">
-              SOJAR INDUSY stands at the forefront of precision engineering. We specialize in the design and development of high-performance tooling solutions essential for modern engineering and manufacturing. From precision carbide tools to custom wear parts; our products are crafted to deliver durability, accuracy, and innovation.
+              SOJAR SOLUTIONS stands at the forefront of precision engineering. We specialize in the design and development of high-performance tooling solutions essential for modern engineering and manufacturing. From precision carbide tools to custom wear parts; our products are crafted to deliver durability, accuracy, and innovation.
             </p>
 
             <div className="pt-1">
@@ -161,7 +161,7 @@ export function Footer() {
           <div className="lg:col-span-6">
             <Link href="/" className="inline-block group">
               <span className="font-skoda text-5xl sm:text-6xl lg:text-7xl xl:text-8xl font-black tracking-tighter text-slate-900 transition-colors group-hover:text-[#024AE5] select-none">
-                Sojar Indusy
+                Sojar Solutions
               </span>
             </Link>
           </div>
@@ -184,10 +184,10 @@ export function Footer() {
             {/* Narrative & Copyright */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-[11px] sm:text-xs text-slate-500 font-subheading">
               <p className="max-w-md leading-relaxed text-slate-500">
-                Sojar Indusy builds reliable solid carbide tooling engineered to simplify complexity and accelerate industrial manufacturing productivity.
+                Sojar Solutions builds reliable solid carbide tooling engineered to simplify complexity and accelerate industrial manufacturing productivity.
               </p>
               <p className="shrink-0 text-slate-600 font-medium">
-                © {new Date().getFullYear()} Sojar Indusy
+                © {new Date().getFullYear()} Sojar Solutions
               </p>
             </div>
           </div>

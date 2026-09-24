@@ -3,7 +3,7 @@ import { FileMinus } from "lucide-react";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Debit Notes | Sojar Indusy Admin",
+  title: "Debit Notes | Sojar Solutions Admin",
   description: "Debit Note registry and vendor adjustments.",
 };
 
