@@ -396,7 +396,7 @@ export function CategoryManagementClient({
           type="button"
           size="sm"
           onClick={handleOpenAddRootModal}
-          className="gap-1.5 text-xs bg-[#024AE5] text-white hover:bg-[#023ecc] shadow-none cursor-pointer font-medium"
+          className="gap-1.5 text-xs bg-[#024AE5] text-white hover:bg-[#023ecc] shadow-none cursor-pointer font-medium w-full sm:w-auto justify-center h-9 sm:h-8.5"
         >
           <FolderPlus className="h-3.5 w-3.5" />
           <span>+ Add Root Category</span>
@@ -472,7 +472,7 @@ export function CategoryManagementClient({
 
       <div className="w-full">
         <Dialog open={isModalOpen} onOpenChange={(open) => !open && setIsModalOpen(false)}>
-          <DialogContent className="max-w-md bg-white p-0 overflow-hidden border border-slate-200 shadow-xl rounded-xl">
+          <DialogContent className="max-w-md w-[95vw] sm:w-full bg-white p-0 overflow-hidden border border-slate-200 shadow-xl rounded-xl">
             <DialogHeader className="p-4 border-b border-slate-100 bg-slate-50/50">
               <DialogTitle className="text-sm font-bold text-slate-900 flex items-center gap-2">
                 {editingId ? (
@@ -785,8 +785,9 @@ export function CategoryManagementClient({
           </div>
 
           {/* Tree Table */}
-          <Table className="w-full table-fixed">
-            <TableHeader className="bg-slate-50/80 border-b border-slate-200">
+          <div className="overflow-x-auto [scrollbar-width:thin]">
+            <Table className="min-w-[850px] w-full table-fixed">
+              <TableHeader className="bg-slate-50/80 border-b border-slate-200">
               <TableRow className="hover:bg-transparent border-0">
                 <TableHead className="w-[45%] text-[11px] font-semibold text-slate-600 tracking-wider uppercase py-2.5 px-3.5">
                   Category Name & Hierarchy
@@ -986,6 +987,7 @@ export function CategoryManagementClient({
               )}
             </TableBody>
           </Table>
+          </div>
         </Card>
       </div>
 

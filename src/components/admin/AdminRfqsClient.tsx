@@ -208,7 +208,7 @@ export function AdminRfqsClient({ initialRfqs }: AdminRfqsClientProps) {
           size="sm"
           onClick={handleRefresh}
           disabled={isRefreshing}
-          className="cursor-pointer gap-2 border-slate-200 hover:bg-slate-50 self-start sm:self-auto"
+          className="cursor-pointer gap-2 border-slate-200 hover:bg-slate-50 w-full sm:w-auto justify-center"
         >
           <RefreshCw className={`w-4 h-4 ${isRefreshing ? "animate-spin text-[#024AE5]" : "text-slate-500"}`} />
           <span>Refresh</span>
@@ -321,9 +321,10 @@ export function AdminRfqsClient({ initialRfqs }: AdminRfqsClientProps) {
       </Card>
 
       {/* Admin RFQ Table */}
-      <Card className="overflow-hidden border border-slate-200 shadow-xs bg-white">
-        <Table>
-          <TableHeader className="bg-slate-50/80">
+      <Card className="border border-slate-200 shadow-xs bg-white rounded-xl overflow-hidden">
+        <div className="overflow-x-auto [scrollbar-width:thin]">
+          <Table className="min-w-[950px]">
+            <TableHeader className="bg-slate-50/80">
             <TableRow className="border-b border-slate-200 text-xs">
               <TableHead className="w-[140px] font-bold text-slate-700">RFQ #</TableHead>
               <TableHead className="w-[220px] font-bold text-slate-700">Enterprise / Client</TableHead>
@@ -473,16 +474,17 @@ export function AdminRfqsClient({ initialRfqs }: AdminRfqsClientProps) {
             )}
           </TableBody>
         </Table>
+        </div>
       </Card>
 
       {/* Review & Issue Quote Modal */}
       {editingRfq && (
         <Dialog open={!!editingRfq} onOpenChange={(open) => !open && setEditingRfq(null)}>
-          <DialogContent className="max-w-2xl bg-white p-6 rounded-2xl shadow-xl">
+          <DialogContent className="max-w-2xl w-[95vw] sm:w-full p-4 sm:p-6 rounded-xl sm:rounded-2xl shadow-xl max-h-[90vh] overflow-y-auto">
             <DialogHeader className="pb-3 border-b border-slate-100 pr-12">
               <div className="flex items-center gap-2">
-                <FileText className="h-5 w-5 text-[#024AE5]" />
-                <DialogTitle className="text-lg font-bold text-slate-900">
+                <FileText className="h-5 w-5 text-[#024AE5] shrink-0" />
+                <DialogTitle className="text-base sm:text-lg font-bold text-slate-900">
                   Review & Issue Quote: {editingRfq.rfq_number}
                 </DialogTitle>
               </div>
@@ -493,7 +495,7 @@ export function AdminRfqsClient({ initialRfqs }: AdminRfqsClientProps) {
             </DialogHeader>
 
             {/* Client Strip */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-4 rounded-xl bg-slate-50 border border-slate-200 text-xs">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-3.5 sm:p-4 rounded-xl bg-slate-50 border border-slate-200 text-xs">
               <div className="space-y-1">
                 <span className="text-[10px] uppercase font-bold text-slate-500 block tracking-wider">
                   Client Details
@@ -521,7 +523,7 @@ export function AdminRfqsClient({ initialRfqs }: AdminRfqsClientProps) {
                     href={`mailto:${editingRfq.email}?subject=Regarding RFQ ${editingRfq.rfq_number} - Sojar Solutions`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex items-center justify-center gap-2 px-3 py-1.5 rounded-lg bg-[#024AE5] hover:bg-[#013BB8] text-white text-xs font-bold transition-colors"
+                    className="inline-flex items-center justify-center gap-2 px-3 py-1.5 rounded-lg bg-[#024AE5] hover:bg-[#013BB8] text-white text-xs font-bold transition-colors w-full sm:w-auto"
                   >
                     <Mail className="w-3.5 h-3.5" />
                     <span>Send Email</span>
@@ -534,7 +536,7 @@ export function AdminRfqsClient({ initialRfqs }: AdminRfqsClientProps) {
                     href={`https://wa.me/${editingRfq.mobile.replace(/[^0-9]/g, "")}?text=Hello, regarding your RFQ ${editingRfq.rfq_number} at Sojar Solutions...`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex items-center justify-center gap-2 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-colors"
+                    className="inline-flex items-center justify-center gap-2 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-colors w-full sm:w-auto"
                   >
                     <MessageCircle className="w-3.5 h-3.5" />
                     <span>Chat on WhatsApp</span>
@@ -545,8 +547,8 @@ export function AdminRfqsClient({ initialRfqs }: AdminRfqsClientProps) {
             </div>
 
             {/* Technical Tooling Details */}
-            <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-3 text-xs">
-              <div className="grid grid-cols-2 gap-3">
+            <div className="bg-slate-50 p-3.5 sm:p-4 rounded-xl border border-slate-200 space-y-3 text-xs">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <span className="text-[10px] uppercase font-bold text-slate-400 block">Item Description</span>
                   <div className="font-bold text-slate-900 text-sm mt-0.5">{editingRfq.item_name}</div>
@@ -584,7 +586,7 @@ export function AdminRfqsClient({ initialRfqs }: AdminRfqsClientProps) {
                   >
                     <Paperclip className="h-3.5 w-3.5" />
                     <span>Open CAD Drawing</span>
-                    <ExternalLink className="h-3 w-3" />
+                    <ExternalLink className="h-3 h-3" />
                   </a>
                 </div>
               )}
@@ -592,7 +594,7 @@ export function AdminRfqsClient({ initialRfqs }: AdminRfqsClientProps) {
 
             {/* Quotation Form */}
             <form onSubmit={handleSaveQuote} className="space-y-4 pt-1">
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="space-y-1.5">
                   <Label className="text-xs font-semibold text-slate-700">Quotation Status *</Label>
                   <Select
@@ -637,20 +639,20 @@ export function AdminRfqsClient({ initialRfqs }: AdminRfqsClientProps) {
                 />
               </div>
 
-              <div className="flex justify-end gap-2.5 pt-3 border-t border-slate-100">
+              <div className="flex flex-col-reverse sm:flex-row justify-end gap-2.5 pt-3 border-t border-slate-100">
                 <Button
                   type="button"
                   variant="outline"
                   onClick={() => setEditingRfq(null)}
                   disabled={isSaving}
-                  className="h-8.5 text-xs border-slate-200 shadow-none cursor-pointer"
+                  className="w-full sm:w-auto h-9 sm:h-8.5 text-xs border-slate-200 shadow-none cursor-pointer"
                 >
                   Cancel
                 </Button>
                 <Button
                   type="submit"
                   disabled={isSaving}
-                  className="h-8.5 text-xs bg-[#024AE5] hover:bg-[#013BB8] text-white shadow-none px-5 font-bold cursor-pointer gap-1.5"
+                  className="w-full sm:w-auto h-9 sm:h-8.5 text-xs bg-[#024AE5] hover:bg-[#013BB8] text-white shadow-none px-5 font-bold cursor-pointer gap-1.5 justify-center"
                 >
                   {isSaving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
                   <span>Save & Send Quote</span>

@@ -285,7 +285,7 @@ export function InquiriesManagementClient({
           size="sm"
           onClick={handleRefresh}
           disabled={isRefreshing}
-          className="cursor-pointer gap-2 border-slate-200 hover:bg-slate-50 self-start sm:self-auto"
+          className="cursor-pointer gap-2 border-slate-200 hover:bg-slate-50 w-full sm:w-auto justify-center"
         >
           <RefreshCw className={`w-4 h-4 ${isRefreshing ? "animate-spin text-[#024AE5]" : "text-slate-500"}`} />
           <span>Refresh</span>
@@ -402,9 +402,10 @@ export function InquiriesManagementClient({
       </Card>
 
       {/* Submissions Table */}
-      <Card className="overflow-hidden border border-slate-200 shadow-xs bg-white">
-        <Table>
-          <TableHeader className="bg-slate-50/80">
+      <Card className="border border-slate-200 shadow-xs bg-white rounded-xl overflow-hidden">
+        <div className="overflow-x-auto [scrollbar-width:thin]">
+          <Table className="min-w-[850px]">
+            <TableHeader className="bg-slate-50/80">
             <TableRow className="border-b border-slate-200">
               <TableHead className="w-[200px] text-xs font-bold text-slate-700">Customer</TableHead>
               <TableHead className="w-[180px] text-xs font-bold text-slate-700">Contact</TableHead>
@@ -556,6 +557,7 @@ export function InquiriesManagementClient({
             )}
           </TableBody>
         </Table>
+        </div>
       </Card>
 
       {/* Detail Dialog */}
@@ -565,7 +567,7 @@ export function InquiriesManagementClient({
           if (!open) setSelectedInquiry(null);
         }}
       >
-        <DialogContent className="max-w-2xl bg-white p-6 rounded-2xl">
+        <DialogContent className="max-w-2xl w-[95vw] sm:w-full p-4 sm:p-6 rounded-xl sm:rounded-2xl max-h-[90vh] overflow-y-auto bg-white">
           {selectedInquiry && (
             <div className="space-y-6">
               <DialogHeader className="pr-12">

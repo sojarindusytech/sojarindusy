@@ -50,8 +50,8 @@ export function CustomerInvoicesView({ orders }: CustomerInvoicesViewProps) {
       </div>
 
       <Card className="border-slate-200 bg-white shadow-none rounded-xl overflow-hidden">
-        <div className="overflow-x-auto">
-          <Table>
+        <div className="overflow-x-auto [scrollbar-width:thin]">
+          <Table className="min-w-[650px]">
             <TableHeader className="bg-slate-50">
               <TableRow className="text-xs">
                 <TableHead className="font-bold text-slate-700">Invoice / Order #</TableHead>
@@ -136,16 +136,16 @@ export function CustomerInvoicesView({ orders }: CustomerInvoicesViewProps) {
           open={!!activeOrderDetails}
           onOpenChange={(open) => !open && setActiveOrderDetails(null)}
         >
-          <DialogContent className="max-w-2xl bg-white p-6 rounded-2xl shadow-xl">
+          <DialogContent className="max-w-2xl w-[95vw] sm:w-full p-4 sm:p-6 rounded-xl sm:rounded-2xl shadow-xl max-h-[90vh] overflow-y-auto">
             <DialogHeader className="pb-3 border-b border-slate-200">
-              <div className="flex items-center justify-between pr-8">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pr-6">
                 <div className="flex items-center gap-2">
-                  <Receipt className="h-5 w-5 text-[#024AE5]" />
-                  <DialogTitle className="text-lg font-bold text-slate-900">
+                  <Receipt className="h-5 w-5 text-[#024AE5] shrink-0" />
+                  <DialogTitle className="text-base sm:text-lg font-bold text-slate-900">
                     GST Tax Invoice #{activeOrderDetails.invoice_number || activeOrderDetails.order_number.replace("ORD-", "INV-")}
                   </DialogTitle>
                 </div>
-                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold border border-emerald-200 bg-emerald-50 text-emerald-800">
+                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold border border-emerald-200 bg-emerald-50 text-emerald-800 self-start sm:self-auto">
                   Delivered
                 </span>
               </div>
@@ -161,7 +161,7 @@ export function CustomerInvoicesView({ orders }: CustomerInvoicesViewProps) {
 
             <div className="space-y-4 pt-2">
               {/* Seller / Buyer Header */}
-              <div className="grid grid-cols-2 gap-4 text-xs bg-slate-50 p-3 rounded-xl border border-slate-200">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs bg-slate-50 p-3 sm:p-3.5 rounded-xl border border-slate-200">
                 <div>
                   <span className="text-[10px] font-bold text-slate-400 uppercase block">
                     Billed By
@@ -194,8 +194,8 @@ export function CustomerInvoicesView({ orders }: CustomerInvoicesViewProps) {
               </div>
 
               {/* Line Items Table */}
-              <div className="rounded-lg border border-slate-200 overflow-hidden">
-                <Table>
+              <div className="rounded-lg border border-slate-200 overflow-x-auto [scrollbar-width:thin]">
+                <Table className="min-w-[480px]">
                   <TableHeader className="bg-slate-50">
                     <TableRow className="text-xs">
                       <TableHead className="font-bold text-slate-700">Item Description</TableHead>
@@ -231,7 +231,7 @@ export function CustomerInvoicesView({ orders }: CustomerInvoicesViewProps) {
 
               {/* Financial Totals */}
               <div className="flex justify-end pt-1">
-                <div className="w-64 space-y-1.5 text-xs">
+                <div className="w-full sm:w-64 space-y-1.5 text-xs">
                   <div className="flex justify-between text-slate-600">
                     <span>Taxable Subtotal</span>
                     <span className="font-mono">
@@ -254,19 +254,19 @@ export function CustomerInvoicesView({ orders }: CustomerInvoicesViewProps) {
               </div>
 
               {/* Actions */}
-              <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
+              <div className="flex flex-col-reverse sm:flex-row justify-end gap-2 pt-2 border-t border-slate-100">
                 <Button
                   size="sm"
                   variant="outline"
                   onClick={() => setActiveOrderDetails(null)}
-                  className="h-8 text-xs border-slate-200 shadow-none cursor-pointer"
+                  className="w-full sm:w-auto h-9 sm:h-8 text-xs border-slate-200 shadow-none cursor-pointer"
                 >
                   Close
                 </Button>
                 <Button
                   size="sm"
                   onClick={handlePrint}
-                  className="h-8 text-xs bg-[#024AE5] hover:bg-[#024AE5]/90 text-white shadow-none cursor-pointer gap-1.5 font-bold"
+                  className="w-full sm:w-auto h-9 sm:h-8 text-xs bg-[#024AE5] hover:bg-[#024AE5]/90 text-white shadow-none cursor-pointer gap-1.5 font-bold justify-center"
                 >
                   <Printer className="h-3.5 w-3.5" />
                   <span>Print Tax Invoice</span>

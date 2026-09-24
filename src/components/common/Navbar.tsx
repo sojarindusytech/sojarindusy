@@ -170,11 +170,11 @@ export function Navbar({
                 )}
               >
                 Products
-                <ChevronDown className="h-3.5 w-3.5 opacity-60 stroke-[2.5]" />
+                <ChevronDown className="h-3.5 w-3.5 opacity-60 stroke-[2.5] transition-transform duration-200 group-hover:rotate-180" />
               </Link>
 
               {categories.length > 0 && (
-                <div className="absolute left-0 top-full hidden pt-2 group-hover:block">
+                <div className="absolute left-0 top-full hidden pt-2 group-hover:block animate-in fade-in-0 zoom-in-95 duration-150">
                   <ul className="w-56 rounded-md border border-slate-200 bg-white shadow-lg py-1">
                     {categories.map((cat) => (
                       <CategoryMenuItem key={cat.id} node={cat} />
@@ -318,24 +318,37 @@ export function Navbar({
               )}
             </button>
 
-            {/* Hamburger Menu Toggle (Mobile & Tablet) */}
+            {/* Hamburger Menu Toggle (Mobile & Tablet) with smooth morph animation */}
             <button
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-              className="md:hidden p-2 rounded-lg text-slate-700 hover:text-[#024AE5] hover:bg-slate-100 transition-colors cursor-pointer flex items-center justify-center"
-              aria-label="Toggle Navigation Menu"
+              className="md:hidden relative h-10 w-10 flex flex-col items-center justify-center gap-1.5 rounded-lg text-slate-700 hover:text-[#024AE5] hover:bg-slate-100 transition-colors cursor-pointer active:scale-95 shrink-0"
+              aria-label={isMobileMenuOpen ? "Close navigation menu" : "Open navigation menu"}
             >
-              {isMobileMenuOpen ? (
-                <X className="h-6 w-6 text-slate-900 transition-transform duration-200" />
-              ) : (
-                <Menu className="h-6 w-6 transition-transform duration-200" />
-              )}
+              <span
+                className={cn(
+                  "h-0.5 w-5 bg-current rounded-full transition-all duration-300 ease-in-out origin-center",
+                  isMobileMenuOpen ? "translate-y-2 rotate-45 bg-slate-900" : ""
+                )}
+              />
+              <span
+                className={cn(
+                  "h-0.5 w-5 bg-current rounded-full transition-all duration-300 ease-in-out",
+                  isMobileMenuOpen ? "opacity-0 scale-x-0" : "opacity-100"
+                )}
+              />
+              <span
+                className={cn(
+                  "h-0.5 w-5 bg-current rounded-full transition-all duration-300 ease-in-out origin-center",
+                  isMobileMenuOpen ? "-translate-y-2 -rotate-45 bg-slate-900" : ""
+                )}
+              />
             </button>
           </div>
         </div>
       </header>
 
-      {/* Mobile Navigation Drawer - Portaled directly to document.body to prevent any header clipping */}
-      {mounted && isMobileMenuOpen && createPortal(
+      {/* Mobile Navigation Drawer - Portaled directly to document.body with smooth open & close animations */}
+      {mounted && createPortal(
         <div
           className={cn(
             "fixed inset-0 z-[100] md:hidden transition-all duration-300",
@@ -371,7 +384,7 @@ export function Navbar({
               </Link>
               <button
                 onClick={() => setIsMobileMenuOpen(false)}
-                className="p-2 rounded-full hover:bg-slate-100 text-slate-500 hover:text-slate-900 transition-colors cursor-pointer"
+                className="p-2 rounded-full hover:bg-slate-100 text-slate-500 hover:text-slate-900 transition-all duration-200 active:scale-90 hover:rotate-90 cursor-pointer"
                 aria-label="Close menu"
               >
                 <X className="h-5 w-5" />

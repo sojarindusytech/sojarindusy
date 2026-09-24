@@ -1,7 +1,6 @@
 import { getCurrentUserProfile } from "@/actions/auth";
 import { redirect } from "next/navigation";
-import { CustomerSidebar } from "@/components/customer/CustomerSidebar";
-import { CustomerHeader } from "@/components/customer/CustomerHeader";
+import { CustomerLayoutClient } from "@/components/customer/CustomerLayoutClient";
 import { APPROVAL_STATUSES } from "@/lib/constants";
 
 export const dynamic = "force-dynamic";
@@ -31,24 +30,12 @@ export default async function CustomerDashboardLayout({
   const fullName = profile ? `${profile.title || "Mr"} ${profile.first_name} ${profile.last_name}` : "Valued Client";
 
   return (
-    <div className="flex min-h-screen bg-white">
-      {/* Sidebar Navigation */}
-      <CustomerSidebar companyName={profile?.company_name || "Enterprise Account"} />
-
-      {/* Main Content Viewport */}
-      <div className="flex flex-1 flex-col overflow-x-hidden bg-white">
-        {/* Top App Header */}
-        <CustomerHeader
-          userName={fullName}
-          userEmail={user.email}
-          companyName={profile?.company_name || "Enterprise Partner"}
-        />
-
-        {/* Main Content Area */}
-        <main className="flex-1 px-8 py-6">
-          {children}
-        </main>
-      </div>
-    </div>
+    <CustomerLayoutClient
+      userName={fullName}
+      userEmail={user.email}
+      companyName={profile?.company_name || "Enterprise Partner"}
+    >
+      {children}
+    </CustomerLayoutClient>
   );
 }

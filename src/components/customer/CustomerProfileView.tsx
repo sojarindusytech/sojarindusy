@@ -131,7 +131,7 @@ export function CustomerProfileView({ initialProfile }: CustomerProfileViewProps
         <Button
           size="sm"
           onClick={openEditModal}
-          className="bg-[#024AE5] hover:bg-[#024AE5]/90 text-white text-xs font-bold h-8.5 shadow-none gap-1.5 cursor-pointer self-start sm:self-auto"
+          className="bg-[#024AE5] hover:bg-[#024AE5]/90 text-white text-xs font-bold h-9 sm:h-8.5 shadow-none gap-1.5 cursor-pointer w-full sm:w-auto justify-center"
         >
           <Settings className="h-3.5 w-3.5" />
           <span>Edit Profile & Addresses</span>
@@ -139,7 +139,7 @@ export function CustomerProfileView({ initialProfile }: CustomerProfileViewProps
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
-        <Card className="md:col-span-8 p-6 bg-white border border-slate-200 shadow-none rounded-xl space-y-4">
+        <Card className="md:col-span-8 p-4 sm:p-6 bg-white border border-slate-200 shadow-none rounded-xl space-y-4">
           <div className="flex items-center justify-between border-b border-slate-100 pb-3">
             <div className="flex items-center gap-2">
               <Building2 className="h-5 w-5 text-[#024AE5]" />
@@ -182,7 +182,7 @@ export function CustomerProfileView({ initialProfile }: CustomerProfileViewProps
           </div>
         </Card>
 
-        <Card className="md:col-span-4 p-6 bg-white border border-slate-200 shadow-none rounded-xl space-y-4">
+        <Card className="md:col-span-4 p-4 sm:p-6 bg-white border border-slate-200 shadow-none rounded-xl space-y-4">
           <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
             <ShieldCheck className="h-4 w-4 text-emerald-600" />
             <h2 className="font-bold text-sm text-slate-900">Commercial Terms</h2>
@@ -207,11 +207,11 @@ export function CustomerProfileView({ initialProfile }: CustomerProfileViewProps
 
       {/* Edit Profile Modal */}
       <Dialog open={isEditProfileOpen} onOpenChange={setIsEditProfileOpen}>
-        <DialogContent className="max-w-lg bg-white p-6 rounded-2xl shadow-xl">
+        <DialogContent className="max-w-lg w-[95vw] sm:w-full p-4 sm:p-6 rounded-xl sm:rounded-2xl shadow-xl max-h-[90vh] overflow-y-auto">
           <DialogHeader className="pb-3 border-b border-slate-200">
             <div className="flex items-center gap-2">
               <Settings className="h-5 w-5 text-[#024AE5]" />
-              <DialogTitle className="text-lg font-bold text-slate-900">
+              <DialogTitle className="text-base sm:text-lg font-bold text-slate-900">
                 Edit Enterprise Profile
               </DialogTitle>
             </div>
@@ -231,7 +231,7 @@ export function CustomerProfileView({ initialProfile }: CustomerProfileViewProps
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <Label className="text-xs font-semibold text-slate-700">First Name *</Label>
                 <Input
@@ -252,7 +252,7 @@ export function CustomerProfileView({ initialProfile }: CustomerProfileViewProps
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <Label className="text-xs font-semibold text-slate-700">Mobile Phone *</Label>
                 <Input
@@ -283,7 +283,7 @@ export function CustomerProfileView({ initialProfile }: CustomerProfileViewProps
               />
             </div>
 
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div className="space-y-1.5">
                 <Label className="text-xs font-semibold text-slate-700">City *</Label>
                 <Input
@@ -313,20 +313,20 @@ export function CustomerProfileView({ initialProfile }: CustomerProfileViewProps
               </div>
             </div>
 
-            <div className="flex justify-end gap-2.5 pt-3 border-t border-slate-100">
+            <div className="flex flex-col-reverse sm:flex-row justify-end gap-2.5 pt-3 border-t border-slate-100">
               <Button
                 type="button"
                 variant="outline"
                 onClick={() => setIsEditProfileOpen(false)}
                 disabled={isSavingProfile}
-                className="h-8 text-xs border-slate-200 shadow-none cursor-pointer"
+                className="w-full sm:w-auto h-9 sm:h-8 text-xs border-slate-200 shadow-none cursor-pointer"
               >
                 Cancel
               </Button>
               <Button
                 type="submit"
                 disabled={isSavingProfile}
-                className="h-8 text-xs bg-[#024AE5] hover:bg-[#024AE5]/90 text-white shadow-none px-5 font-bold cursor-pointer"
+                className="w-full sm:w-auto h-9 sm:h-8 text-xs bg-[#024AE5] hover:bg-[#024AE5]/90 text-white shadow-none px-5 font-bold cursor-pointer justify-center"
               >
                 {isSavingProfile && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}
                 Save Profile
