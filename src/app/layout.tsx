@@ -27,7 +27,6 @@ export const metadata: Metadata = {
 import { CartProvider } from "@/context/CartContext";
 import { CartDrawer } from "@/components/storefront/CartDrawer";
 import { Footer } from "@/components/common/Footer";
-import { NavigationProgressBar } from "@/components/common/NavigationProgressBar";
 
 export default function RootLayout({
   children,
@@ -47,7 +46,6 @@ export default function RootLayout({
         <link rel="dns-prefetch" href="https://maps.gstatic.com" />
       </head>
       <body className="min-h-full flex flex-col bg-white text-slate-900 font-sans selection:bg-[#024AE5] selection:text-white">
-        <NavigationProgressBar />
         <ThemeProvider>
           <CartProvider>
             <GlobalHeader />
