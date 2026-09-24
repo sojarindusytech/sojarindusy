@@ -40,7 +40,7 @@ export function AdminHeader({
         </div>
       </div>
 
-      {/* Right: Notification Bell + Sojar Indusy Super Admin Profile with Dropdown */}
+      {/* Right: Notification Bell + Sojar Solutions Super Admin Profile with Dropdown */}
       <div className="flex items-center gap-5">
         {/* Notification Bell with Badge */}
         <button
@@ -54,7 +54,7 @@ export function AdminHeader({
           </span>
         </button>
 
-        {/* Sojar Indusy Super Admin Profile Pill with Dropdown indicator */}
+        {/* Sojar Solutions Super Admin Profile Pill with Dropdown indicator */}
         <div className="relative group">
           <button
             type="button"
@@ -65,7 +65,7 @@ export function AdminHeader({
             </div>
             <div className="flex flex-col">
               <span className="text-xs font-semibold text-slate-900 leading-tight">
-                {userEmail ? userEmail.split('@')[0] : "Sojar Indusy"}
+                {userEmail ? userEmail.split('@')[0] : "Sojar Solutions"}
               </span>
               <span className="text-[10px] font-medium text-slate-400 leading-tight">
                 {userName}

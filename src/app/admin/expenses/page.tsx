@@ -3,7 +3,7 @@ import { DollarSign } from "lucide-react";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Operating Expenses | Sojar Indusy Admin",
+  title: "Operating Expenses | Sojar Solutions Admin",
   description: "Plant overheads, operational expenses, and vendor bills.",
 };
 

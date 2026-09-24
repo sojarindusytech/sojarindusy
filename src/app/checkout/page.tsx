@@ -331,7 +331,7 @@ export default function CheckoutPage() {
               </Button>
 
               <p className="text-[10px] text-slate-400 text-center leading-relaxed">
-                By placing this order, you authorize Sojar Indusy Tech to process and allocate inventory as per B2B procurement terms.
+                By placing this order, you authorize Sojar Solutions to process and allocate inventory as per B2B procurement terms.
               </p>
             </Card>
           </div>

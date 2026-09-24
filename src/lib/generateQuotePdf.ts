@@ -186,16 +186,16 @@ export function generateQuotePdf(
         <tr>
           <td style="vertical-align: top;">
             <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 4px;">
-              <img src="/assets/sojar-logo.webp" alt="Sojar Indusy" style="height: 38px; width: 38px; object-fit: contain;" />
+              <img src="/assets/sojar-logo.svg" alt="Sojar Solutions" style="height: 38px; width: auto; max-width: 140px; object-fit: contain;" />
               <div>
-                <div class="brand-title">SOJAR INDUSY</div>
+                <div class="brand-title">SOJAR SOLUTIONS</div>
                 <div class="brand-sub">Industrial Precision Tooling & CNC Fasteners</div>
               </div>
             </div>
             <div style="font-size: 10px; color: #64748b; margin-top: 6px; line-height: 1.4;">
-              Plot No. W-48, MIDC Bhosari Industrial Estate, Pune, Maharashtra - 411026<br/>
-              <strong>GSTIN:</strong> 27AASCS8920K1ZX &bull; <strong>Email:</strong> sales@sojarindusy.com<br/>
-              <strong>Engineering Hotline:</strong> +91 (020) 2712-8940 / +91 98207 01219
+              Plot No. 7, Behind Hotel La Carta, Near Silvassa Road lines, N.H. No. 8, GIDC Char Rasta, Vapi, Valsad-396191, Gujarat, India<br/>
+              <strong>GSTIN:</strong> 27AASCS8920K1ZX &bull; <strong>Email:</strong> sales@sojarsolutions.com<br/>
+              <strong>Hotline:</strong> +91 98207 01219 / +91 98793 37908
             </div>
           </td>
           <td style="vertical-align: top; text-align: right;">
@@ -235,7 +235,7 @@ export function generateQuotePdf(
             Manufacturing & Dispatch Facility
           </div>
           <div style="font-size: 11px; font-weight: 700; color: #0f172a;">
-            Sojar Indusy Plant 1 (Bhosari MIDC)
+            Sojar Solutions Manufacturing Unit (Vapi, Gujarat)
           </div>
           <div style="font-size: 10px; color: #475569; margin-top: 2px;">
             <strong>Dispatch Mode:</strong> Direct Plant Logistics<br/>
@@ -293,7 +293,7 @@ export function generateQuotePdf(
           <li><strong>Validity:</strong> This quotation is strictly valid for 30 calendar days from the date of issuance.</li>
           <li><strong>Tolerances & Quality:</strong> Tooling dimensions adhere to DIN 6527L / ISO tolerance standards. Mill test certificates provided upon request.</li>
           <li><strong>Delivery:</strong> Standard items dispatched within 24–48 hours; custom CNC tooling within 3–5 business days.</li>
-          <li><strong>Payment Remittance (NEFT/RTGS):</strong> A/C Name: <strong>SOJAR INDUSY LLP</strong> &bull; Bank: HDFC Bank Ltd &bull; A/C No: 50200084920194 &bull; IFSC: HDFC0001812 &bull; Branch: Bhosari MIDC, Pune.</li>
+          <li><strong>Payment Remittance (NEFT/RTGS):</strong> A/C Name: <strong>SOJAR SOLUTIONS LLP</strong> &bull; Bank: HDFC Bank Ltd &bull; A/C No: 50200084920194 &bull; IFSC: HDFC0001812 &bull; Branch: Bhosari MIDC, Pune.</li>
         </ol>
       </div>
 
@@ -301,10 +301,10 @@ export function generateQuotePdf(
       <div class="footer-sign">
         <div style="font-size: 10px; color: #64748b;">
           This is a computer-generated commercial price quotation.<br/>
-          For bulk quantity revisions or custom drawing tenders, contact <strong>rfq@sojarindusy.com</strong>
+          For bulk quantity revisions or custom drawing tenders, contact <strong>rfq@sojarsolutions.com</strong>
         </div>
         <div style="text-align: center;">
-          <div style="font-size: 11px; font-weight: 700; color: #0f172a;">For SOJAR INDUSY</div>
+          <div style="font-size: 11px; font-weight: 700; color: #0f172a;">For SOJAR SOLUTIONS</div>
           <div style="height: 40px;"></div>
           <div style="font-size: 10px; font-weight: 600; color: #475569; border-top: 1px dashed #cbd5e1; padding-top: 4px; width: 180px;">
             Authorized Commercial Signatory

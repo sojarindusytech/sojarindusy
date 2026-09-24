@@ -3,7 +3,7 @@ import { ShoppingCart } from "lucide-react";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Sales Orders | Sojar Indusy Admin",
+  title: "Sales Orders | Sojar Solutions Admin",
   description: "Manage client sales orders and contract fulfillments.",
 };
 

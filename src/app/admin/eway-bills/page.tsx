@@ -3,7 +3,7 @@ import { FileCheck } from "lucide-react";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "E-Way Bills | Sojar Indusy Admin",
+  title: "E-Way Bills | Sojar Solutions Admin",
   description: "Government GST E-Way Bill generation and tracking.",
 };
 

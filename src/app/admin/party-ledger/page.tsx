@@ -3,7 +3,7 @@ import { BookMarked } from "lucide-react";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Party Ledger | Sojar Indusy Admin",
+  title: "Party Ledger | Sojar Solutions Admin",
   description: "Debtors and creditors individual statement of accounts.",
 };
 

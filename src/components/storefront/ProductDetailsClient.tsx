@@ -742,7 +742,7 @@ export function ProductDetailsClient({
             {product.description ||
               (!product.short_description?.trim().startsWith("{") &&
                 product.short_description) ||
-              "Precision solid carbide cutting tools manufactured by Sojar Indusy."}
+              "Precision solid carbide cutting tools manufactured by Sojar Solutions."}
           </div>
         )}
 

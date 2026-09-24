@@ -3,7 +3,7 @@ import { FileSpreadsheet } from "lucide-react";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Tax Invoices | Sojar Indusy Admin",
+  title: "Tax Invoices | Sojar Solutions Admin",
   description: "GST Tax Invoices and billing registry.",
 };
 

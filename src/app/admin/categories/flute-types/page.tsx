@@ -3,7 +3,7 @@ import { Tags } from "lucide-react";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Flute Configurations | Categories | Sojar Indusy Admin",
+  title: "Flute Configurations | Categories | Sojar Solutions Admin",
   description: "Manage 2 Flute, 3 Flute, 4 Flute, and Multi-Flute classifications.",
 };
 

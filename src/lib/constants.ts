@@ -1,6 +1,6 @@
 /**
  * Centralized Single Source of Truth for Domain Enums, Statuses, and Business Constants
- * Sojar Indusy - Industrial Manufacturing Platform
+ * Sojar Solutions - Industrial Manufacturing Platform
  */
 
 // 1. User Titles

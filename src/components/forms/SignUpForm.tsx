@@ -255,7 +255,7 @@ export function SignUpForm() {
             <ul className="space-y-1.5 text-slate-600">
               <li className="flex items-start gap-2">
                 <span className="font-bold text-[#024AE5]">1.</span>
-                <span>Open your email client and locate the confirmation link from Sojar Indusy.</span>
+                <span>Open your email client and locate the confirmation link from Sojar Solutions.</span>
               </li>
               <li className="flex items-start gap-2">
                 <span className="font-bold text-[#024AE5]">2.</span>

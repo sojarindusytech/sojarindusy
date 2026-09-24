@@ -3,7 +3,7 @@ import { CustomerInvoicesView } from "@/components/customer/CustomerInvoicesView
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "GST Invoices & Statements | Sojar Indusy",
+  title: "GST Invoices & Statements | Sojar Solutions",
   description: "View and download official GST tax invoices and accounting records.",
 };
 

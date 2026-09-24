@@ -5,10 +5,10 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
 const SLIDES = [
-  { desktop: "/assets/carousel/desktop/1.webp", mobile: "/assets/carousel/mobile/1.webp", alt: "Sojar Indusy – Slide 1" },
-  { desktop: "/assets/carousel/desktop/2.webp", mobile: "/assets/carousel/mobile/2.webp", alt: "Sojar Indusy – Slide 2" },
-  { desktop: "/assets/carousel/desktop/3.webp", mobile: "/assets/carousel/mobile/3.webp", alt: "Sojar Indusy – Slide 3" },
-  { desktop: "/assets/carousel/desktop/4.webp", mobile: "/assets/carousel/mobile/4.webp", alt: "Sojar Indusy – Slide 4" },
+  { desktop: "/assets/carousel/desktop/1.webp", mobile: "/assets/carousel/mobile/1.webp", alt: "Sojar Solutions – Slide 1" },
+  { desktop: "/assets/carousel/desktop/2.webp", mobile: "/assets/carousel/mobile/2.webp", alt: "Sojar Solutions – Slide 2" },
+  { desktop: "/assets/carousel/desktop/3.webp", mobile: "/assets/carousel/mobile/3.webp", alt: "Sojar Solutions – Slide 3" },
+  { desktop: "/assets/carousel/desktop/4.webp", mobile: "/assets/carousel/mobile/4.webp", alt: "Sojar Solutions – Slide 4" },
 ];
 
 const AUTOPLAY_MS = 4000;

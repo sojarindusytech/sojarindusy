@@ -3,7 +3,7 @@ import { InquiriesManagementClient } from "@/components/admin/InquiriesManagemen
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Customer Inquiries | Sojar Indusy Admin",
+  title: "Customer Inquiries | Sojar Solutions Admin",
   description: "Review, respond, and manage inbound inquiries from your storefront contact form.",
 };
 

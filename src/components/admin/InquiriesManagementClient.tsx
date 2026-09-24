@@ -607,7 +607,7 @@ export function InquiriesManagementClient({
                 {/* Direct Action Buttons */}
                 <div className="flex flex-col justify-center gap-2">
                   <a
-                    href={`mailto:${selectedInquiry.email}?subject=Regarding your inquiry at Sojar Indusy`}
+                    href={`mailto:${selectedInquiry.email}?subject=Regarding your inquiry at Sojar Solutions`}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="inline-flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-[#024AE5] hover:bg-[#013BB8] text-white text-xs font-bold transition-colors"

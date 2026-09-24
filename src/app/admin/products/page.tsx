@@ -5,7 +5,7 @@ import { ProductManagementClient } from "@/components/admin/ProductManagementCli
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Products & SKU Matrix | Sojar Indusy Admin",
+  title: "Products & SKU Matrix | Sojar Solutions Admin",
   description: "View product families, uploaded CSV SKU matrices, stock quantities, and pricing.",
 };
 

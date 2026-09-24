@@ -18,6 +18,7 @@ import {
   Info,
   HelpCircle,
   PhoneCall,
+  LayoutDashboard,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { CategoryNode } from "@/types/database.types";
@@ -30,6 +31,8 @@ interface NavbarProps {
   user?: any;
   /** Resolved server-side from the profiles table, never from user_metadata. */
   isAdmin?: boolean;
+  companyName?: string | null;
+  userName?: string | null;
 }
 
 const CategoryMenuItem = ({ node, parentPath = "" }: { node: CategoryNode, parentPath?: string }) => {
@@ -65,13 +68,28 @@ const CategoryMenuItem = ({ node, parentPath = "" }: { node: CategoryNode, paren
   );
 };
 
-export function Navbar({ categories = [], user, isAdmin = false }: NavbarProps) {
+export function Navbar({
+  categories = [],
+  user,
+  isAdmin = false,
+  companyName,
+  userName,
+}: NavbarProps) {
   const pathname = usePathname();
   const router = useRouter();
   const { itemCount, setIsCartOpen } = useCart();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isMobileProductsOpen, setIsMobileProductsOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
+
+  const effectiveCompanyName =
+    companyName || user?.user_metadata?.company_name || "Enterprise Partner";
+  const effectiveUserName =
+    userName ||
+    user?.user_metadata?.full_name ||
+    user?.user_metadata?.name ||
+    user?.email?.split("@")[0] ||
+    "Authorized Contact";
 
   useEffect(() => {
     setMounted(true);
@@ -117,8 +135,8 @@ export function Navbar({ categories = [], user, isAdmin = false }: NavbarProps) 
           {/* Brand Logo Only */}
           <Link href="/" className="flex items-center transition-opacity hover:opacity-90 py-1">
             <Image
-              src="/assets/sojar-logo.webp"
-              alt="Sojar Indusy"
+              src="/assets/sojar-logo.svg"
+              alt="Sojar Solutions"
               width={220}
               height={64}
               className="h-9 sm:h-11 md:h-12 w-auto object-contain"
@@ -206,32 +224,37 @@ export function Navbar({ categories = [], user, isAdmin = false }: NavbarProps) 
           {/* Action Buttons: Login, Sign Up, Blue Cart & Mobile Hamburger */}
           <div className="flex items-center gap-2 sm:gap-3">
             {user ? (
-              <div className="relative group">
+              <div className="relative group hidden md:block">
                 <Button
                   variant="ghost"
-                  className="gap-2 text-xs sm:text-sm font-bold rounded-full border border-slate-300 hover:border-slate-400 bg-white px-3 sm:px-4 py-1.5 h-auto shadow-none text-slate-800"
+                  className="gap-2.5 text-xs font-bold rounded-full border border-slate-300 hover:border-slate-400 bg-white pl-2.5 pr-3.5 py-1 h-auto shadow-none text-slate-800"
                 >
-                  <User className="h-4 w-4 text-[#024AE5]" />
-                  <span className="max-w-[100px] sm:max-w-[140px] truncate">
-                    {user.user_metadata?.full_name ||
-                      user.user_metadata?.name ||
-                      user.email?.split("@")[0]}
-                  </span>
+                  <div className="flex h-7 w-7 items-center justify-center rounded-full bg-blue-50 text-[#024AE5] shrink-0 font-bold text-xs">
+                    <User className="h-3.5 w-3.5" />
+                  </div>
+                  <div className="flex flex-col text-left">
+                    <span className="text-xs font-bold text-slate-900 leading-tight truncate max-w-[130px]">
+                      {effectiveCompanyName}
+                    </span>
+                    <span className="text-[10px] font-medium text-slate-400 leading-tight truncate max-w-[130px]">
+                      {effectiveUserName}
+                    </span>
+                  </div>
+                  <ChevronDown className="h-3.5 w-3.5 text-slate-400 ml-0.5" />
                 </Button>
 
                 <div className="absolute right-0 top-full hidden pt-2 group-hover:block z-50">
-                  <div className="w-48 rounded-md border border-slate-200 bg-white shadow-lg py-1 flex flex-col">
-                    <div className="px-4 py-2 text-xs text-slate-500 border-b border-slate-100">
-                      {user.user_metadata?.full_name || user.user_metadata?.name ? (
-                        <>
-                          <span className="block font-semibold text-slate-700 truncate">
-                            {user.user_metadata?.full_name || user.user_metadata?.name}
-                          </span>
-                          <span className="truncate">{user.email}</span>
-                        </>
-                      ) : (
-                        <span className="truncate">{user.email}</span>
-                      )}
+                  <div className="w-52 rounded-md border border-slate-200 bg-white shadow-lg py-1 flex flex-col">
+                    <div className="px-4 py-2 text-xs border-b border-slate-100">
+                      <span className="block font-bold text-slate-900 truncate">
+                        {effectiveCompanyName}
+                      </span>
+                      <span className="block text-[11px] text-slate-600 font-medium truncate">
+                        {effectiveUserName}
+                      </span>
+                      <span className="block text-[10px] text-slate-400 truncate mt-0.5">
+                        {user.email}
+                      </span>
                     </div>
                     {isAdmin ? (
                       <Link
@@ -339,8 +362,8 @@ export function Navbar({ categories = [], user, isAdmin = false }: NavbarProps) 
             <div className="flex h-16 items-center justify-between px-5 border-b border-slate-100 bg-white shrink-0">
               <Link href="/" prefetch={false} onClick={() => setIsMobileMenuOpen(false)} className="flex items-center py-1">
                 <Image
-                  src="/assets/sojar-logo.webp"
-                  alt="Sojar Indusy"
+                  src="/assets/sojar-logo.svg"
+                  alt="Sojar Solutions"
                   width={150}
                   height={42}
                   className="h-8 w-auto object-contain"
@@ -487,59 +510,80 @@ export function Navbar({ categories = [], user, isAdmin = false }: NavbarProps) 
                   {itemCount} {itemCount === 1 ? "item" : "items"}
                 </span>
               </button>
+            </div>
 
-              {/* User Profile or Login/Sign-up */}
-              {user ? (
-                <div className="space-y-2 pt-2 border-t border-slate-100">
-                    <div className="px-3 py-2 bg-slate-50 rounded-lg text-xs text-slate-600 font-medium">
-                      {user.user_metadata?.full_name || user.user_metadata?.name ? (
-                        <>
-                          <span className="block font-bold text-slate-900 truncate">
-                            {user.user_metadata?.full_name || user.user_metadata?.name}
-                          </span>
-                          <span className="truncate text-slate-500">{user.email}</span>
-                        </>
-                      ) : (
-                        <>Signed in as <span className="font-bold text-slate-900 truncate">{user.email}</span></>
+            {/* Classic Bottom Drawer Footer */}
+            {user ? (
+              <div className="border-t border-slate-200 bg-slate-50/95 p-3.5 shrink-0 space-y-2.5">
+                {/* Company Name & User Name like Dashboard */}
+                <div className="flex items-center gap-2.5">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-100 text-[#024AE5] font-bold text-xs shrink-0">
+                    <User className="h-4 w-4" />
+                  </div>
+                  <div className="flex flex-col min-w-0 flex-1">
+                    <div className="flex items-center justify-between gap-1">
+                      <span className="text-xs font-bold text-slate-900 leading-tight truncate">
+                        {effectiveCompanyName}
+                      </span>
+                      {isAdmin && (
+                        <span className="text-[9px] bg-blue-100 text-[#024AE5] px-1.5 py-0.5 rounded font-bold uppercase tracking-wider shrink-0 border border-blue-200/50">
+                          Admin
+                        </span>
                       )}
                     </div>
+                    <span className="text-[11px] font-medium text-slate-600 leading-tight truncate mt-0.5">
+                      {effectiveUserName}
+                    </span>
+                    <span className="text-[10px] text-slate-400 truncate">
+                      {user.email}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Classic Bottom Action Buttons: Dashboard & Logout */}
+                <div className="grid grid-cols-2 gap-2 pt-0.5">
                   {isAdmin ? (
                     <Link
                       href="/admin/dashboard"
                       prefetch={false}
                       onClick={() => setIsMobileMenuOpen(false)}
-                      className="block w-full text-center px-4 py-2 text-xs font-bold text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors"
+                      className="flex items-center justify-center gap-1.5 h-8 px-2.5 text-xs font-semibold text-white bg-[#024AE5] hover:bg-[#013bb8] rounded-md transition-colors text-center shadow-xs"
                     >
-                      Admin Portal &rarr;
+                      <LayoutDashboard className="h-3.5 w-3.5 shrink-0" />
+                      <span className="truncate">Admin Portal</span>
                     </Link>
                   ) : (
                     <Link
                       href="/dashboard"
                       prefetch={false}
                       onClick={() => setIsMobileMenuOpen(false)}
-                      className="block w-full text-center px-4 py-2 text-xs font-bold text-slate-800 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors"
+                      className="flex items-center justify-center gap-1.5 h-8 px-2.5 text-xs font-semibold text-white bg-[#024AE5] hover:bg-[#013bb8] rounded-md transition-colors text-center shadow-xs"
                     >
-                      Customer Portal &rarr;
+                      <LayoutDashboard className="h-3.5 w-3.5 shrink-0" />
+                      <span className="truncate">Dashboard</span>
                     </Link>
                   )}
                   <button
+                    type="button"
                     onClick={() => {
                       setIsMobileMenuOpen(false);
                       handleLogout();
                     }}
-                    className="w-full flex items-center justify-center gap-2 px-4 py-2 text-xs font-bold text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
+                    className="flex items-center justify-center gap-1.5 h-8 px-2.5 text-xs font-semibold text-slate-600 bg-white hover:text-red-600 hover:bg-red-50 hover:border-red-200 border border-slate-200 rounded-md transition-colors cursor-pointer"
                   >
-                    <LogOut className="h-4 w-4" />
+                    <LogOut className="h-3.5 w-3.5 shrink-0" />
                     <span>Logout</span>
                   </button>
                 </div>
-              ) : (
-                <div className="space-y-2.5 pt-2 border-t border-slate-100">
+              </div>
+            ) : (
+              <div className="border-t border-slate-200 bg-white p-3.5 shrink-0 space-y-2">
+                <div className="grid grid-cols-2 gap-2">
                   <Link
                     href="/login"
                     prefetch={false}
                     onClick={() => setIsMobileMenuOpen(false)}
-                    className="block w-full text-center rounded-full border border-slate-300 hover:border-slate-400 bg-white text-slate-800 py-2.5 text-xs font-bold transition-colors cursor-pointer shadow-none"
+                    className="flex items-center justify-center h-8 px-2.5 text-xs font-semibold text-slate-700 bg-white hover:bg-slate-50 border border-slate-200 rounded-md transition-colors cursor-pointer text-center"
                   >
                     Login
                   </Link>
@@ -547,13 +591,13 @@ export function Navbar({ categories = [], user, isAdmin = false }: NavbarProps) 
                     href="/signup"
                     prefetch={false}
                     onClick={() => setIsMobileMenuOpen(false)}
-                    className="block w-full text-center rounded-full bg-[#024AE5] hover:bg-[#0238B0] text-white py-2.5 text-xs font-bold transition-colors cursor-pointer shadow-none"
+                    className="flex items-center justify-center h-8 px-2.5 text-xs font-semibold text-white bg-[#024AE5] hover:bg-[#013bb8] rounded-md transition-colors cursor-pointer text-center shadow-xs"
                   >
                     Sign Up
                   </Link>
                 </div>
-              )}
-            </div>
+              </div>
+            )}
           </div>
         </div>,
         document.body

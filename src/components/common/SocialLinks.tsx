@@ -12,25 +12,25 @@ export const SOCIAL_LINKS: SocialLinkItem[] = [
     id: "facebook",
     name: "Facebook",
     href: "https://www.facebook.com/people/sojarindusy/100091498647530/?mibextid=ZbWKwL",
-    ariaLabel: "Follow Sojar Indusy on Facebook",
+    ariaLabel: "Follow Sojar Solutions on Facebook",
   },
   {
     id: "instagram",
     name: "Instagram",
     href: "https://www.instagram.com/sojarindusy/",
-    ariaLabel: "Follow Sojar Indusy on Instagram",
+    ariaLabel: "Follow Sojar Solutions on Instagram",
   },
   {
     id: "linkedin",
     name: "LinkedIn",
     href: "https://www.linkedin.com/company/sojarindusy/",
-    ariaLabel: "Connect with Sojar Indusy on LinkedIn",
+    ariaLabel: "Connect with Sojar Solutions on LinkedIn",
   },
   {
     id: "whatsapp",
     name: "WhatsApp",
     href: "https://wa.me/919820701219",
-    ariaLabel: "Chat with Sojar Indusy on WhatsApp",
+    ariaLabel: "Chat with Sojar Solutions on WhatsApp",
   },
 ];
 

@@ -503,7 +503,7 @@ export function AdminRfqsClient({ initialRfqs }: AdminRfqsClientProps) {
                 <div className="flex items-center gap-2 pt-1">
                   {editingRfq.email && (
                     <a
-                      href={`mailto:${editingRfq.email}?subject=Regarding RFQ ${editingRfq.rfq_number} - Sojar Indusy`}
+                      href={`mailto:${editingRfq.email}?subject=Regarding RFQ ${editingRfq.rfq_number} - Sojar Solutions`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="inline-flex items-center gap-1 text-[#024AE5] hover:underline"
@@ -518,7 +518,7 @@ export function AdminRfqsClient({ initialRfqs }: AdminRfqsClientProps) {
               <div className="flex flex-col justify-center gap-2">
                 {editingRfq.email && (
                   <a
-                    href={`mailto:${editingRfq.email}?subject=Regarding RFQ ${editingRfq.rfq_number} - Sojar Indusy`}
+                    href={`mailto:${editingRfq.email}?subject=Regarding RFQ ${editingRfq.rfq_number} - Sojar Solutions`}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="inline-flex items-center justify-center gap-2 px-3 py-1.5 rounded-lg bg-[#024AE5] hover:bg-[#013BB8] text-white text-xs font-bold transition-colors"
@@ -531,7 +531,7 @@ export function AdminRfqsClient({ initialRfqs }: AdminRfqsClientProps) {
 
                 {editingRfq.mobile && (
                   <a
-                    href={`https://wa.me/${editingRfq.mobile.replace(/[^0-9]/g, "")}?text=Hello, regarding your RFQ ${editingRfq.rfq_number} at Sojar Indusy...`}
+                    href={`https://wa.me/${editingRfq.mobile.replace(/[^0-9]/g, "")}?text=Hello, regarding your RFQ ${editingRfq.rfq_number} at Sojar Solutions...`}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="inline-flex items-center justify-center gap-2 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-colors"

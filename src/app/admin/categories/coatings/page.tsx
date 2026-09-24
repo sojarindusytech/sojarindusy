@@ -3,7 +3,7 @@ import { Tags } from "lucide-react";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Coatings & Surface Treatments | Categories | Sojar Indusy Admin",
+  title: "Coatings & Surface Treatments | Categories | Sojar Solutions Admin",
   description: "Manage PVD/CVD coating treatments (AlTiN, TiSiN, DLC, Nano Blue, Uncoated).",
 };
 

@@ -3,7 +3,7 @@ import { AttributeManagementClient } from "@/components/admin/AttributeManagemen
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Attributes Management | Sojar Indusy Admin",
+  title: "Attributes Management | Sojar Solutions Admin",
   description: "Manage product attributes, hardness ratings (HRC 55, HRC 45, HRC 65), and coatings.",
 };
 

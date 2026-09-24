@@ -2,7 +2,7 @@ import { CustomerSupportView } from "@/components/customer/CustomerSupportView";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Technical Support & Logistics Helpdesk | Sojar Indusy",
+  title: "Technical Support & Logistics Helpdesk | Sojar Solutions",
   description: "Direct tooling engineering hotline and logistics assistance.",
 };
 

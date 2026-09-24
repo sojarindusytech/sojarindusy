@@ -3,7 +3,7 @@ import { BookOpen } from "lucide-react";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "General Ledger | Sojar Indusy Admin",
+  title: "General Ledger | Sojar Solutions Admin",
   description: "Company accounting general ledger and balance sheet accounts.",
 };
 

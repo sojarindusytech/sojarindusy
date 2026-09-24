@@ -12,7 +12,7 @@ export interface FAQItem {
 export const defaultFAQs: FAQItem[] = [
   {
     id: "tooling-solutions",
-    question: "WHAT TOOLING SOLUTIONS AND PRODUCTS DOES SOJAR INDUSY OFFER?",
+    question: "WHAT TOOLING SOLUTIONS AND PRODUCTS DOES SOJAR SOLUTIONS OFFER?",
     answer:
       "We provide precision tooling solutions, including solid carbide end mills, ball nose cutters, drills, inserts, oscillating blades, and other high-performance cutting tools.",
   },

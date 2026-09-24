@@ -3,9 +3,9 @@ import type { Metadata } from "next";
 import { ContactSection } from "@/components/storefront/ContactSection";
 
 export const metadata: Metadata = {
-  title: "Contact Us | Sojar Indusy",
+  title: "Contact Us | Sojar Solutions",
   description:
-    "Get in touch with Sojar Indusy for precision carbide tooling, custom industrial wear parts, technical support, and partnership inquiries.",
+    "Get in touch with Sojar Solutions for precision carbide tooling, custom industrial wear parts, technical support, and partnership inquiries.",
 };
 
 export default function ContactPage() {

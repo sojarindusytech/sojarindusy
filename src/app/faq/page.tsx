@@ -3,9 +3,9 @@ import type { Metadata } from "next";
 import { FAQAccordion } from "@/components/storefront/FAQAccordion";
 
 export const metadata: Metadata = {
-  title: "Frequently Asked Questions | Sojar Indusy",
+  title: "Frequently Asked Questions | Sojar Solutions",
   description:
-    "Find answers to frequently asked questions regarding Sojar Indusy's precision tooling solutions, custom carbide components, quality assurance, and technical support.",
+    "Find answers to frequently asked questions regarding Sojar Solutions's precision tooling solutions, custom carbide components, quality assurance, and technical support.",
 };
 
 export default function FAQPage() {

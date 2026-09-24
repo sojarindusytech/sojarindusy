@@ -3,7 +3,7 @@ import { ShieldAlert } from "lucide-react";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Audit Log & Security | Sojar Indusy Admin",
+  title: "Audit Log & Security | Sojar Solutions Admin",
   description: "System audit trail, change tracking, and login logs.",
 };
 

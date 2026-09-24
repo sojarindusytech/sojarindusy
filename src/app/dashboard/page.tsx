@@ -4,7 +4,7 @@ import { CustomerOverviewView } from "@/components/customer/CustomerOverviewView
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Enterprise Dashboard & Overview | Sojar Indusy",
+  title: "Enterprise Dashboard & Overview | Sojar Solutions",
   description: "Overview of your commercial credit line, active consignments, and recent industrial procurement orders.",
 };
 

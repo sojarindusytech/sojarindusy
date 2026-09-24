@@ -51,7 +51,7 @@ export async function fetchCustomersList(): Promise<Profile[]> {
     if (authData?.users) {
       authData.users.forEach((u) => {
         const meta = u.user_metadata || {};
-        if (meta.role === "admin" || meta.role === "platform_owner" || u.email === "admin@sojarindusy.com") {
+        if (meta.role === "admin" || meta.role === "platform_owner" || u.email === "admin@sojarindusy.com" || u.email === "admin@sojarsolutions.com") {
           return; // Skip platform administrator
         }
 

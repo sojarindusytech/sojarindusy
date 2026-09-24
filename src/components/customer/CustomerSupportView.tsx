@@ -41,7 +41,7 @@ export function CustomerSupportView() {
                 <Mail className="h-4 w-4 text-slate-600" />
                 <div>
                   <span className="font-bold text-slate-900 block">Engineering Desk Email</span>
-                  <span className="text-slate-600">engineering@sojarindusy.com</span>
+                  <span className="text-slate-600">engineering@sojarsolutions.com</span>
                 </div>
               </div>
             </div>
@@ -61,7 +61,7 @@ export function CustomerSupportView() {
 
             <div className="p-3 bg-slate-50 rounded-lg border border-slate-200 space-y-1">
               <span className="text-slate-400 block text-[10px] font-bold uppercase">Warehouse Location</span>
-              <div className="font-bold text-slate-900">Sojar Indusy Tech MIDC Logistics Hub</div>
+              <div className="font-bold text-slate-900">Sojar Solutions MIDC Logistics Hub</div>
               <div className="text-slate-500">Phase 1 MIDC Industrial Area, Chinchwad, Pune - 411019</div>
             </div>
 

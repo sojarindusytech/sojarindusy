@@ -21,7 +21,7 @@ const TESTIMONIALS: Testimonial[] = [
     company: "Bharat Precision Forgings, Pune",
     avatar: "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=150&auto=format&fit=crop&q=80",
     quote:
-      "Switching to Sojar Indusy solid carbide end mills reduced our cycle times by 24% while drastically extending tool lifespan. Their precision engineering and on-time delivery across Maharashtra and Gujarat are unmatched.",
+      "Switching to Sojar Solutions solid carbide end mills reduced our cycle times by 24% while drastically extending tool lifespan. Their precision engineering and on-time delivery across Maharashtra and Gujarat are unmatched.",
   },
   {
     id: 2,
@@ -30,7 +30,7 @@ const TESTIMONIALS: Testimonial[] = [
     company: "Tata Precision Aerospace, Bengaluru",
     avatar: "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150&auto=format&fit=crop&q=80",
     quote:
-      "We were delighted with how Sojar Indusy custom-engineered precision carbide tooling for our 5-axis CNC lines. Sub-micron accuracy and zero defect rates across all aerospace production batches.",
+      "We were delighted with how Sojar Solutions custom-engineered precision carbide tooling for our 5-axis CNC lines. Sub-micron accuracy and zero defect rates across all aerospace production batches.",
   },
   {
     id: 3,
@@ -39,7 +39,7 @@ const TESTIMONIALS: Testimonial[] = [
     company: "Gujarat Heavy Eng. & Tooling, Ahmedabad",
     avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80",
     quote:
-      "Their custom wear parts and specialized carbide drills have delivered exceptional durability in our heavy engineering facility. Sojar Indusy is our primary vendor for high-performance tooling.",
+      "Their custom wear parts and specialized carbide drills have delivered exceptional durability in our heavy engineering facility. Sojar Solutions is our primary vendor for high-performance tooling.",
   },
   {
     id: 4,
@@ -57,7 +57,7 @@ const TESTIMONIALS: Testimonial[] = [
     company: "Mahindra Component Machining, Chennai",
     avatar: "https://images.unsplash.com/photo-1580489944761-15a19d654956?w=150&auto=format&fit=crop&q=80",
     quote:
-      "Sub-micron dimensional accuracy and superior surface finish on all carbide inserts. Sojar Indusy continues to elevate our production efficiency and machining economics.",
+      "Sub-micron dimensional accuracy and superior surface finish on all carbide inserts. Sojar Solutions continues to elevate our production efficiency and machining economics.",
   },
 ];
 

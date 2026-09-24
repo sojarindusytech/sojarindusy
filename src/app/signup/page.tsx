@@ -2,8 +2,8 @@ import { SignUpForm } from "@/components/forms/SignUpForm";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Sign Up | Sojar Indusy",
-  description: "Create an account with Sojar Indusy.",
+  title: "Sign Up | Sojar Solutions",
+  description: "Create an account with Sojar Solutions.",
 };
 
 export default function SignUpPage() {

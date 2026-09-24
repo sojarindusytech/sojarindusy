@@ -3,7 +3,7 @@ import { FilePlus } from "lucide-react";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Credit Notes | Sojar Indusy Admin",
+  title: "Credit Notes | Sojar Solutions Admin",
   description: "Credit Note registry and customer balance adjustments.",
 };
 

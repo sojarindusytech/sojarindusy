@@ -4,9 +4,9 @@ import type { Metadata } from "next";
 import { CheckCircle2, Target, Handshake } from "lucide-react";
 
 export const metadata: Metadata = {
-  title: "About Us | Sojar Indusy",
+  title: "About Us | Sojar Solutions",
   description:
-    "Learn about Sojar Indusy - Industrial manufacturing leaders in precision engineering and high-performance tooling solutions.",
+    "Learn about Sojar Solutions - Industrial manufacturing leaders in precision engineering and high-performance tooling solutions.",
 };
 
 export default function AboutPage() {
@@ -56,7 +56,7 @@ export default function AboutPage() {
         <div className="space-y-8 lg:space-y-10">
           <div className="space-y-3">
             <p className="font-skoda text-sm sm:text-base font-bold text-slate-900 tracking-wide">
-              We are SOJAR INDUSY.
+              We are SOJAR SOLUTIONS.
             </p>
             <h1 className="font-skoda text-3xl sm:text-4xl lg:text-[2.6rem] font-extrabold text-slate-900 leading-[1.2] tracking-tight max-w-4xl">
               Where Precision is crafted and Excellence is defined
@@ -68,10 +68,10 @@ export default function AboutPage() {
             {/* Left 2 paragraphs */}
             <div className="lg:col-span-7 space-y-6 text-slate-700 text-[0.95rem] sm:text-base leading-relaxed font-subheading">
               <p>
-                SOJAR INDUSY stands at the forefront of precision engineering. We specialize in the design and development of high-performance tooling solutions essential for modern engineering and manufacturing. From precision carbide tools to custom wear parts; our products are crafted to deliver durability, accuracy, and innovation—empowering industries to achieve higher efficiency and reliability.
+                SOJAR SOLUTIONS stands at the forefront of precision engineering. We specialize in the design and development of high-performance tooling solutions essential for modern engineering and manufacturing. From precision carbide tools to custom wear parts; our products are crafted to deliver durability, accuracy, and innovation—empowering industries to achieve higher efficiency and reliability.
               </p>
               <p>
-                With over a decade of expertise in engineering design and development, provides premium-quality tooling solutions for Sojar Indusy industries such as die & mould making, medical devices, automotive, aerospace, oil & gas, power generation, and general engineering. Specializing in solid carbide tooling, the company combines reliability and innovation to deliver performance that meets the evolving demands of modern manufacturing.
+                With over a decade of expertise in engineering design and development, Sojar Solutions provides premium-quality tooling solutions for industries such as die & mould making, medical devices, automotive, aerospace, oil & gas, power generation, and general engineering. Specializing in solid carbide tooling, the company combines reliability and innovation to deliver performance that meets the evolving demands of modern manufacturing.
               </p>
             </div>
 
@@ -80,7 +80,7 @@ export default function AboutPage() {
               <div className="relative w-full aspect-[16/10] sm:aspect-[16/10] rounded-xl overflow-hidden shadow-md border border-slate-200/80">
                 <Image
                   src="/assets/images/about-us.png"
-                  alt="Sojar Indusy Manufacturing Facility"
+                  alt="Sojar Solutions Manufacturing Facility"
                   fill
                   className="object-cover object-center"
                   sizes="(max-width: 1024px) 100vw, 500px"

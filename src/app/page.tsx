@@ -22,7 +22,7 @@ export default function HomePage() {
               }}
             >
               Welcome to the <br />
-              Sojar Indusy
+              Sojar Solutions
             </h1>
           </div>
 

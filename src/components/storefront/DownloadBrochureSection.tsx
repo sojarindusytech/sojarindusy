@@ -25,7 +25,7 @@ export function DownloadBrochureSection({
               <div className="relative w-[220px] sm:w-[260px] lg:w-[280px] aspect-[3/4] rounded-xl overflow-hidden shadow-2xl shadow-slate-400/25 border border-slate-200/80 transition-transform duration-300 hover:scale-[1.02]">
                 <Image
                   src={imageSrc}
-                  alt="Sojar Indusy Engineering Solutions Brochure"
+                  alt="Sojar Solutions Engineering Solutions Brochure"
                   fill
                   className="object-cover object-center"
                   sizes="(max-width: 768px) 240px, 280px"
@@ -37,11 +37,11 @@ export function DownloadBrochureSection({
             {/* Right Column: Title, Narrative & Download Action */}
             <div className="md:col-span-7 flex flex-col items-center text-center space-y-5 lg:space-y-6">
               <h2 className="font-skoda text-3xl sm:text-4xl lg:text-[2.75rem] font-bold text-[#024AE5] tracking-tight">
-                Sojar Indusy
+                Sojar Solutions
               </h2>
 
               <p className="text-slate-600 text-sm sm:text-base lg:text-[1.05rem] leading-relaxed max-w-xl font-subheading">
-                Download the brochure to explore how Sojar Indusy can be your trusted
+                Download the brochure to explore how Sojar Solutions can be your trusted
                 partner in achieving high-precision results with durable and
                 innovative tooling solutions.
               </p>
@@ -49,7 +49,7 @@ export function DownloadBrochureSection({
               <div className="pt-1 sm:pt-2">
                 <a
                   href={brochureUrl}
-                  download="Sojar-Indusy-Brochure.pdf"
+                  download="Sojar-Solutions-Brochure.pdf"
                   className="inline-flex items-center justify-center gap-2.5 px-8 py-3.5 rounded-lg bg-[#024AE5] hover:bg-[#013bb8] text-white font-bold text-sm sm:text-base transition-all duration-200 shadow-md hover:shadow-lg active:scale-95 cursor-pointer font-skoda"
                 >
                   <span>Download Brochure</span>

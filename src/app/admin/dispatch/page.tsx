@@ -3,7 +3,7 @@ import { Truck } from "lucide-react";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Dispatch & Delivery | Sojar Indusy Admin",
+  title: "Dispatch & Delivery | Sojar Solutions Admin",
   description: "Logistics, courier manifests, and delivery tracking.",
 };
 

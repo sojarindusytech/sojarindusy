@@ -3,7 +3,7 @@ import { CustomerManagementClient } from "@/components/admin/CustomerManagementC
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Customer Directory & Approvals | Sojar Indusy Admin",
+  title: "Customer Directory & Approvals | Sojar Solutions Admin",
   description: "Manage registered platform users, offline billing accounts, and account onboarding approvals.",
 };
 

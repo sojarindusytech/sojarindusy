@@ -4,7 +4,7 @@ import { ProductUploadClient } from "@/components/admin/ProductUploadClient";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Product Upload Wizard | Sojar Indusy Admin",
+  title: "Product Upload Wizard | Sojar Solutions Admin",
   description: "Upload product family metadata, images, and import SKU variant matrices.",
 };
 

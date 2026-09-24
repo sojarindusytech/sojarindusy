@@ -4,9 +4,9 @@ import Link from "next/link";
 import { ArrowLeft, ShieldCheck, Mail, Phone, MapPin } from "lucide-react";
 
 export const metadata: Metadata = {
-  title: "Privacy Policy | Sojar Indusy",
+  title: "Privacy Policy | Sojar Solutions",
   description:
-    "Learn how Sojar Indusy collects, protects, and handles your personal and commercial data when using our website and contacting our engineering team.",
+    "Learn how Sojar Solutions collects, protects, and handles your personal and commercial data when using our website and contacting our engineering team.",
 };
 
 export default function PrivacyPolicyPage() {
@@ -48,7 +48,7 @@ export default function PrivacyPolicyPage() {
               1. Introduction & Overview
             </h2>
             <p>
-              Welcome to <strong>Sojar Indusy</strong> (“we”, “our”, or “us”). We respect your privacy and are committed to protecting any personal and commercial information you share with us. This Privacy Policy explains our practices regarding the collection, storage, use, and disclosure of information when you browse our website, submit inquiries, request quotations, or communicate with our engineering and sales representatives.
+              Welcome to <strong>Sojar Solutions</strong> (“we”, “our”, or “us”). We respect your privacy and are committed to protecting any personal and commercial information you share with us. This Privacy Policy explains our practices regarding the collection, storage, use, and disclosure of information when you browse our website, submit inquiries, request quotations, or communicate with our engineering and sales representatives.
             </p>
           </section>
 
@@ -122,7 +122,7 @@ export default function PrivacyPolicyPage() {
             </p>
 
             <div className="bg-[#F8F9FA] rounded-2xl p-6 border border-slate-200 space-y-3 text-sm">
-              <p className="font-bold text-slate-900 font-skoda text-base">Sojar Indusy</p>
+              <p className="font-bold text-slate-900 font-skoda text-base">Sojar Solutions</p>
               <div className="flex items-center gap-2.5 text-slate-600">
                 <MapPin className="w-4 h-4 text-[#024AE5] shrink-0" />
                 <span>Plot No. 7, Behind Hotel La Carta, Near Silvassa Road lines, N.H. No. 8, GIDC Char Rasta, Vapi, Valsad-396191, Gujarat, India</span>
