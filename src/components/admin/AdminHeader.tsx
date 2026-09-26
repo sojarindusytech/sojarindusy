@@ -1,11 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { Search, Bell, User, ChevronDown, LogOut } from "lucide-react";
+import { Search, User, ChevronDown, LogOut } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
+import { NotificationBell } from "@/components/common/NotificationBell";
 
 interface AdminHeaderProps {
   userEmail?: string;
@@ -73,17 +74,8 @@ export function AdminHeader({
 
       {/* Right: Notification Bell + Sojar Solutions Super Admin Profile with Dropdown */}
       <div className="flex items-center gap-2 sm:gap-4 shrink-0">
-        {/* Notification Bell with Badge */}
-        <button
-          type="button"
-          className="relative p-2 text-slate-500 hover:text-slate-900 rounded-lg hover:bg-slate-50 transition-colors cursor-pointer"
-          aria-label="Notifications"
-        >
-          <Bell className="h-4.5 w-4.5 sm:h-5 sm:w-5" />
-          <span className="absolute top-1 right-1 sm:top-1.5 sm:right-1.5 flex h-3.5 min-w-3.5 sm:h-4 sm:min-w-4 items-center justify-center rounded-full bg-red-600 px-1 text-[9px] sm:text-[10px] font-bold text-white leading-none">
-            12
-          </span>
-        </button>
+        {/* Realtime Notification Bell */}
+        <NotificationBell align="right" />
 
         {/* Sojar Solutions Super Admin Profile Pill with Dropdown indicator */}
         <div className="relative group">

@@ -24,9 +24,10 @@ interface BulkUpdateModalProps {
 }
 
 export function BulkUpdateModal({ isOpen, onClose, selectedVariantIds, onSuccess }: BulkUpdateModalProps) {
-  const [fieldToUpdate, setFieldToUpdate] = useState<"list_price" | "stock_quantity" | "list_price_percentage">("list_price");
+  const [fieldToUpdate, setFieldToUpdate] = useState<"list_price" | "stock_quantity" | "min_quantity" | "list_price_percentage">("list_price");
   const [listPrice, setListPrice] = useState("");
   const [stockQuantity, setStockQuantity] = useState("");
+  const [minQuantity, setMinQuantity] = useState("0");
   const [listPricePercentage, setListPricePercentage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
@@ -41,6 +42,10 @@ export function BulkUpdateModal({ isOpen, onClose, selectedVariantIds, onSuccess
       toast.error("Please enter a new Stock Quantity.");
       return;
     }
+    if (fieldToUpdate === "min_quantity" && minQuantity.trim() === "") {
+      toast.error("Please enter a Minimum SKU / Min Units count.");
+      return;
+    }
     if (fieldToUpdate === "list_price_percentage" && listPricePercentage.trim() === "") {
       toast.error("Please enter a percentage upgrade.");
       return;
@@ -53,6 +58,8 @@ export function BulkUpdateModal({ isOpen, onClose, selectedVariantIds, onSuccess
       updates.list_price = parseFloat(listPrice);
     } else if (fieldToUpdate === "stock_quantity") {
       updates.stock_quantity = parseInt(stockQuantity, 10);
+    } else if (fieldToUpdate === "min_quantity") {
+      updates.min_quantity = Math.max(0, parseInt(minQuantity, 10) || 0);
     } else if (fieldToUpdate === "list_price_percentage") {
       updates.list_price_percentage = parseFloat(listPricePercentage);
     }
@@ -66,6 +73,7 @@ export function BulkUpdateModal({ isOpen, onClose, selectedVariantIds, onSuccess
       toast.success(`Successfully updated ${selectedVariantIds.length} SKUs.`);
       setListPrice("");
       setStockQuantity("");
+      setMinQuantity("0");
       setListPricePercentage("");
       onSuccess();
       onClose();
@@ -95,6 +103,7 @@ export function BulkUpdateModal({ isOpen, onClose, selectedVariantIds, onSuccess
                 <SelectItem value="list_price" className="text-xs">List Price (Fixed)</SelectItem>
                 <SelectItem value="list_price_percentage" className="text-xs">List Price (% Upgrade)</SelectItem>
                 <SelectItem value="stock_quantity" className="text-xs">Stock Quantity</SelectItem>
+                <SelectItem value="min_quantity" className="text-xs">Minimum Units (Min SKU)</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -123,6 +132,23 @@ export function BulkUpdateModal({ isOpen, onClose, selectedVariantIds, onSuccess
                 className="h-9 text-xs border-slate-200"
                 required
               />
+            </div>
+          ) : fieldToUpdate === "min_quantity" ? (
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold text-slate-700">Minimum Order Units (Min SKU) <span className="text-red-500">*</span></Label>
+              <Input
+                type="number"
+                min="0"
+                step="1"
+                value={minQuantity}
+                onChange={(e) => setMinQuantity(e.target.value)}
+                placeholder="Enter minimum units (e.g. 0, 5, 10)"
+                className="h-9 text-xs border-slate-200"
+                required
+              />
+              <p className="text-[10px] text-slate-500 leading-tight">
+                Default is 0. If set &gt; 0, customers must purchase at least this many units.
+              </p>
             </div>
           ) : (
             <div className="space-y-1.5">

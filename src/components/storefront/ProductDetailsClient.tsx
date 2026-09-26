@@ -125,8 +125,10 @@ export function ProductDetailsClient({
 
   const updateQuantity = (variantId: string, delta: number) => {
     setQuantities((prev) => {
-      const current = prev[variantId] || 1;
-      const next = Math.max(1, current + delta);
+      const variant = product.variants?.find((v) => v.id === variantId);
+      const minQty = variant?.min_quantity && variant.min_quantity > 0 ? variant.min_quantity : 1;
+      const current = prev[variantId] ?? minQty;
+      const next = Math.max(minQty, current + delta);
       return { ...prev, [variantId]: next };
     });
   };
@@ -1184,7 +1186,8 @@ export function ProductDetailsClient({
                       </tr>
                     ) : (
                       paginatedVariants.map((v) => {
-                        const qty = quantities[v.id] || 1;
+                        const minQty = v.min_quantity && v.min_quantity > 0 ? v.min_quantity : 1;
+                        const qty = quantities[v.id] ?? minQty;
                         return (
                           <tr
                             key={v.id}
@@ -1238,22 +1241,29 @@ export function ProductDetailsClient({
                               </span>
                             </td>
                             <td className="px-3 py-3 whitespace-nowrap">
-                              <div className="flex items-center justify-center gap-1.5">
-                                <button
-                                  onClick={() => updateQuantity(v.id, -1)}
-                                  className="w-6 h-6 flex items-center justify-center rounded border border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer"
-                                >
-                                  <Minus className="h-3 w-3" />
-                                </button>
-                                <span className="w-5 text-center font-bold text-slate-900">
-                                  {qty}
-                                </span>
-                                <button
-                                  onClick={() => updateQuantity(v.id, 1)}
-                                  className="w-6 h-6 flex items-center justify-center rounded border border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer"
-                                >
-                                  <Plus className="h-3 w-3" />
-                                </button>
+                              <div className="flex flex-col items-center justify-center gap-1">
+                                <div className="flex items-center justify-center gap-1.5">
+                                  <button
+                                    onClick={() => updateQuantity(v.id, -1)}
+                                    className="w-6 h-6 flex items-center justify-center rounded border border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer"
+                                  >
+                                    <Minus className="h-3 w-3" />
+                                  </button>
+                                  <span className="w-5 text-center font-bold text-slate-900">
+                                    {qty}
+                                  </span>
+                                  <button
+                                    onClick={() => updateQuantity(v.id, 1)}
+                                    className="w-6 h-6 flex items-center justify-center rounded border border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer"
+                                  >
+                                    <Plus className="h-3 w-3" />
+                                  </button>
+                                </div>
+                                {v.min_quantity && v.min_quantity > 0 ? (
+                                  <span className="text-[10px] text-slate-400 font-medium whitespace-nowrap">
+                                    Min: {v.min_quantity}
+                                  </span>
+                                ) : null}
                               </div>
                             </td>
                             <td className="px-4 py-3 text-center whitespace-nowrap">
@@ -1268,7 +1278,8 @@ export function ProductDetailsClient({
                                       )}`
                                     );
                                   } else {
-                                    const qty = quantities[v.id] || 1;
+                                    const minQty = v.min_quantity && v.min_quantity > 0 ? v.min_quantity : 1;
+                                    const qty = quantities[v.id] ?? minQty;
                                     const itemSpecs: Record<string, any> = {
                                       ...(v.specifications || {}),
                                       ...(activeAttributeName ? { Series: activeAttributeName } : {}),

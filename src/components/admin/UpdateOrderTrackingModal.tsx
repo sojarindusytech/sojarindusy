@@ -36,6 +36,7 @@ import {
   Clock,
   Ban,
   Building2,
+  RotateCcw,
 } from "lucide-react";
 import toast from "react-hot-toast";
 
@@ -49,6 +50,7 @@ interface UpdateOrderTrackingModalProps {
     awb_number?: string;
     tracking_url?: string;
     notes?: string;
+    return_reason?: string;
   }) => void;
 }
 
@@ -63,6 +65,7 @@ export function UpdateOrderTrackingModal({
   const [awbNumber, setAwbNumber] = useState<string>(order.awb_number || "");
   const [trackingUrl, setTrackingUrl] = useState<string>(order.tracking_url || "");
   const [notes, setNotes] = useState<string>(order.notes || "");
+  const [returnReason, setReturnReason] = useState<string>(order.return_reason || "");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
@@ -72,6 +75,7 @@ export function UpdateOrderTrackingModal({
       setAwbNumber(order.awb_number || "");
       setTrackingUrl(order.tracking_url || "");
       setNotes(order.notes || "");
+      setReturnReason(order.return_reason || "");
     }
   }, [order]);
 
@@ -105,6 +109,7 @@ export function UpdateOrderTrackingModal({
       awb_number: awbNumber,
       tracking_url: trackingUrl,
       notes,
+      return_reason: status === ORDER_STATUSES.RETURNED ? returnReason : undefined,
     });
 
     setIsSubmitting(false);
@@ -123,6 +128,7 @@ export function UpdateOrderTrackingModal({
         awb_number: awbNumber || undefined,
         tracking_url: trackingUrl || undefined,
         notes: notes || undefined,
+        return_reason: status === ORDER_STATUSES.RETURNED ? returnReason : undefined,
       });
       onClose();
     }
@@ -188,12 +194,58 @@ export function UpdateOrderTrackingModal({
                 <SelectItem value={ORDER_STATUSES.DELIVERED}>
                   Delivered (Completed)
                 </SelectItem>
+                <SelectItem value={ORDER_STATUSES.RETURNED} className="text-purple-700 font-semibold">
+                  Returned (Customer Return & Restock)
+                </SelectItem>
                 <SelectItem value={ORDER_STATUSES.CANCELLED}>
                   Cancelled (Restock Inventory)
                 </SelectItem>
               </SelectContent>
             </Select>
           </div>
+
+          {/* Contextual Status Alerts & Return Reason Input */}
+          {status === ORDER_STATUSES.RETURNED && (
+            <div className="p-3 bg-purple-50 border border-purple-200 rounded-xl space-y-2">
+              <div className="flex items-center gap-2 text-purple-900 font-bold text-xs">
+                <RotateCcw className="h-4 w-4 text-purple-600" />
+                <span>Process Customer Return & Restock</span>
+              </div>
+              <p className="text-[11px] text-purple-700 leading-relaxed">
+                Confirming return will restore all <strong>{order.items?.length || 0} line item(s)</strong> back into SKU inventory and record an official <code>RETURN_RESTOCK</code> audit log.
+              </p>
+              <div className="space-y-1">
+                <Label className="text-[11px] font-semibold text-purple-900">
+                  Return Reason / Quality Remark *
+                </Label>
+                <Input
+                  placeholder="e.g. Returned by customer: Dimensional tolerance / Transit damage"
+                  value={returnReason}
+                  onChange={(e) => setReturnReason(e.target.value)}
+                  className="h-8 text-xs bg-white border-purple-200 focus-visible:ring-purple-400"
+                  required
+                />
+              </div>
+            </div>
+          )}
+
+          {status === ORDER_STATUSES.SHIPPED && (
+            <div className="p-2.5 bg-indigo-50 border border-indigo-200 rounded-xl flex items-center gap-2 text-[11px] text-indigo-800">
+              <Truck className="h-4 w-4 text-indigo-600 shrink-0" />
+              <span>
+                Dispatched timestamp will be recorded. Courier and tracking fields below are optional for local/manual transport.
+              </span>
+            </div>
+          )}
+
+          {status === ORDER_STATUSES.DELIVERED && (
+            <div className="p-2.5 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center gap-2 text-[11px] text-emerald-800">
+              <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
+              <span>
+                Marking as Delivered completes the order and automatically finalizes the official GST Tax Invoice.
+              </span>
+            </div>
+          )}
 
           {/* Logistics & Tracking Section */}
           <div className="pt-2 border-t border-slate-100 space-y-3">

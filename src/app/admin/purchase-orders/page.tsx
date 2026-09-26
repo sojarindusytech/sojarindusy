@@ -1,25 +1,17 @@
-import { AdminComingSoon } from "@/components/admin/AdminComingSoon";
-import { ShoppingBag } from "lucide-react";
-import type { Metadata } from "next";
+import { getPurchaseOrders } from "@/actions/purchase-order";
+import { AdminPurchaseOrdersClient } from "@/components/admin/AdminPurchaseOrdersClient";
+import { requireAdmin } from "@/lib/auth-guard";
 
-export const metadata: Metadata = {
-  title: "Purchase Orders | Sojar Solutions Admin",
-  description: "Manage raw material and procurement purchase orders.",
+export const dynamic = "force-dynamic";
+
+export const metadata = {
+  title: "Purchase Orders | Admin Dashboard | Sojar Solutions",
+  description: "Manage automated manufacturer replenishment orders",
 };
 
-export default function PurchaseOrdersAdminPage() {
-  return (
-    <AdminComingSoon
-      section="Orders"
-      title="Purchase Orders"
-      description="Manage vendor purchase orders, tungsten carbide rod procurements, and coating contractor POs."
-      icon={ShoppingBag}
-      features={[
-        "Vendor quote comparison and automatic cost estimation",
-        "Raw material batch reception and QC inspection logging",
-        "Vendor performance and on-time delivery metrics",
-        "Automated GRN (Goods Receipt Note) generation",
-      ]}
-    />
-  );
+export default async function AdminPurchaseOrdersPage() {
+  await requireAdmin();
+  const orders = await getPurchaseOrders();
+
+  return <AdminPurchaseOrdersClient initialOrders={orders} />;
 }

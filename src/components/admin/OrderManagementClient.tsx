@@ -37,12 +37,12 @@ import {
   AlertCircle,
   Building2,
   Calendar,
-  Filter,
   Eye,
   Edit,
   ArrowUpRight,
   TrendingUp,
   Boxes,
+  RotateCcw,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 
@@ -72,6 +72,7 @@ export function OrderManagementClient({ initialOrders }: OrderManagementClientPr
     awb_number?: string;
     tracking_url?: string;
     notes?: string;
+    return_reason?: string;
   }) => {
     if (!trackingModalOrder) return;
     const targetId = trackingModalOrder.id;
@@ -85,6 +86,10 @@ export function OrderManagementClient({ initialOrders }: OrderManagementClientPr
               awb_number: updatedFields.awb_number !== undefined ? updatedFields.awb_number : ord.awb_number,
               tracking_url: updatedFields.tracking_url !== undefined ? updatedFields.tracking_url : ord.tracking_url,
               notes: updatedFields.notes !== undefined ? updatedFields.notes : ord.notes,
+              return_reason: updatedFields.return_reason !== undefined ? updatedFields.return_reason : ord.return_reason,
+              returned_at: updatedFields.status === ORDER_STATUSES.RETURNED ? (ord.returned_at || new Date().toISOString()) : ord.returned_at,
+              dispatched_at: updatedFields.status === ORDER_STATUSES.SHIPPED ? (ord.dispatched_at || new Date().toISOString()) : ord.dispatched_at,
+              delivered_at: updatedFields.status === ORDER_STATUSES.DELIVERED ? (ord.delivered_at || new Date().toISOString()) : ord.delivered_at,
               updated_at: new Date().toISOString(),
             }
           : ord
@@ -222,10 +227,6 @@ export function OrderManagementClient({ initialOrders }: OrderManagementClientPr
           </div>
 
           <div className="flex items-center gap-1.5 w-full sm:w-auto overflow-x-auto pb-1 sm:pb-0">
-            <Filter className="h-3.5 w-3.5 text-slate-400 shrink-0" />
-            <span className="text-[11px] text-slate-400 font-bold uppercase shrink-0 mr-1">
-              Status:
-            </span>
             <button
               onClick={() => setStatusFilter("ALL")}
               className={`px-2.5 py-1 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors ${
@@ -351,7 +352,19 @@ export function OrderManagementClient({ initialOrders }: OrderManagementClientPr
 
                       {/* Carrier & Tracking */}
                       <TableCell>
-                        {ord.courier_partner || ord.awb_number ? (
+                        {ord.status === ORDER_STATUSES.RETURNED ? (
+                          <div className="space-y-0.5">
+                            <div className="text-xs font-semibold text-purple-700 flex items-center gap-1">
+                              <RotateCcw className="h-3 w-3 text-purple-600 shrink-0" />
+                              <span>Returned & Restocked</span>
+                            </div>
+                            {ord.return_reason && (
+                              <div className="text-[11px] text-slate-500 truncate max-w-[160px]" title={ord.return_reason}>
+                                {ord.return_reason}
+                              </div>
+                            )}
+                          </div>
+                        ) : ord.courier_partner || ord.awb_number ? (
                           <div className="space-y-0.5">
                             <div className="text-xs font-semibold text-slate-800 flex items-center gap-1">
                               <Truck className="h-3 w-3 text-indigo-500 shrink-0" />
@@ -456,6 +469,58 @@ export function OrderManagementClient({ initialOrders }: OrderManagementClientPr
             </DialogHeader>
 
             <div className="space-y-4 pt-2">
+              {/* Return Notice Banner */}
+              {viewOrder.status === ORDER_STATUSES.RETURNED && (
+                <div className="bg-purple-50 border border-purple-200 rounded-xl p-3 text-xs text-purple-900 flex items-start gap-2.5">
+                  <RotateCcw className="h-4 w-4 text-purple-600 shrink-0 mt-0.5" />
+                  <div className="space-y-0.5">
+                    <div className="font-bold text-purple-950 flex items-center gap-2">
+                      <span>Consignment Returned & Inventory Restocked</span>
+                      {viewOrder.returned_at && (
+                        <span className="text-[10px] text-purple-700 bg-purple-100 px-1.5 py-0.5 rounded font-medium">
+                          {new Date(viewOrder.returned_at).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}
+                        </span>
+                      )}
+                    </div>
+                    {viewOrder.return_reason && (
+                      <p className="text-purple-800 mt-1">
+                        <strong>Reason:</strong> {viewOrder.return_reason}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Manual Dispatch / Carrier Info */}
+              {(viewOrder.courier_partner || viewOrder.awb_number || viewOrder.dispatched_at || viewOrder.delivered_at) && viewOrder.status !== ORDER_STATUSES.RETURNED && (
+                <div className="bg-blue-50/70 border border-blue-200 rounded-xl p-3 text-xs text-blue-900 flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2.5">
+                    <Truck className="h-4 w-4 text-[#024AE5] shrink-0" />
+                    <div>
+                      <div className="font-bold text-slate-900">
+                        {viewOrder.courier_partner || "Manual Transport / Direct Dispatch"}
+                      </div>
+                      <div className="text-[11px] text-slate-600 flex flex-wrap items-center gap-2 mt-0.5">
+                        {viewOrder.awb_number && <span>AWB / LR: <strong>{viewOrder.awb_number}</strong></span>}
+                        {viewOrder.dispatched_at && <span>Dispatched: {new Date(viewOrder.dispatched_at).toLocaleDateString("en-IN", { month: "short", day: "numeric" })}</span>}
+                        {viewOrder.delivered_at && <span>Delivered: {new Date(viewOrder.delivered_at).toLocaleDateString("en-IN", { month: "short", day: "numeric" })}</span>}
+                      </div>
+                    </div>
+                  </div>
+                  {viewOrder.tracking_url && (
+                    <a
+                      href={viewOrder.tracking_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-xs text-[#024AE5] font-bold hover:underline flex items-center gap-1 shrink-0"
+                    >
+                      <span>Track Shipment</span>
+                      <ExternalLink className="h-3 w-3" />
+                    </a>
+                  )}
+                </div>
+              )}
+
               {/* Client & Shipping Grid */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs bg-slate-50 p-3 sm:p-3.5 rounded-xl border border-slate-200">
                 <div>

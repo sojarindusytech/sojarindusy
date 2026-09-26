@@ -24,6 +24,7 @@ export interface CreateProductPayload {
     shank_diameter?: number | null;
     list_price: number;
     stock_quantity: number;
+    min_quantity?: number;
     specifications?: Record<string, any>;
   }>;
 }
@@ -336,6 +337,7 @@ export async function createFullProduct(payload: CreateProductPayload): Promise<
         shank_diameter: v.shank_diameter ?? null,
         list_price: Number(v.list_price) || 0,
         stock_quantity: Number(v.stock_quantity) || 0,
+        min_quantity: Number(v.min_quantity) || 0,
         specifications: v.specifications || {},
       }));
 

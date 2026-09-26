@@ -6,9 +6,10 @@ import {
   UserType,
   CustomerChannel,
   QuoteStatus,
+  PurchaseOrderStatus,
 } from "@/lib/constants";
 
-export type { UserRole, UserTitle, OrderStatus, ApprovalStatus, UserType, CustomerChannel, QuoteStatus };
+export type { UserRole, UserTitle, OrderStatus, ApprovalStatus, UserType, CustomerChannel, QuoteStatus, PurchaseOrderStatus };
 
 export interface Profile {
   id: string;
@@ -259,6 +260,8 @@ export interface Order {
   tracking_url?: string | null;
   dispatched_at?: string | null;
   delivered_at?: string | null;
+  returned_at?: string | null;
+  return_reason?: string | null;
   invoice_number?: string | null;
   customer_details?: CustomerOrderDetails | null;
   notes?: string | null;
@@ -321,6 +324,7 @@ export interface ProductVariant {
   shank_diameter?: number | null;
   list_price: number;
   stock_quantity: number;
+  min_quantity?: number;
   specifications?: Record<string, any>;
   is_archived?: boolean;
   archived_at?: string | null;
@@ -336,6 +340,7 @@ export type InventoryMovementType =
   | 'ORDER_FULFILLED'
   | 'ORDER_CANCELLED'
   | 'RETURN_RESTOCK'
+  | 'RESTOCK'
   | 'ARCHIVED';
 
 export interface InventoryLog {
@@ -353,6 +358,57 @@ export interface InventoryLog {
   created_by?: string | null;
   created_at: string;
 }
+
+export interface PurchaseOrder {
+  id: string;
+  order_number: string;
+  variant_id: string;
+  product_id: string;
+  sku_code: string;
+  product_title: string;
+  min_quantity: number;
+  actual_quantity: number;
+  order_quantity: number;
+  specifications: Record<string, any>;
+  status: PurchaseOrderStatus;
+  manufacturer_id?: string | null;
+  notes?: string | null;
+  placed_at: string;
+  dispatched_at?: string | null;
+  received_at?: string | null;
+  created_at: string;
+  updated_at: string;
+  product?: {
+    id: string;
+    title: string;
+    slug?: string;
+  };
+  variant?: ProductVariant;
+}
+
+export type NotificationType =
+  | "order"
+  | "purchase_order"
+  | "inventory"
+  | "account"
+  | "rfq"
+  | "system"
+  | "info";
+
+export interface AppNotification {
+  id: string;
+  user_id?: string | null;
+  role?: UserRole | null;
+  title: string;
+  message: string;
+  type: NotificationType;
+  link?: string | null;
+  is_read: boolean;
+  metadata?: Record<string, any>;
+  created_at: string;
+  updated_at: string;
+}
+
 
 export interface Attribute {
   id: string;

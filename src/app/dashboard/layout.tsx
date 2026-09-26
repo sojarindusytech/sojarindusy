@@ -22,6 +22,11 @@ export default async function CustomerDashboardLayout({
     redirect("/admin/dashboard");
   }
 
+  // If user is Manufacturer, route to Manufacturer Dashboard
+  if (userRole === "manufacturer") {
+    redirect("/manufacturer");
+  }
+
   // Enforce customer account approval status
   if (profile?.approval_status !== APPROVAL_STATUSES.APPROVED) {
     redirect("/pending-approval");

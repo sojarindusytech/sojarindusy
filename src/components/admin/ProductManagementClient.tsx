@@ -458,7 +458,7 @@ export function ProductManagementClient({
                         }
                       });
                       const dynamicSpecs = Array.from(customSpecKeys);
-                      const totalColumnCount = 4 + (hasDiameter ? 1 : 0) + (hasFluteLength ? 1 : 0) + (hasOverallLength ? 1 : 0) + (hasShankDiameter ? 1 : 0) + dynamicSpecs.length;
+                      const totalColumnCount = 6 + (hasDiameter ? 1 : 0) + (hasFluteLength ? 1 : 0) + (hasOverallLength ? 1 : 0) + (hasShankDiameter ? 1 : 0) + dynamicSpecs.length;
 
                       const totalActiveSkus = product.variants?.filter(v => !v.is_archived).length || 0;
 
@@ -564,6 +564,7 @@ export function ProductManagementClient({
                                     ))}
                                     <TableHead className="font-bold text-slate-800 h-9 text-center">LIST PRICE</TableHead>
                                     <TableHead className="font-bold text-slate-800 h-9 text-center">STOCK</TableHead>
+                                    <TableHead className="font-bold text-slate-800 h-9 text-center whitespace-nowrap">MIN UNITS</TableHead>
                                     <TableHead className="font-bold text-slate-800 h-9 text-right pr-4">ACTIONS</TableHead>
                                   </TableRow>
                                 </TableHeader>
@@ -604,6 +605,11 @@ export function ProductManagementClient({
                                               Out of Stock
                                             </span>
                                           )}
+                                        </TableCell>
+                                        <TableCell className="text-center py-2.5">
+                                          <span className="inline-flex items-center text-slate-700 font-bold text-[11px] bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
+                                            {v.min_quantity ?? 0} Units
+                                          </span>
                                         </TableCell>
                                         <TableCell className="text-right pr-4">
                                           <Button

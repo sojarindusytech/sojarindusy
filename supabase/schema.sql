@@ -3,7 +3,7 @@
 
 CREATE TABLE public.profiles (
   id uuid NOT NULL,
-  role text NOT NULL DEFAULT 'customer'::text CHECK (role = ANY (ARRAY['admin'::text, 'customer'::text, 'platform_owner'::text])),
+  role text NOT NULL DEFAULT 'customer'::text CHECK (role = ANY (ARRAY['admin'::text, 'customer'::text, 'platform_owner'::text, 'manufacturer'::text])),
   title text NOT NULL CHECK (title = ANY (ARRAY['Mr'::text, 'Mrs'::text, 'Miss'::text, 'Ms'::text])),
   first_name text NOT NULL,
   last_name text NOT NULL,
@@ -96,6 +96,7 @@ CREATE TABLE public.product_variants (
   shank_diameter numeric,
   list_price numeric NOT NULL DEFAULT 0,
   stock_quantity integer NOT NULL DEFAULT 0,
+  min_quantity integer NOT NULL DEFAULT 0,
   specifications jsonb NOT NULL DEFAULT '{}'::jsonb,
   is_archived boolean NOT NULL DEFAULT false,
   archived_at timestamp with time zone,
@@ -136,4 +137,42 @@ CREATE TABLE public.product_attributes (
   CONSTRAINT product_attributes_pkey PRIMARY KEY (product_id, attribute_id),
   CONSTRAINT product_attributes_product_id_fkey FOREIGN KEY (product_id) REFERENCES public.products(id) ON DELETE CASCADE,
   CONSTRAINT product_attributes_attribute_id_fkey FOREIGN KEY (attribute_id) REFERENCES public.attributes(id) ON DELETE RESTRICT
+);
+CREATE TABLE public.purchase_orders (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  order_number text NOT NULL UNIQUE,
+  variant_id uuid NOT NULL,
+  product_id uuid NOT NULL,
+  sku_code text NOT NULL,
+  product_title text NOT NULL,
+  min_quantity integer NOT NULL DEFAULT 0,
+  actual_quantity integer NOT NULL DEFAULT 0,
+  order_quantity integer NOT NULL DEFAULT 0,
+  specifications jsonb NOT NULL DEFAULT '{}'::jsonb,
+  status text NOT NULL DEFAULT 'Placed' CHECK (status = ANY (ARRAY['Placed'::text, 'Dispatched / In Transit'::text, 'Received'::text])),
+  manufacturer_id uuid,
+  notes text,
+  placed_at timestamp with time zone NOT NULL DEFAULT now(),
+  dispatched_at timestamp with time zone,
+  received_at timestamp with time zone,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  updated_at timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT purchase_orders_pkey PRIMARY KEY (id),
+  CONSTRAINT purchase_orders_variant_id_fkey FOREIGN KEY (variant_id) REFERENCES public.product_variants(id) ON DELETE CASCADE,
+  CONSTRAINT purchase_orders_product_id_fkey FOREIGN KEY (product_id) REFERENCES public.products(id) ON DELETE CASCADE,
+  CONSTRAINT purchase_orders_manufacturer_id_fkey FOREIGN KEY (manufacturer_id) REFERENCES public.profiles(id) ON DELETE SET NULL
+);
+CREATE TABLE public.notifications (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  user_id uuid REFERENCES public.profiles(id) ON DELETE CASCADE,
+  role text CHECK (role = ANY (ARRAY['admin'::text, 'customer'::text, 'platform_owner'::text, 'manufacturer'::text])),
+  title text NOT NULL,
+  message text NOT NULL,
+  type text NOT NULL DEFAULT 'info',
+  link text,
+  is_read boolean NOT NULL DEFAULT false,
+  metadata jsonb NOT NULL DEFAULT '{}'::jsonb,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  updated_at timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT notifications_pkey PRIMARY KEY (id)
 );

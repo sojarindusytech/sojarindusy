@@ -10,6 +10,7 @@ export async function GlobalHeader() {
   ]);
 
   const isAdmin = isAdminRole(profile?.role);
+  const isManufacturer = profile?.role === "manufacturer";
   const companyName = profile?.company_name || null;
   const userName = profile
     ? `${profile.first_name || ""} ${profile.last_name || ""}`.trim() || null
@@ -20,6 +21,7 @@ export async function GlobalHeader() {
       categories={treeNodes}
       user={user}
       isAdmin={isAdmin}
+      isManufacturer={isManufacturer}
       companyName={companyName}
       userName={userName}
     />

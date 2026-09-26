@@ -11,10 +11,11 @@ export type UserTitle = (typeof USER_TITLES)[number];
 export const USER_ROLES = {
   ADMIN: "admin",
   CUSTOMER: "customer",
+  MANUFACTURER: "manufacturer",
   // Backward compatibility alias:
   PLATFORM_OWNER: "admin",
 } as const;
-export type UserRole = "admin" | "customer" | "platform_owner";
+export type UserRole = "admin" | "customer" | "platform_owner" | "manufacturer";
 
 export const USER_ROLE_CONFIG: Record<
   string,
@@ -30,12 +31,25 @@ export const USER_ROLE_CONFIG: Record<
     description: "Full system administration and platform operations",
     badgeVariant: "blue",
   },
+  manufacturer: {
+    label: "Manufacturer",
+    description: "Production and fabrication partner (read-only orders view)",
+    badgeVariant: "secondary",
+  },
   customer: {
     label: "Customer Account",
     description: "Industrial client, buyer, or fabrication partner",
     badgeVariant: "green",
   },
 };
+
+// Purchase Order Statuses
+export const PURCHASE_ORDER_STATUSES = {
+  PLACED: "Placed",
+  DISPATCHED: "Dispatched / In Transit",
+  RECEIVED: "Received",
+} as const;
+export type PurchaseOrderStatus = "Placed" | "Dispatched / In Transit" | "Received";
 
 // 3. Customer Channels (Origin / Onboarding Channel)
 export const CUSTOMER_CHANNELS = {
@@ -260,6 +274,7 @@ export const ORDER_STATUSES = {
   PROCESSING: "processing",
   SHIPPED: "shipped",
   DELIVERED: "delivered",
+  RETURNED: "returned",
   CANCELLED: "cancelled",
 } as const;
 export type OrderStatus = (typeof ORDER_STATUSES)[keyof typeof ORDER_STATUSES];
@@ -315,6 +330,14 @@ export const ORDER_STATUS_CONFIG: Record<
     border: "border-emerald-200",
     description: "Successfully delivered and received at client facility",
   },
+  [ORDER_STATUSES.RETURNED]: {
+    label: "Returned",
+    badgeVariant: "destructive",
+    badgeBg: "bg-purple-50",
+    badgeText: "text-purple-700",
+    border: "border-purple-200",
+    description: "Order goods returned to warehouse and inventory restocked",
+  },
   [ORDER_STATUSES.CANCELLED]: {
     label: "Cancelled",
     badgeVariant: "destructive",
@@ -335,6 +358,8 @@ export const COURIER_PARTNERS = [
   { name: "TCI Freight", urlTemplate: "https://www.tcifreight.com/track" },
   { name: "The Professional Couriers", urlTemplate: "https://www.tpcindia.com/track.aspx" },
   { name: "Direct Factory Dispatch (Sojar Logistics)", urlTemplate: "" },
+  { name: "Local Transport / Tempo", urlTemplate: "" },
+  { name: "Self Pickup / Hand Delivery", urlTemplate: "" },
   { name: "Other / Custom Courier", urlTemplate: "" },
 ] as const;
 

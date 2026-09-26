@@ -22,6 +22,7 @@ export interface UpdateFullProductPayload {
     shank_diameter?: number | null;
     list_price: number;
     stock_quantity: number;
+    min_quantity?: number | null;
     specifications?: Record<string, any>;
   }>;
 }
@@ -103,6 +104,7 @@ export async function updateFullProduct(
         shank_diameter: v.shank_diameter ?? null,
         list_price: Number(v.list_price) || 0,
         stock_quantity: Number(v.stock_quantity) || 0,
+        min_quantity: Number(v.min_quantity) || 0,
         specifications: v.specifications || {},
       }));
 
@@ -194,6 +196,7 @@ export async function addSingleSku(
     shank_diameter?: number | null;
     list_price: number;
     stock_quantity: number;
+    min_quantity?: number;
     specifications?: Record<string, any>;
   }
 ): Promise<{ success?: boolean; error?: string }> {
@@ -216,6 +219,7 @@ export async function addSingleSku(
         shank_diameter: payload.shank_diameter || null,
         list_price: payload.list_price,
         stock_quantity: payload.stock_quantity,
+        min_quantity: payload.min_quantity ?? 0,
         specifications: payload.specifications || {},
       } as never)
       .select("id, sku, stock_quantity, product_id, products(title)")
@@ -261,6 +265,7 @@ export async function bulkAppendSkus(
     shank_diameter?: number | null;
     list_price: number;
     stock_quantity: number;
+    min_quantity?: number;
     specifications?: Record<string, any>;
   }>,
   attributeIdOrTagId?: string
@@ -282,6 +287,7 @@ export async function bulkAppendSkus(
       shank_diameter: v.shank_diameter || null,
       list_price: v.list_price,
       stock_quantity: v.stock_quantity,
+      min_quantity: v.min_quantity ?? 0,
       specifications: v.specifications || {},
     }));
 
@@ -455,6 +461,7 @@ export async function bulkUpdateSkus(
   updates: {
     list_price?: number;
     stock_quantity?: number;
+    min_quantity?: number;
     list_price_percentage?: number;
   }
 ): Promise<{ success?: boolean; error?: string }> {
@@ -469,7 +476,7 @@ export async function bulkUpdateSkus(
     // 1. Fetch current state of variants
     const { data: existingVariantsData, error: fetchError } = await supabase
       .from("product_variants")
-      .select("id, sku, stock_quantity, list_price, product_id, products(title)")
+      .select("id, sku, stock_quantity, min_quantity, list_price, product_id, products(title)")
       .in("id", variantIds);
 
     if (fetchError) throw fetchError;
@@ -501,6 +508,9 @@ export async function bulkUpdateSkus(
       }
       if (updates.stock_quantity !== undefined) {
         updatePayload.stock_quantity = updates.stock_quantity;
+      }
+      if (updates.min_quantity !== undefined) {
+        updatePayload.min_quantity = updates.min_quantity;
       }
 
       const { error } = await supabase
@@ -554,6 +564,7 @@ export async function updateSingleSku(
     shank_diameter?: number | null;
     list_price: number;
     stock_quantity: number;
+    min_quantity?: number;
     specifications?: Record<string, any>;
   }
 ): Promise<{ success?: boolean; error?: string }> {
@@ -587,6 +598,7 @@ export async function updateSingleSku(
         shank_diameter: payload.shank_diameter || null,
         list_price: payload.list_price,
         stock_quantity: payload.stock_quantity,
+        min_quantity: payload.min_quantity ?? 0,
         specifications: payload.specifications || {},
         updated_at: new Date().toISOString(),
       } as never)
