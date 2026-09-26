@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireAdmin } from "@/lib/auth-guard";
 import { RFQ, RFQStatus, RFQInsert, RFQUpdate, Profile } from "@/types/database.types";
+import { createNotification } from "@/actions/notification";
 import { revalidatePath } from "next/cache";
 
 export async function fetchCustomerRfqsList(): Promise<RFQ[]> {
@@ -91,14 +92,39 @@ export async function submitCustomerRfq(payload: {
       updated_at: new Date().toISOString(),
     };
 
-    const { data, error } = await adminDb
-      .from("rfqs")
-      .insert(newRfqData as never)
+    const { data, error } = await (adminDb
+      .from("rfqs") as any)
+      .insert(newRfqData)
       .select()
       .single();
 
     if (error) {
       return { success: false, error: error.message };
+    }
+
+    // Send notifications for RFQ
+    try {
+      // Notify Admin
+      await createNotification({
+        role: "admin",
+        title: "New RFQ Received",
+        message: `RFQ submitted by ${newRfqData.company_name} for "${newRfqData.item_name}" (${newRfqData.quantity}).`,
+        type: "rfq",
+        link: "/admin/rfqs",
+        metadata: { rfq_id: data.id, item: newRfqData.item_name },
+      });
+
+      // Notify Customer
+      await createNotification({
+        userId: user.id,
+        title: "RFQ Submitted Successfully",
+        message: `Your Request for Quotation for "${newRfqData.item_name}" has been received. Our sales engineering team will review it.`,
+        type: "rfq",
+        link: "/dashboard/rfqs",
+        metadata: { rfq_id: data.id },
+      });
+    } catch (notifErr) {
+      console.warn("[submitCustomerRfq] Notification error:", notifErr);
     }
 
     revalidatePath("/dashboard/rfqs");

@@ -20,6 +20,7 @@ import {
   Layers,
   X,
   LogOut,
+  Truck,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
@@ -73,9 +74,16 @@ const navItems: NavSectionItem[] = [
     icon: ShoppingBag,
     subItems: [
       { title: "Order List", href: "/admin/orders" },
+      { title: "Purchase Orders", href: "/admin/purchase-orders" },
       { title: "Order Returns", href: "/admin/order-returns" },
       { title: "Dispatch / Delivery", href: "/admin/dispatch" },
     ],
+  },
+  {
+    id: "purchase-orders",
+    title: "Purchase Orders",
+    href: "/admin/purchase-orders",
+    icon: Truck,
   },
   {
     id: "sales",

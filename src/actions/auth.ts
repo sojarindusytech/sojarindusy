@@ -12,6 +12,7 @@ import {
   UserTitle,
 } from "@/lib/constants";
 import { fullSignUpSchema, loginSchema, forgotPasswordSchema, resetPasswordSchema } from "@/lib/validations/auth";
+import { createNotification } from "@/actions/notification";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
@@ -156,6 +157,30 @@ export async function signUpUser(formData: FormData): Promise<SignUpState> {
     };
   }
 
+  // Send notifications for new registration
+  try {
+    // Notify Admin
+    await createNotification({
+      role: "admin",
+      title: "New Customer Registration",
+      message: `${validated.company_name} (${validated.first_name} ${validated.last_name}) registered and is awaiting approval.`,
+      type: "account",
+      link: "/admin/customers",
+      metadata: { user_id: authData.user.id, company: validated.company_name, email: validated.email },
+    });
+
+    // Notify Customer
+    await createNotification({
+      userId: authData.user.id,
+      title: "Registration Received",
+      message: "Welcome to Sojar Indusy! Your account has been registered and is currently pending administrative verification.",
+      type: "account",
+      link: "/pending-approval",
+    });
+  } catch (notifErr) {
+    console.warn("Could not dispatch registration notification:", notifErr);
+  }
+
   revalidatePath("/", "layout");
   return {
     success: true,
@@ -230,6 +255,10 @@ export async function signInUser(
 
   if (userRole === "admin" || userRole === "platform_owner") {
     return { redirectUrl: "/admin/products" };
+  }
+
+  if (userRole === "manufacturer") {
+    return { redirectUrl: "/manufacturer" };
   }
 
   if (approvalStatus !== APPROVAL_STATUSES.APPROVED) {

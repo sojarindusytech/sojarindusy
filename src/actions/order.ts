@@ -4,8 +4,10 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireAdmin, requireApprovedCustomer, guardOrError } from "@/lib/auth-guard";
 import { Order, OrderItem, CustomerOrderDetails, Profile } from "@/types/database.types";
-import { OrderStatus, ORDER_STATUSES } from "@/lib/constants";
+import { OrderStatus, ORDER_STATUSES, ORDER_STATUS_CONFIG } from "@/lib/constants";
 import { recordStockMovement } from "@/actions/inventory";
+import { checkAndGeneratePurchaseOrder } from "@/actions/purchase-order";
+import { createNotification } from "@/actions/notification";
 import { revalidatePath } from "next/cache";
 
 export interface CreateOrderPayload {
@@ -147,11 +149,43 @@ export async function createCustomerOrder(
             referenceId: orderNumber,
             notes: `Auto-reserved for ${customerDetails.company_name}`,
           });
+
+          // Check if stock dropped below min_quantity and auto-generate Purchase Order
+          try {
+            await checkAndGeneratePurchaseOrder(item.variantId, newStock);
+          } catch (poErr) {
+            console.warn(`[createOrder] Notice auto PO check for ${item.variantId}:`, poErr);
+          }
         }
       } catch (stockErr) {
         console.warn(`Notice updating variant ${item.variantId} stock:`, stockErr);
       }
     }
+  }
+
+  // Send notifications for order creation
+  try {
+    // Notify Admin
+    await createNotification({
+      role: "admin",
+      title: "New Customer Order",
+      message: `Order #${orderNumber} placed by ${customerDetails.company_name} (₹${totalAmount.toLocaleString("en-IN")}).`,
+      type: "order",
+      link: "/admin/orders",
+      metadata: { order_id: insertedOrder.id, order_number: orderNumber, total: totalAmount },
+    });
+
+    // Notify Customer
+    await createNotification({
+      userId: user.id,
+      title: "Order Placed Successfully",
+      message: `Your order #${orderNumber} for ₹${totalAmount.toLocaleString("en-IN")} has been received and is being processed.`,
+      type: "order",
+      link: "/dashboard/orders",
+      metadata: { order_id: insertedOrder.id, order_number: orderNumber },
+    });
+  } catch (notifErr) {
+    console.warn("[createCustomerOrder] Notification error:", notifErr);
   }
 
   revalidatePath("/dashboard");
@@ -176,6 +210,7 @@ export async function updateOrderStatus(
     awb_number?: string;
     tracking_url?: string;
     notes?: string;
+    return_reason?: string;
   }
 ): Promise<{ success: boolean; error?: string }> {
   const adminClient = createAdminClient();
@@ -211,6 +246,9 @@ export async function updateOrderStatus(
     if (tracking?.notes !== undefined) {
       updates.notes = tracking.notes || null;
     }
+    if (tracking?.return_reason !== undefined) {
+      updates.return_reason = tracking.return_reason || null;
+    }
 
     // Set timestamps on milestones & auto-generate official GST Tax Invoice on delivery
     if (newStatus === ORDER_STATUSES.SHIPPED && !existingOrder.dispatched_at) {
@@ -223,6 +261,53 @@ export async function updateOrderStatus(
       if (!existingOrder.invoice_number) {
         const orderSuffix = existingOrder.order_number?.replace("ORD-", "") || `${Math.floor(1000 + Math.random() * 9000)}`;
         updates.invoice_number = `INV-${orderSuffix}`;
+      }
+    }
+
+    // If returned, record return timestamp, reason, and restore stock into inventory
+    if (newStatus === ORDER_STATUSES.RETURNED && existingOrder.status !== ORDER_STATUSES.RETURNED) {
+      updates.returned_at = new Date().toISOString();
+      if (!updates.return_reason && tracking?.notes) {
+        updates.return_reason = tracking.notes;
+      }
+
+      const items: OrderItem[] = Array.isArray(existingOrder.items) ? existingOrder.items : [];
+      for (const item of items) {
+        if (item.id && !item.id.startsWith("item-")) {
+          try {
+            const { data: currentVariantData } = await (adminClient
+              .from("product_variants") as any)
+              .select("stock_quantity")
+              .eq("id", item.id)
+              .single();
+
+            const currentVariant = currentVariantData as { stock_quantity: number } | null;
+
+            if (currentVariant) {
+              const oldStock = currentVariant.stock_quantity || 0;
+              const newStock = oldStock + item.quantity;
+
+              await (adminClient
+                .from("product_variants") as any)
+                .update({ stock_quantity: newStock })
+                .eq("id", item.id);
+
+              await recordStockMovement({
+                variantId: item.id,
+                skuCode: item.sku || "SKU",
+                productTitle: item.name || "Tooling Item",
+                movementType: "RETURN_RESTOCK",
+                quantityDelta: item.quantity,
+                balanceBefore: oldStock,
+                balanceAfter: newStock,
+                referenceId: existingOrder.order_number,
+                notes: `Customer return restocked: ${updates.return_reason || "Goods returned to warehouse"}`,
+              });
+            }
+          } catch (returnErr) {
+            console.warn("Notice restoring stock on return:", returnErr);
+          }
+        }
       }
     }
 
@@ -277,10 +362,42 @@ export async function updateOrderStatus(
       return { success: false, error: updateError.message };
     }
 
+    // Notify customer about order status update with friendly messages
+    try {
+      if (existingOrder.user_id) {
+        let notifTitle = `Order Status: ${ORDER_STATUS_CONFIG[newStatus]?.label || newStatus}`;
+        let notifMsg = `Order #${existingOrder.order_number} status has been updated to "${ORDER_STATUS_CONFIG[newStatus]?.label || newStatus}".`;
+
+        if (newStatus === ORDER_STATUSES.SHIPPED) {
+          notifTitle = "Order Dispatched";
+          notifMsg = `Your order #${existingOrder.order_number} has been dispatched.${updates.courier_partner ? ` Transporter: ${updates.courier_partner}` : ""}`;
+        } else if (newStatus === ORDER_STATUSES.DELIVERED) {
+          notifTitle = "Order Delivered";
+          notifMsg = `Your order #${existingOrder.order_number} has been successfully delivered. Tax Invoice: ${updates.invoice_number || existingOrder.invoice_number || "Available in Dashboard"}.`;
+        } else if (newStatus === ORDER_STATUSES.RETURNED) {
+          notifTitle = "Order Return Processed";
+          notifMsg = `Return for order #${existingOrder.order_number} has been verified and restocked into warehouse inventory.`;
+        }
+
+        await createNotification({
+          userId: existingOrder.user_id,
+          title: notifTitle,
+          message: notifMsg,
+          type: "order",
+          link: "/dashboard/orders",
+          metadata: { order_id: orderId, order_number: existingOrder.order_number, status: newStatus },
+        });
+      }
+    } catch (notifErr) {
+      console.warn("[updateOrderStatus] Notification dispatch error:", notifErr);
+    }
+
     revalidatePath("/dashboard");
     revalidatePath("/dashboard/invoices");
     revalidatePath("/dashboard/orders");
     revalidatePath("/admin/orders");
+    revalidatePath("/admin/order-returns");
+    revalidatePath("/admin/dispatch");
     revalidatePath("/admin/dashboard");
 
     return { success: true };
@@ -342,5 +459,98 @@ export async function fetchCustomerOrdersList(): Promise<Order[]> {
   } catch (err) {
     console.error("fetchCustomerOrdersList exception:", err);
     return [];
+  }
+}
+
+/**
+ * 5. Customer Self-Service Return Request
+ */
+export async function requestCustomerOrderReturn(
+  orderId: string,
+  reason: string
+): Promise<{ success: boolean; error?: string }> {
+  const supabase = await createClient();
+
+  try {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      return { success: false, error: "Please log in to submit a return request." };
+    }
+
+    if (!reason || !reason.trim()) {
+      return { success: false, error: "Please provide a reason for the return request." };
+    }
+
+    const adminClient = createAdminClient();
+    const { data: orderData, error: fetchErr } = await (adminClient
+      .from("orders") as any)
+      .select("*")
+      .eq("id", orderId)
+      .single();
+
+    const order = orderData as Order | null;
+    if (fetchErr || !order) {
+      return { success: false, error: "Order not found." };
+    }
+
+    if (order.user_id !== user.id) {
+      return { success: false, error: "Unauthorized." };
+    }
+
+    if (order.status !== ORDER_STATUSES.DELIVERED && order.status !== ORDER_STATUSES.SHIPPED) {
+      return { success: false, error: "Only dispatched or delivered orders can be requested for return." };
+    }
+
+    // Record return request in return_reason & notes
+    const formattedReason = `Return Requested: ${reason.trim()} (Submitted on ${new Date().toLocaleDateString("en-IN")})`;
+    const updatedNotes = order.notes ? `${order.notes}\n${formattedReason}` : formattedReason;
+
+    const { error: updateErr } = await (adminClient
+      .from("orders") as any)
+      .update({
+        return_reason: reason.trim(),
+        notes: updatedNotes,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", orderId);
+
+    if (updateErr) {
+      return { success: false, error: updateErr.message };
+    }
+
+    // Notify Admin
+    try {
+      await createNotification({
+        role: "admin",
+        title: "Order Return Requested",
+        message: `Return requested for Order #${order.order_number} by ${order.customer_details?.company_name || "Customer"}: "${reason.trim()}"`,
+        type: "order",
+        link: "/admin/orders",
+        metadata: { order_id: orderId, order_number: order.order_number, reason: reason.trim() },
+      });
+
+      // Confirm to customer
+      await createNotification({
+        userId: user.id,
+        title: "Return Request Received",
+        message: `Your return request for Order #${order.order_number} has been logged. Our logistics team will review it shortly.`,
+        type: "order",
+        link: "/dashboard/orders",
+        metadata: { order_id: orderId, order_number: order.order_number },
+      });
+    } catch (notifErr) {
+      console.warn("Notification error during return request:", notifErr);
+    }
+
+    revalidatePath("/dashboard/orders");
+    revalidatePath("/admin/orders");
+
+    return { success: true };
+  } catch (err: any) {
+    console.error("requestCustomerOrderReturn exception:", err);
+    return { success: false, error: err.message || "Failed to process return request." };
   }
 }

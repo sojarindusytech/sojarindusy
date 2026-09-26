@@ -10,6 +10,7 @@ import {
   UserTitle,
 } from "@/lib/constants";
 import { requireAdmin, requireUser } from "@/lib/auth-guard";
+import { createNotification } from "@/actions/notification";
 import { revalidatePath } from "next/cache";
 
 export async function fetchCustomersList(): Promise<Profile[]> {
@@ -171,6 +172,31 @@ export async function updateCustomerApprovalStatus(
           .catch((emailErr) => {
             console.error("Approval notification email failed:", emailErr);
           });
+      }
+
+      // Also create an in-app notification for the customer
+      try {
+        await createNotification({
+          userId: customerId,
+          title: "Account Approved",
+          message: "Welcome to Sojar Indusy! Your business account is approved. You now have full access to pricing and orders.",
+          type: "account",
+          link: "/dashboard",
+        });
+      } catch (nErr) {
+        console.warn("Could not dispatch customer approval in-app notification:", nErr);
+      }
+    } else if (newStatus === APPROVAL_STATUSES.REJECTED) {
+      try {
+        await createNotification({
+          userId: customerId,
+          title: "Account Application Status",
+          message: "Your account registration was not approved. Please contact our support team for details.",
+          type: "account",
+          link: "/contact",
+        });
+      } catch (nErr) {
+        console.warn("Could not dispatch customer rejection in-app notification:", nErr);
       }
     }
   } catch (err) {

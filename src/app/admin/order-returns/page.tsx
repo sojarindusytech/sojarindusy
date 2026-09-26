@@ -1,25 +1,20 @@
-import { AdminComingSoon } from "@/components/admin/AdminComingSoon";
-import { RotateCcw } from "lucide-react";
+import { fetchAdminOrdersList } from "@/actions/order";
+import { OrderReturnsManagementClient } from "@/components/admin/OrderReturnsManagementClient";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Order Returns | Sojar Solutions Admin",
-  description: "RMA and returns management.",
+  title: "Order Returns & RMA | Sojar Solutions Admin",
+  description: "Process order returns, inspect returned items, and verify inventory restock.",
 };
 
-export default function OrderReturnsAdminPage() {
+export const dynamic = "force-dynamic";
+
+export default async function OrderReturnsAdminPage() {
+  const orders = await fetchAdminOrdersList();
+
   return (
-    <AdminComingSoon
-      section="Orders"
-      title="Order Returns"
-      description="Process return merchandise authorizations (RMA), quality defect inspection, and credit replacements."
-      icon={RotateCcw}
-      features={[
-        "Return request verification and QA inspection reports",
-        "Automated Credit Note generation for approved returns",
-        "Inventory restock / scrap logging workflow",
-        "Return rate analytics by SKU and client",
-      ]}
-    />
+    <div className="space-y-6">
+      <OrderReturnsManagementClient initialOrders={orders} />
+    </div>
   );
 }

@@ -25,12 +25,14 @@ import { CategoryNode } from "@/types/database.types";
 import { createClient } from "@/lib/supabase/client";
 import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
+import { NotificationBell } from "@/components/common/NotificationBell";
 
 interface NavbarProps {
   categories?: CategoryNode[];
   user?: any;
   /** Resolved server-side from the profiles table, never from user_metadata. */
   isAdmin?: boolean;
+  isManufacturer?: boolean;
   companyName?: string | null;
   userName?: string | null;
 }
@@ -72,6 +74,7 @@ export function Navbar({
   categories = [],
   user,
   isAdmin = false,
+  isManufacturer = false,
   companyName,
   userName,
 }: NavbarProps) {
@@ -221,8 +224,12 @@ export function Navbar({
             </Link>
           </nav>
 
-          {/* Action Buttons: Login, Sign Up, Blue Cart & Mobile Hamburger */}
-          <div className="flex items-center gap-2 sm:gap-3">
+          {/* Action Buttons: Notifications, Profile, Cart & Mobile Hamburger */}
+          <div className="flex items-center gap-1.5 sm:gap-2.5">
+            {user && (
+              <NotificationBell align="right" />
+            )}
+
             {user ? (
               <div className="relative group hidden md:block">
                 <Button
@@ -264,6 +271,16 @@ export function Navbar({
                         <span>Admin Portal</span>
                         <span className="text-[10px] bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded font-bold">
                           ADMIN
+                        </span>
+                      </Link>
+                    ) : isManufacturer ? (
+                      <Link
+                        href="/manufacturer"
+                        className="px-4 py-2 text-sm font-medium text-blue-600 hover:bg-blue-50 flex items-center justify-between"
+                      >
+                        <span>Manufacturer Portal</span>
+                        <span className="text-[10px] bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded font-bold">
+                          FACTORY
                         </span>
                       </Link>
                     ) : (
@@ -564,6 +581,16 @@ export function Navbar({
                     >
                       <LayoutDashboard className="h-3.5 w-3.5 shrink-0" />
                       <span className="truncate">Admin Portal</span>
+                    </Link>
+                  ) : isManufacturer ? (
+                    <Link
+                      href="/manufacturer"
+                      prefetch={false}
+                      onClick={() => setIsMobileMenuOpen(false)}
+                      className="flex items-center justify-center gap-1.5 h-8 px-2.5 text-xs font-semibold text-white bg-[#024AE5] hover:bg-[#013bb8] rounded-md transition-colors text-center shadow-xs"
+                    >
+                      <LayoutDashboard className="h-3.5 w-3.5 shrink-0" />
+                      <span className="truncate">Manufacturer</span>
                     </Link>
                   ) : (
                     <Link

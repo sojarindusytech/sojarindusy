@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import { Order, Profile, OrderItem } from "@/types/database.types";
 import { ORDER_STATUSES, ORDER_STATUS_CONFIG, OrderStatus } from "@/lib/constants";
+import { requestCustomerOrderReturn } from "@/actions/order";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -57,12 +58,40 @@ export function CustomerOrdersView({ orders }: CustomerOrdersViewProps) {
   const [sortBy, setSortBy] = useState<"DATE_DESC" | "DATE_ASC" | "AMOUNT_DESC" | "AMOUNT_ASC">("DATE_DESC");
   const [activeOrderDetails, setActiveOrderDetails] = useState<Order | null>(null);
   const [copiedAwb, setCopiedAwb] = useState<string | null>(null);
+  const [returnModalOrder, setReturnModalOrder] = useState<Order | null>(null);
+  const [returnInputReason, setReturnInputReason] = useState("");
+  const [isSubmittingReturn, setIsSubmittingReturn] = useState(false);
 
   const copyToClipboard = (text: string, label = "AWB Number") => {
     navigator.clipboard.writeText(text);
     setCopiedAwb(text);
     toast.success(`${label} copied to clipboard!`);
     setTimeout(() => setCopiedAwb(null), 2500);
+  };
+
+  const handleReturnSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!returnModalOrder) return;
+    if (!returnInputReason.trim()) {
+      toast.error("Please enter a reason for the return request.");
+      return;
+    }
+
+    try {
+      setIsSubmittingReturn(true);
+      const res = await requestCustomerOrderReturn(returnModalOrder.id, returnInputReason.trim());
+      if (res.error) {
+        toast.error(res.error);
+      } else {
+        toast.success(`Return request for Order #${returnModalOrder.order_number} submitted.`);
+        setReturnModalOrder(null);
+        setReturnInputReason("");
+      }
+    } catch (err: any) {
+      toast.error(err.message || "Failed to submit return request.");
+    } finally {
+      setIsSubmittingReturn(false);
+    }
   };
 
   const filteredOrders = orders
@@ -109,6 +138,8 @@ export function CustomerOrdersView({ orders }: CustomerOrdersViewProps) {
         return 5;
       case ORDER_STATUSES.CANCELLED:
         return -1;
+      case ORDER_STATUSES.RETURNED:
+        return -2;
       default:
         return 1;
     }
@@ -317,7 +348,7 @@ export function CustomerOrdersView({ orders }: CustomerOrdersViewProps) {
                 </div>
 
                 {/* 5-Step Visual Progress Timeline */}
-                {ord.status !== ORDER_STATUSES.CANCELLED && (
+                {ord.status !== ORDER_STATUSES.CANCELLED && ord.status !== ORDER_STATUSES.RETURNED && (
                   <div className="pt-2 pb-1 overflow-x-auto [scrollbar-width:none]">
                     <div className="relative flex items-center justify-between min-w-[420px] px-2">
                       <div className="absolute left-6 right-6 top-3 h-0.5 bg-slate-200 -z-0" />
@@ -361,8 +392,37 @@ export function CustomerOrdersView({ orders }: CustomerOrdersViewProps) {
                   </div>
                 )}
 
+                {/* Returned Order Banner */}
+                {ord.status === ORDER_STATUSES.RETURNED && (
+                  <div className="bg-purple-50/70 border border-purple-200/80 rounded-xl p-3 sm:p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div className="flex items-center gap-3">
+                      <div className="h-9 w-9 rounded-lg bg-purple-600 text-white flex items-center justify-center shrink-0">
+                        <RotateCcw className="h-5 w-5" />
+                      </div>
+                      <div className="space-y-0.5">
+                        <div className="text-xs font-bold text-slate-900 flex flex-wrap items-center gap-1.5 sm:gap-2">
+                          <span>Consignment Returned & Inventory Restocked</span>
+                          {ord.returned_at && (
+                            <span className="text-[10px] text-purple-700 bg-purple-100/80 px-1.5 py-0.2 rounded font-medium">
+                              Processed {new Date(ord.returned_at).toLocaleDateString("en-IN", { month: "short", day: "numeric" })}
+                            </span>
+                          )}
+                        </div>
+                        {ord.return_reason && (
+                          <p className="text-xs text-slate-600">
+                            <span className="font-semibold text-slate-700">Reason:</span> {ord.return_reason}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                    <span className="text-[11px] text-purple-700 font-semibold bg-white/70 px-2.5 py-1 rounded border border-purple-200 text-center shrink-0">
+                      Restocked to Inventory
+                    </span>
+                  </div>
+                )}
+
                 {/* Live Carrier Tracking Box */}
-                {(ord.courier_partner || ord.awb_number || ord.tracking_url) && (
+                {ord.status !== ORDER_STATUSES.RETURNED && (ord.courier_partner || ord.awb_number || ord.tracking_url) && (
                   <div className="bg-blue-50/70 border border-blue-200/80 rounded-xl p-3 sm:p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                     <div className="flex items-center gap-3">
                       <div className="h-9 w-9 rounded-lg bg-blue-600 text-white flex items-center justify-center shrink-0">
@@ -429,27 +489,44 @@ export function CustomerOrdersView({ orders }: CustomerOrdersViewProps) {
                     )}
                   </div>
 
-                  {ord.status === ORDER_STATUSES.DELIVERED ? (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setActiveOrderDetails(ord)}
-                      className="text-[#024AE5] hover:text-[#024AE5]/80 hover:bg-blue-50 text-xs font-bold gap-1.5 h-8 px-2.5 cursor-pointer w-full sm:w-auto justify-center"
-                    >
-                      <Receipt className="h-3.5 w-3.5" />
-                      <span>View Tax Invoice</span>
-                    </Button>
-                  ) : (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setActiveOrderDetails(ord)}
-                      className="text-slate-700 hover:text-slate-900 hover:bg-slate-100 text-xs font-semibold gap-1.5 h-8 px-2.5 cursor-pointer w-full sm:w-auto justify-center"
-                    >
-                      <Eye className="h-3.5 w-3.5" />
-                      <span>Order Details</span>
-                    </Button>
-                  )}
+                  <div className="flex items-center gap-2">
+                    {ord.status === ORDER_STATUSES.DELIVERED && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setReturnModalOrder(ord);
+                          setReturnInputReason("");
+                        }}
+                        className="border-slate-200 hover:border-purple-300 hover:bg-purple-50 text-purple-700 text-xs font-semibold gap-1.5 h-8 px-2.5 cursor-pointer w-full sm:w-auto justify-center"
+                      >
+                        <RotateCcw className="h-3.5 w-3.5 text-purple-600" />
+                        <span>Request Return</span>
+                      </Button>
+                    )}
+
+                    {ord.status === ORDER_STATUSES.DELIVERED ? (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setActiveOrderDetails(ord)}
+                        className="text-[#024AE5] hover:text-[#024AE5]/80 hover:bg-blue-50 text-xs font-bold gap-1.5 h-8 px-2.5 cursor-pointer w-full sm:w-auto justify-center"
+                      >
+                        <Receipt className="h-3.5 w-3.5" />
+                        <span>View Tax Invoice</span>
+                      </Button>
+                    ) : (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setActiveOrderDetails(ord)}
+                        className="text-slate-700 hover:text-slate-900 hover:bg-slate-100 text-xs font-semibold gap-1.5 h-8 px-2.5 cursor-pointer w-full sm:w-auto justify-center"
+                      >
+                        <Eye className="h-3.5 w-3.5" />
+                        <span>Order Details</span>
+                      </Button>
+                    )}
+                  </div>
                 </div>
               </Card>
             );
@@ -578,6 +655,62 @@ export function CustomerOrdersView({ orders }: CustomerOrdersViewProps) {
                 </div>
               </div>
             </div>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* Return Request Dialog */}
+      {returnModalOrder && (
+        <Dialog
+          open={!!returnModalOrder}
+          onOpenChange={(open) => !open && setReturnModalOrder(null)}
+        >
+          <DialogContent className="max-w-md w-[95vw] bg-white p-5 rounded-xl shadow-xl">
+            <DialogHeader className="pb-2 border-b border-slate-200">
+              <div className="flex items-center gap-2">
+                <RotateCcw className="h-5 w-5 text-purple-600 shrink-0" />
+                <DialogTitle className="text-base font-bold text-slate-900">
+                  Request Return for Order #{returnModalOrder.order_number}
+                </DialogTitle>
+              </div>
+              <DialogDescription className="text-xs text-slate-500">
+                State your reason for returning this consignment. Our industrial dispatch team will review and coordinate the pickup or reverse logistics.
+              </DialogDescription>
+            </DialogHeader>
+            <form onSubmit={handleReturnSubmit} className="space-y-4 pt-2">
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-slate-700">
+                  Reason for Return <span className="text-red-500">*</span>
+                </label>
+                <textarea
+                  required
+                  rows={3}
+                  placeholder="e.g. Dimensions do not match specification, material defect, damaged in transit..."
+                  value={returnInputReason}
+                  onChange={(e) => setReturnInputReason(e.target.value)}
+                  className="w-full text-xs p-2.5 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#024AE5]/20 focus:border-[#024AE5]"
+                />
+              </div>
+              <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setReturnModalOrder(null)}
+                  className="text-xs text-slate-600 h-8 cursor-pointer"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  size="sm"
+                  disabled={isSubmittingReturn}
+                  className="bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold h-8 px-4 cursor-pointer"
+                >
+                  {isSubmittingReturn ? "Submitting..." : "Submit Return Request"}
+                </Button>
+              </div>
+            </form>
           </DialogContent>
         </Dialog>
       )}

@@ -34,6 +34,7 @@ export function EditSkuModal({ isOpen, onClose, variant, availableAttributes, av
   const [shankDiameter, setShankDiameter] = useState(variant.shank_diameter?.toString() || "");
   const [listPrice, setListPrice] = useState(variant.list_price.toString());
   const [stockQuantity, setStockQuantity] = useState(variant.stock_quantity.toString());
+  const [minQuantity, setMinQuantity] = useState((variant.min_quantity ?? 0).toString());
   const initialAttr = (variant.specifications as any)?.Attribute || (variant.specifications as any)?.Tag || "none";
   const [selectedAttributeName, setSelectedAttributeName] = useState<string>(initialAttr);
   
@@ -76,6 +77,7 @@ export function EditSkuModal({ isOpen, onClose, variant, availableAttributes, av
       shank_diameter: shankDiameter ? parseFloat(shankDiameter) : null,
       list_price: parseFloat(listPrice) || 0,
       stock_quantity: parseInt(stockQuantity, 10) || 0,
+      min_quantity: Math.max(0, parseInt(minQuantity, 10) || 0),
       specifications: specs,
     });
     setIsLoading(false);
@@ -172,7 +174,7 @@ export function EditSkuModal({ isOpen, onClose, variant, availableAttributes, av
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-3 gap-3">
             <div className="space-y-1.5">
               <Label className="text-xs font-semibold text-slate-700">List Price (₹)</Label>
               <Input
@@ -189,6 +191,18 @@ export function EditSkuModal({ isOpen, onClose, variant, availableAttributes, av
                 type="number"
                 value={stockQuantity}
                 onChange={(e) => setStockQuantity(e.target.value)}
+                className="h-9 text-xs border-slate-200"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold text-slate-700">Min Units</Label>
+              <Input
+                type="number"
+                min="0"
+                step="1"
+                value={minQuantity}
+                onChange={(e) => setMinQuantity(e.target.value)}
+                placeholder="0"
                 className="h-9 text-xs border-slate-200"
               />
             </div>

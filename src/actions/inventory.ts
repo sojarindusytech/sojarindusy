@@ -187,6 +187,14 @@ export async function adjustVariantStock(
       notes: movementReason,
     });
 
+    // Auto-generate Purchase Order if stock dropped below min_quantity
+    try {
+      const { checkAndGeneratePurchaseOrder } = await import("@/actions/purchase-order");
+      await checkAndGeneratePurchaseOrder(variant.id, targetStock);
+    } catch (poErr) {
+      console.warn("[adjustVariantStock] Notice auto PO check:", poErr);
+    }
+
     revalidatePath("/admin/products");
     return { success: true, updatedStock: targetStock };
   } catch (err) {
