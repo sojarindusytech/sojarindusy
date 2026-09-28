@@ -45,6 +45,11 @@ import {
   RefreshCw,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import {
+  DATE_RANGE_OPTIONS,
+  isWithinDateRange,
+  type DateRangeKey,
+} from "@/lib/date-range";
 import toast from "react-hot-toast";
 
 interface AdminPurchaseOrdersClientProps {
@@ -57,6 +62,9 @@ export function AdminPurchaseOrdersClient({
   const [orders, setOrders] = useState<PurchaseOrder[]>(initialOrders);
   const [activeTab, setActiveTab] = useState<"active" | "past">("active");
   const [searchQuery, setSearchQuery] = useState("");
+  const [dateRange, setDateRange] = useState<DateRangeKey>("all");
+  const [customFrom, setCustomFrom] = useState("");
+  const [customTo, setCustomTo] = useState("");
 
   // Confirmation Modal for receiving order
   const [receivingOrder, setReceivingOrder] = useState<PurchaseOrder | null>(null);
@@ -82,17 +90,27 @@ export function AdminPurchaseOrdersClient({
 
   const currentList = activeTab === "active" ? activeOrders : pastOrders;
 
-  // Filtered by Search Query
+  // Filtered by search query and the placed-date range
   const filteredOrders = useMemo(() => {
-    if (!searchQuery.trim()) return currentList;
     const q = searchQuery.toLowerCase().trim();
-    return currentList.filter(
-      (o) =>
+    return currentList.filter((o) => {
+      const matchesSearch =
+        !q ||
         o.order_number?.toLowerCase().includes(q) ||
         o.sku_code?.toLowerCase().includes(q) ||
-        o.product_title?.toLowerCase().includes(q)
-    );
-  }, [currentList, searchQuery]);
+        o.product_title?.toLowerCase().includes(q);
+
+      // Filter on the same date the DATE column renders.
+      const matchesDate = isWithinDateRange(
+        o.placed_at || o.created_at,
+        dateRange,
+        customFrom,
+        customTo
+      );
+
+      return matchesSearch && matchesDate;
+    });
+  }, [currentList, searchQuery, dateRange, customFrom, customTo]);
 
   // Aggregate Metrics
   const totalActiveUnits = activeOrders.reduce(
@@ -291,16 +309,61 @@ export function AdminPurchaseOrdersClient({
             </button>
           </div>
 
-          {/* Search Box */}
-          <div className="relative w-full sm:w-72">
-            <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-slate-400" />
-            <Input
-              type="text"
-              placeholder="Search by PO #, SKU, or Title..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-8 h-9 text-xs bg-slate-50/50 border-slate-200 focus:bg-white"
-            />
+          {/* Search + date filters, grouped so the tabs stay left */}
+          <div className="flex flex-col sm:flex-row sm:items-center gap-2 w-full sm:w-auto">
+            {/* Search Box */}
+            <div className="relative w-full sm:w-64">
+              <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-slate-400" />
+              <Input
+                type="text"
+                placeholder="Search by PO #, SKU, or Title..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-8 h-9 text-xs bg-slate-50/50 border-slate-200 focus:bg-white"
+              />
+            </div>
+
+            {/* Date filter on the order's placed date */}
+            <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+              <Select
+                value={dateRange}
+                onValueChange={(v) => setDateRange(v as DateRangeKey)}
+              >
+                <SelectTrigger className="h-9 text-xs bg-slate-50/50 border-slate-200 w-full sm:w-[150px]">
+                  <Calendar className="h-3.5 w-3.5 text-slate-400 mr-1.5 shrink-0" />
+                  <SelectValue placeholder="All Time" />
+                </SelectTrigger>
+                <SelectContent>
+                  {DATE_RANGE_OPTIONS.map((opt) => (
+                    <SelectItem key={opt.value} value={opt.value} className="text-xs">
+                      {opt.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              {dateRange === "custom" ? (
+                <div className="flex items-center gap-2">
+                  <Input
+                    type="date"
+                    value={customFrom}
+                    max={customTo || undefined}
+                    onChange={(e) => setCustomFrom(e.target.value)}
+                    aria-label="From date"
+                    className="h-9 text-xs bg-slate-50/50 border-slate-200 w-full sm:w-[140px]"
+                  />
+                  <span className="text-xs text-slate-400 shrink-0">to</span>
+                  <Input
+                    type="date"
+                    value={customTo}
+                    min={customFrom || undefined}
+                    onChange={(e) => setCustomTo(e.target.value)}
+                    aria-label="To date"
+                    className="h-9 text-xs bg-slate-50/50 border-slate-200 w-full sm:w-[140px]"
+                  />
+                </div>
+              ) : null}
+            </div>
           </div>
         </div>
 
@@ -312,7 +375,8 @@ export function AdminPurchaseOrdersClient({
                 <TableHead className="font-bold whitespace-nowrap">PO NUMBER</TableHead>
                 <TableHead className="font-bold whitespace-nowrap">PRODUCT / SKU</TableHead>
                 <TableHead className="font-bold whitespace-nowrap">SPECIFICATIONS</TableHead>
-                <TableHead className="font-bold text-center whitespace-nowrap">MIN QTY</TableHead>
+                <TableHead className="font-bold text-center whitespace-nowrap">TARGET QTY</TableHead>
+                <TableHead className="font-bold text-center whitespace-nowrap">TRIGGER QTY</TableHead>
                 <TableHead className="font-bold text-center whitespace-nowrap">STOCK AT TRIGGER</TableHead>
                 <TableHead className="font-bold text-center whitespace-nowrap bg-blue-50/50 text-[#024AE5]">
                   ORDER QTY
@@ -326,7 +390,7 @@ export function AdminPurchaseOrdersClient({
               {filteredOrders.length === 0 ? (
                 <TableRow>
                   <TableCell
-                    colSpan={9}
+                    colSpan={10}
                     className="py-12 text-center text-slate-500"
                   >
                     <div className="flex flex-col items-center justify-center gap-2">
@@ -339,7 +403,7 @@ export function AdminPurchaseOrdersClient({
                           : "No past received orders found."}
                       </p>
                       <p className="text-[11px] text-slate-400">
-                        Orders are auto-generated when an SKU stock is deducted below its minimum threshold.
+                        Orders are auto-generated when an SKU's stock falls to or below its trigger quantity.
                       </p>
                     </div>
                   </TableCell>
@@ -375,15 +439,16 @@ export function AdminPurchaseOrdersClient({
                       </TableCell>
 
                       {/* Specs */}
-                      <TableCell className="max-w-[200px]">
+                      <TableCell className="min-w-[180px]">
                         {specItems.length > 0 ? (
                           <div className="flex flex-wrap gap-1">
                             {specItems.slice(0, 3).map(([k, v]) => (
                               <span
                                 key={k}
-                                className="inline-flex items-center text-[10px] bg-slate-50 text-slate-600 px-1.5 py-0.5 rounded border border-slate-200"
+                                className="inline-flex shrink-0 items-center gap-1 text-[10px] bg-slate-50 text-slate-600 px-1.5 py-0.5 rounded border border-slate-200 whitespace-nowrap"
                               >
-                                <span className="font-semibold mr-1">{k}:</span> {String(v)}
+                                <span className="font-semibold">{k}:</span>
+                                <span>{String(v)}</span>
                               </span>
                             ))}
                             {specItems.length > 3 && (
@@ -399,9 +464,14 @@ export function AdminPurchaseOrdersClient({
                         )}
                       </TableCell>
 
-                      {/* Min Quantity */}
+                      {/* Target stock level (Minimum SKU Quantity) */}
                       <TableCell className="text-center font-semibold text-slate-700 whitespace-nowrap">
                         {po.min_quantity} Units
+                      </TableCell>
+
+                      {/* Trigger threshold snapshot: target - trigger = order qty */}
+                      <TableCell className="text-center font-semibold text-slate-700 whitespace-nowrap">
+                        {po.trigger_quantity ?? 0} Units
                       </TableCell>
 
                       {/* Actual Quantity at trigger */}

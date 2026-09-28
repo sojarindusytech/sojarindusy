@@ -165,6 +165,7 @@ END $$;
 
 -- 5. Re-assert least privilege on any profile whose role came from metadata.
 -- Admin accounts must be promoted deliberately, never by self-registration.
+-- 'manufacturer' is a legitimate assigned role and must be preserved here.
 UPDATE public.profiles
 SET role = 'customer'
-WHERE role NOT IN ('customer', 'admin', 'platform_owner');
+WHERE role NOT IN ('customer', 'admin', 'platform_owner', 'manufacturer');

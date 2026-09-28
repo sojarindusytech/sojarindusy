@@ -6,12 +6,16 @@ import { requireAdmin } from "@/lib/auth-guard";
 import { PurchaseOrder, PurchaseOrderStatus } from "@/types/database.types";
 import { recordStockMovement } from "@/actions/inventory";
 import { createNotification } from "@/actions/notification";
+import { evaluateReorder } from "@/lib/reorder";
 import { revalidatePath } from "next/cache";
 
 /**
- * Checks an SKU variant's stock against its min_quantity threshold.
- * If currentStock < min_quantity (and min_quantity > 0), auto-generates a Purchase Order
- * unless an active order (Placed or Dispatched / In Transit) already exists.
+ * Checks an SKU variant's stock against its trigger_quantity threshold.
+ *
+ * Fires when currentStock <= trigger_quantity, ordering enough to restock up to
+ * min_quantity: order_quantity = min_quantity - trigger_quantity.
+ * A trigger_quantity of 0 means auto-ordering is disabled for that SKU.
+ * Skipped entirely if an active order (Placed / Dispatched) already exists.
  */
 export async function checkAndGeneratePurchaseOrder(
   variantId: string,
@@ -23,7 +27,7 @@ export async function checkAndGeneratePurchaseOrder(
     // 1. Fetch variant and product metadata
     const { data: variantData, error: variantErr } = await (adminDb
       .from("product_variants") as any)
-      .select("id, sku, min_quantity, specifications, product_id, products(id, title)")
+      .select("id, sku, min_quantity, trigger_quantity, specifications, product_id, products(id, title)")
       .eq("id", variantId)
       .single();
 
@@ -31,13 +35,22 @@ export async function checkAndGeneratePurchaseOrder(
       return { created: false, reason: "Variant not found" };
     }
 
-    const minQty = Number(variantData.min_quantity) || 0;
-    if (minQty <= 0) {
-      return { created: false, reason: "Min quantity is 0 or disabled" };
-    }
+    const targetQty = Number(variantData.min_quantity) || 0;      // restock-up-to level
+    const triggerQty = Number(variantData.trigger_quantity) || 0;  // reorder threshold
 
-    if (currentStock >= minQty) {
-      return { created: false, reason: "Stock is at or above minimum threshold" };
+    const decision = evaluateReorder({
+      currentStock,
+      minQuantity: targetQty,
+      triggerQuantity: triggerQty,
+    });
+
+    if (!decision.shouldOrder) {
+      if (decision.misconfigured) {
+        console.warn(
+          `[checkAndGeneratePurchaseOrder] SKU ${variantData.sku}: ${decision.reason}`
+        );
+      }
+      return { created: false, reason: decision.reason };
     }
 
     // 2. Deduplication check: check if an active (un-received) PO already exists for this variant
@@ -59,8 +72,8 @@ export async function checkAndGeneratePurchaseOrder(
       };
     }
 
-    // 3. Calculate order quantity
-    const orderQuantity = Math.max(1, minQty - currentStock);
+    // 3. Order quantity, decided above (guaranteed >= 1)
+    const orderQuantity = decision.orderQuantity;
     const year = new Date().getFullYear();
     const randomSuffix = Math.floor(1000 + Math.random() * 9000);
     const orderNumber = `PO-${year}-${randomSuffix}`;
@@ -71,7 +84,8 @@ export async function checkAndGeneratePurchaseOrder(
       product_id: variantData.product_id,
       sku_code: variantData.sku,
       product_title: variantData.products?.title || "Tooling Product",
-      min_quantity: minQty,
+      min_quantity: targetQty,
+      trigger_quantity: triggerQty,
       actual_quantity: currentStock,
       order_quantity: orderQuantity,
       specifications: variantData.specifications || {},
@@ -147,7 +161,7 @@ export async function getPurchaseOrders(params?: {
       .select(`
         *,
         product:products(id, title, slug),
-        variant:product_variants(id, sku, diameter, flute_length, overall_length, shank_diameter, stock_quantity, min_quantity)
+        variant:product_variants(id, sku, diameter, flute_length, overall_length, shank_diameter, stock_quantity, min_quantity, trigger_quantity, min_order_quantity)
       `)
       .order("created_at", { ascending: false });
 

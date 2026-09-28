@@ -196,6 +196,8 @@ export async function signInUser(
 ): Promise<{
   error?: string;
   redirectUrl?: string;
+  /** Authoritative role from the profiles table, used to vet ?redirect= targets. */
+  role?: UserRole;
   isEmailUnconfirmed?: boolean;
   unconfirmedEmail?: string;
 }> {
@@ -254,11 +256,11 @@ export async function signInUser(
   revalidatePath("/", "layout");
 
   if (userRole === "admin" || userRole === "platform_owner") {
-    return { redirectUrl: "/admin/products" };
+    return { redirectUrl: "/admin/products", role: userRole };
   }
 
   if (userRole === "manufacturer") {
-    return { redirectUrl: "/manufacturer" };
+    return { redirectUrl: "/manufacturer", role: userRole };
   }
 
   if (approvalStatus !== APPROVAL_STATUSES.APPROVED) {
@@ -268,10 +270,11 @@ export async function signInUser(
         error: "Your enterprise account application has been rejected. Please contact support@sojarsolutions.com for assistance.",
       };
     }
+    // Pending accounts must land on the holding page, never on a ?redirect= target.
     return { redirectUrl: "/pending-approval" };
   }
 
-  return { redirectUrl: "/dashboard" };
+  return { redirectUrl: "/dashboard", role: userRole };
 }
 
 /**

@@ -23,6 +23,8 @@ export interface UpdateFullProductPayload {
     list_price: number;
     stock_quantity: number;
     min_quantity?: number | null;
+    trigger_quantity?: number | null;
+    min_order_quantity?: number | null;
     specifications?: Record<string, any>;
   }>;
 }
@@ -105,6 +107,8 @@ export async function updateFullProduct(
         list_price: Number(v.list_price) || 0,
         stock_quantity: Number(v.stock_quantity) || 0,
         min_quantity: Number(v.min_quantity) || 0,
+        trigger_quantity: Number(v.trigger_quantity) || 0,
+        min_order_quantity: Math.max(1, Number(v.min_order_quantity) || 1),
         specifications: v.specifications || {},
       }));
 
@@ -197,6 +201,8 @@ export async function addSingleSku(
     list_price: number;
     stock_quantity: number;
     min_quantity?: number;
+    trigger_quantity?: number;
+    min_order_quantity?: number;
     specifications?: Record<string, any>;
   }
 ): Promise<{ success?: boolean; error?: string }> {
@@ -220,6 +226,8 @@ export async function addSingleSku(
         list_price: payload.list_price,
         stock_quantity: payload.stock_quantity,
         min_quantity: payload.min_quantity ?? 0,
+        trigger_quantity: payload.trigger_quantity ?? 0,
+        min_order_quantity: Math.max(1, payload.min_order_quantity ?? 1),
         specifications: payload.specifications || {},
       } as never)
       .select("id, sku, stock_quantity, product_id, products(title)")
@@ -248,6 +256,19 @@ export async function addSingleSku(
       });
     }
 
+    // A SKU created with a trigger already set and stock at or below it should
+    // order straight away, same as any other config change. Bulk/CSV creation
+    // deliberately skips this -- those arrive with trigger 0 and would only
+    // produce a round trip per row.
+    if (inserted) {
+      try {
+        const { checkAndGeneratePurchaseOrder } = await import("@/actions/purchase-order");
+        await checkAndGeneratePurchaseOrder(inserted.id, payload.stock_quantity);
+      } catch (poErr) {
+        console.warn("[addSkuToProduct] Notice auto PO check:", poErr);
+      }
+    }
+
     revalidatePath("/admin/products");
     return { success: true };
   } catch (err: any) {
@@ -266,6 +287,8 @@ export async function bulkAppendSkus(
     list_price: number;
     stock_quantity: number;
     min_quantity?: number;
+    trigger_quantity?: number;
+    min_order_quantity?: number;
     specifications?: Record<string, any>;
   }>,
   attributeIdOrTagId?: string
@@ -288,6 +311,8 @@ export async function bulkAppendSkus(
       list_price: v.list_price,
       stock_quantity: v.stock_quantity,
       min_quantity: v.min_quantity ?? 0,
+      trigger_quantity: v.trigger_quantity ?? 0,
+      min_order_quantity: Math.max(1, v.min_order_quantity ?? 1),
       specifications: v.specifications || {},
     }));
 
@@ -462,6 +487,8 @@ export async function bulkUpdateSkus(
     list_price?: number;
     stock_quantity?: number;
     min_quantity?: number;
+    trigger_quantity?: number;
+    min_order_quantity?: number;
     list_price_percentage?: number;
   }
 ): Promise<{ success?: boolean; error?: string }> {
@@ -476,7 +503,7 @@ export async function bulkUpdateSkus(
     // 1. Fetch current state of variants
     const { data: existingVariantsData, error: fetchError } = await supabase
       .from("product_variants")
-      .select("id, sku, stock_quantity, min_quantity, list_price, product_id, products(title)")
+      .select("id, sku, stock_quantity, min_quantity, trigger_quantity, min_order_quantity, list_price, product_id, products(title)")
       .in("id", variantIds);
 
     if (fetchError) throw fetchError;
@@ -501,6 +528,26 @@ export async function bulkUpdateSkus(
       if (upsertError) throw upsertError;
 
     } else {
+      // Reject the batch if the resulting config would silently disable
+      // auto-ordering (order size is min_quantity - trigger_quantity, so a min
+      // at or below the trigger can never produce a PO). Checked against each
+      // variant's existing value, since only one of the two may be in this update.
+      if (updates.min_quantity !== undefined || updates.trigger_quantity !== undefined) {
+        const broken = existingVariants.filter((v: any) => {
+          const min = updates.min_quantity ?? Number(v.min_quantity) ?? 0;
+          const trigger = updates.trigger_quantity ?? Number(v.trigger_quantity) ?? 0;
+          return trigger > 0 && min <= trigger;
+        });
+
+        if (broken.length > 0) {
+          const names = broken.slice(0, 3).map((v: any) => v.sku).join(", ");
+          const more = broken.length > 3 ? ` and ${broken.length - 3} more` : "";
+          return {
+            error: `Minimum SKU Quantity must be greater than Trigger Quantity. This change would break auto-ordering for ${names}${more}.`,
+          };
+        }
+      }
+
       // Fixed value updates
       const updatePayload: any = { updated_at: new Date().toISOString() };
       if (updates.list_price !== undefined) {
@@ -511,6 +558,13 @@ export async function bulkUpdateSkus(
       }
       if (updates.min_quantity !== undefined) {
         updatePayload.min_quantity = updates.min_quantity;
+      }
+      if (updates.trigger_quantity !== undefined) {
+        updatePayload.trigger_quantity = updates.trigger_quantity;
+      }
+      if (updates.min_order_quantity !== undefined) {
+        // A customer cannot order zero units; floor at 1 regardless of input.
+        updatePayload.min_order_quantity = Math.max(1, updates.min_order_quantity);
       }
 
       const { error } = await supabase
@@ -545,6 +599,28 @@ export async function bulkUpdateSkus(
           }
         }
       }
+
+      // Re-evaluate auto-ordering when a field that feeds the reorder decision
+      // changed. Skipped for price-only edits, which cannot affect it.
+      const affectsReorder =
+        updates.stock_quantity !== undefined ||
+        updates.min_quantity !== undefined ||
+        updates.trigger_quantity !== undefined;
+
+      if (affectsReorder) {
+        const { checkAndGeneratePurchaseOrder } = await import("@/actions/purchase-order");
+        for (const v of existingVariants) {
+          const finalStock =
+            updates.stock_quantity !== undefined
+              ? updates.stock_quantity
+              : Number(v.stock_quantity) || 0;
+          try {
+            await checkAndGeneratePurchaseOrder(v.id, finalStock);
+          } catch (poErr) {
+            console.warn(`[bulkUpdateSkus] Notice auto PO check for ${v.sku}:`, poErr);
+          }
+        }
+      }
     }
 
     revalidatePath("/admin/products");
@@ -565,6 +641,8 @@ export async function updateSingleSku(
     list_price: number;
     stock_quantity: number;
     min_quantity?: number;
+    trigger_quantity?: number;
+    min_order_quantity?: number;
     specifications?: Record<string, any>;
   }
 ): Promise<{ success?: boolean; error?: string }> {
@@ -599,6 +677,8 @@ export async function updateSingleSku(
         list_price: payload.list_price,
         stock_quantity: payload.stock_quantity,
         min_quantity: payload.min_quantity ?? 0,
+        trigger_quantity: payload.trigger_quantity ?? 0,
+        min_order_quantity: Math.max(1, payload.min_order_quantity ?? 1),
         specifications: payload.specifications || {},
         updated_at: new Date().toISOString(),
       } as never)
@@ -625,6 +705,17 @@ export async function updateSingleSku(
         balanceAfter: newStock,
         notes: `Manual Edit (${stockDelta > 0 ? `+${stockDelta}` : stockDelta} units)`,
       });
+    }
+
+    // 3. Re-evaluate auto-ordering now that this SKU's thresholds may have changed.
+    // Without this, an admin who enables auto-ordering on a SKU already sitting
+    // below its new trigger sees nothing happen until the next customer order or
+    // stock adjustment -- which can be weeks away.
+    try {
+      const { checkAndGeneratePurchaseOrder } = await import("@/actions/purchase-order");
+      await checkAndGeneratePurchaseOrder(variantId, newStock);
+    } catch (poErr) {
+      console.warn("[updateSku] Notice auto PO check:", poErr);
     }
 
     revalidatePath("/admin/products");

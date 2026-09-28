@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { resolvePostLoginRedirect } from "@/lib/post-login-redirect";
 import { loginSchema } from "@/lib/validations/auth";
 import { Lock, AlertCircle, CheckCircle2, ArrowRight, Eye, EyeOff } from "lucide-react";
 import Link from "next/link";
@@ -71,10 +72,15 @@ function LoginForm() {
           setIsUnconfirmed(true);
         }
       } else {
-        if (redirectTo) {
-          router.push(redirectTo);
-        } else if (res.redirectUrl) {
-          router.push(res.redirectUrl);
+        // `?redirect=` is only honoured when it is a same-origin path inside
+        // the signed-in user's own area. It is attacker-controllable, and it
+        // also survives a previous user's session -- without this check an
+        // admin signing in on /login?redirect=/manufacturer landed in the
+        // manufacturer portal.
+        const safeRedirect = resolvePostLoginRedirect(redirectTo, res.role);
+        const target = safeRedirect ?? res.redirectUrl;
+        if (target) {
+          router.push(target);
         }
         router.refresh();
       }

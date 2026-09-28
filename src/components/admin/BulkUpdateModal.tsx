@@ -23,8 +23,35 @@ interface BulkUpdateModalProps {
   onSuccess: () => void;
 }
 
+/**
+ * The three per-SKU quantity fields share one input and one code path -- they
+ * differ only by label and helper text.
+ */
+type QuantityField = "min_quantity" | "trigger_quantity" | "min_order_quantity";
+
+const QUANTITY_FIELDS: Record<QuantityField, { label: string; hint: string; min: number }> = {
+  min_quantity: {
+    label: "Minimum SKU Quantity",
+    hint: "Target stock level the auto purchase order restocks up to.",
+    min: 0,
+  },
+  trigger_quantity: {
+    label: "Trigger Quantity",
+    hint: "Auto purchase order fires when stock falls to or below this. 0 disables auto-ordering.",
+    min: 0,
+  },
+  min_order_quantity: {
+    label: "Minimum Order Quantity",
+    hint: "Customers must purchase at least this many units. Minimum and default is 1.",
+    // A customer cannot order zero units, so this field floors at 1.
+    min: 1,
+  },
+};
+
+const isQuantityField = (f: string): f is QuantityField => f in QUANTITY_FIELDS;
+
 export function BulkUpdateModal({ isOpen, onClose, selectedVariantIds, onSuccess }: BulkUpdateModalProps) {
-  const [fieldToUpdate, setFieldToUpdate] = useState<"list_price" | "stock_quantity" | "min_quantity" | "list_price_percentage">("list_price");
+  const [fieldToUpdate, setFieldToUpdate] = useState<QuantityField | "list_price" | "stock_quantity" | "list_price_percentage">("list_price");
   const [listPrice, setListPrice] = useState("");
   const [stockQuantity, setStockQuantity] = useState("");
   const [minQuantity, setMinQuantity] = useState("0");
@@ -42,8 +69,8 @@ export function BulkUpdateModal({ isOpen, onClose, selectedVariantIds, onSuccess
       toast.error("Please enter a new Stock Quantity.");
       return;
     }
-    if (fieldToUpdate === "min_quantity" && minQuantity.trim() === "") {
-      toast.error("Please enter a Minimum SKU / Min Units count.");
+    if (isQuantityField(fieldToUpdate) && minQuantity.trim() === "") {
+      toast.error(`Please enter a ${QUANTITY_FIELDS[fieldToUpdate].label}.`);
       return;
     }
     if (fieldToUpdate === "list_price_percentage" && listPricePercentage.trim() === "") {
@@ -58,8 +85,9 @@ export function BulkUpdateModal({ isOpen, onClose, selectedVariantIds, onSuccess
       updates.list_price = parseFloat(listPrice);
     } else if (fieldToUpdate === "stock_quantity") {
       updates.stock_quantity = parseInt(stockQuantity, 10);
-    } else if (fieldToUpdate === "min_quantity") {
-      updates.min_quantity = Math.max(0, parseInt(minQuantity, 10) || 0);
+    } else if (isQuantityField(fieldToUpdate)) {
+      const floor = QUANTITY_FIELDS[fieldToUpdate].min;
+      updates[fieldToUpdate] = Math.max(floor, parseInt(minQuantity, 10) || floor);
     } else if (fieldToUpdate === "list_price_percentage") {
       updates.list_price_percentage = parseFloat(listPricePercentage);
     }
@@ -103,7 +131,9 @@ export function BulkUpdateModal({ isOpen, onClose, selectedVariantIds, onSuccess
                 <SelectItem value="list_price" className="text-xs">List Price (Fixed)</SelectItem>
                 <SelectItem value="list_price_percentage" className="text-xs">List Price (% Upgrade)</SelectItem>
                 <SelectItem value="stock_quantity" className="text-xs">Stock Quantity</SelectItem>
-                <SelectItem value="min_quantity" className="text-xs">Minimum Units (Min SKU)</SelectItem>
+                <SelectItem value="min_quantity" className="text-xs">Minimum SKU Quantity</SelectItem>
+                <SelectItem value="trigger_quantity" className="text-xs">Trigger Quantity</SelectItem>
+                <SelectItem value="min_order_quantity" className="text-xs">Minimum Order Quantity</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -133,21 +163,23 @@ export function BulkUpdateModal({ isOpen, onClose, selectedVariantIds, onSuccess
                 required
               />
             </div>
-          ) : fieldToUpdate === "min_quantity" ? (
+          ) : isQuantityField(fieldToUpdate) ? (
             <div className="space-y-1.5">
-              <Label className="text-xs font-semibold text-slate-700">Minimum Order Units (Min SKU) <span className="text-red-500">*</span></Label>
+              <Label className="text-xs font-semibold text-slate-700">
+                New {QUANTITY_FIELDS[fieldToUpdate].label} <span className="text-red-500">*</span>
+              </Label>
               <Input
                 type="number"
-                min="0"
+                min={QUANTITY_FIELDS[fieldToUpdate].min}
                 step="1"
                 value={minQuantity}
                 onChange={(e) => setMinQuantity(e.target.value)}
-                placeholder="Enter minimum units (e.g. 0, 5, 10)"
+                placeholder={`Enter quantity (minimum ${QUANTITY_FIELDS[fieldToUpdate].min})`}
                 className="h-9 text-xs border-slate-200"
                 required
               />
               <p className="text-[10px] text-slate-500 leading-tight">
-                Default is 0. If set &gt; 0, customers must purchase at least this many units.
+                {QUANTITY_FIELDS[fieldToUpdate].hint}
               </p>
             </div>
           ) : (

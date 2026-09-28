@@ -35,6 +35,8 @@ export function EditSkuModal({ isOpen, onClose, variant, availableAttributes, av
   const [listPrice, setListPrice] = useState(variant.list_price.toString());
   const [stockQuantity, setStockQuantity] = useState(variant.stock_quantity.toString());
   const [minQuantity, setMinQuantity] = useState((variant.min_quantity ?? 0).toString());
+  const [triggerQuantity, setTriggerQuantity] = useState((variant.trigger_quantity ?? 0).toString());
+  const [minOrderQuantity, setMinOrderQuantity] = useState((variant.min_order_quantity ?? 1).toString());
   const initialAttr = (variant.specifications as any)?.Attribute || (variant.specifications as any)?.Tag || "none";
   const [selectedAttributeName, setSelectedAttributeName] = useState<string>(initialAttr);
   
@@ -51,10 +53,21 @@ export function EditSkuModal({ isOpen, onClose, variant, availableAttributes, av
 
   const [isLoading, setIsLoading] = useState(false);
 
+  // Auto-ordering computes order size as min_quantity - trigger_quantity, so a
+  // min at or below the trigger silently disables ordering for this SKU. Both
+  // fields are in this form, so block the save rather than storing dead config.
+  const triggerMisconfigured =
+    Number(triggerQuantity) > 0 && Number(minQuantity) <= Number(triggerQuantity);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!sku.trim()) {
       toast.error("SKU Code is required.");
+      return;
+    }
+
+    if (triggerMisconfigured) {
+      toast.error("Minimum SKU Quantity must be greater than Trigger Quantity.");
       return;
     }
 
@@ -78,6 +91,8 @@ export function EditSkuModal({ isOpen, onClose, variant, availableAttributes, av
       list_price: parseFloat(listPrice) || 0,
       stock_quantity: parseInt(stockQuantity, 10) || 0,
       min_quantity: Math.max(0, parseInt(minQuantity, 10) || 0),
+      trigger_quantity: Math.max(0, parseInt(triggerQuantity, 10) || 0),
+      min_order_quantity: Math.max(1, parseInt(minOrderQuantity, 10) || 1),
       specifications: specs,
     });
     setIsLoading(false);
@@ -92,7 +107,7 @@ export function EditSkuModal({ isOpen, onClose, variant, availableAttributes, av
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-md bg-white p-6">
+      <DialogContent className="max-w-2xl bg-white p-4 sm:p-6">
         <DialogHeader className="pb-3 border-b border-slate-200">
           <DialogTitle className="text-xl font-bold text-slate-900">
             Edit SKU
@@ -103,7 +118,7 @@ export function EditSkuModal({ isOpen, onClose, variant, availableAttributes, av
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4 pt-4">
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-1.5">
               <Label className="text-xs font-semibold text-slate-700">SKU Code <span className="text-red-500">*</span></Label>
               <Input
@@ -131,7 +146,7 @@ export function EditSkuModal({ isOpen, onClose, variant, availableAttributes, av
             )}
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-1.5">
               <Label className="text-xs font-semibold text-slate-700">Diameter (D)</Label>
               <Input
@@ -174,9 +189,9 @@ export function EditSkuModal({ isOpen, onClose, variant, availableAttributes, av
             </div>
           </div>
 
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-1.5">
-              <Label className="text-xs font-semibold text-slate-700">List Price (₹)</Label>
+              <Label className="text-xs font-semibold text-slate-700 whitespace-nowrap">List Price (₹)</Label>
               <Input
                 type="number"
                 step="0.01"
@@ -186,7 +201,7 @@ export function EditSkuModal({ isOpen, onClose, variant, availableAttributes, av
               />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs font-semibold text-slate-700">Stock Quantity</Label>
+              <Label className="text-xs font-semibold text-slate-700 whitespace-nowrap">Stock Quantity</Label>
               <Input
                 type="number"
                 value={stockQuantity}
@@ -194,8 +209,12 @@ export function EditSkuModal({ isOpen, onClose, variant, availableAttributes, av
                 className="h-9 text-xs border-slate-200"
               />
             </div>
+          </div>
+
+          {/* The three quantity settings share a row so they read as one group. */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div className="space-y-1.5">
-              <Label className="text-xs font-semibold text-slate-700">Min Units</Label>
+              <Label className="text-xs font-semibold text-slate-700 whitespace-nowrap">Minimum SKU Quantity</Label>
               <Input
                 type="number"
                 min="0"
@@ -205,8 +224,42 @@ export function EditSkuModal({ isOpen, onClose, variant, availableAttributes, av
                 placeholder="0"
                 className="h-9 text-xs border-slate-200"
               />
+              <p className="text-[10px] text-slate-400 leading-tight">Restock target level</p>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold text-slate-700 whitespace-nowrap">Trigger Quantity</Label>
+              <Input
+                type="number"
+                min="0"
+                step="1"
+                value={triggerQuantity}
+                onChange={(e) => setTriggerQuantity(e.target.value)}
+                placeholder="0"
+                className="h-9 text-xs border-slate-200"
+              />
+              <p className="text-[10px] text-slate-400 leading-tight">Auto-order fires at or below this. 0 = off</p>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold text-slate-700 whitespace-nowrap">Minimum Order Quantity</Label>
+              <Input
+                type="number"
+                min="1"
+                step="1"
+                value={minOrderQuantity}
+                onChange={(e) => setMinOrderQuantity(e.target.value)}
+                placeholder="1"
+                className="h-9 text-xs border-slate-200"
+              />
+              <p className="text-[10px] text-slate-400 leading-tight">Customer&apos;s minimum purchase quantity. Defaults to 1.</p>
             </div>
           </div>
+
+          {triggerMisconfigured ? (
+            <p className="text-[11px] text-red-600" role="alert">
+              Minimum SKU Quantity must be greater than Trigger Quantity, otherwise
+              auto-ordering cannot work for this SKU.
+            </p>
+          ) : null}
 
           {/* Dynamic Specifications (if present from CSV) */}
           {Object.keys(customSpecs).length > 0 && (
@@ -214,7 +267,7 @@ export function EditSkuModal({ isOpen, onClose, variant, availableAttributes, av
               <Label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block mb-2">
                 Additional Specifications
               </Label>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {Object.entries(customSpecs).map(([key, val]) => (
                   <div key={key} className="space-y-1.5">
                     <Label className="text-xs font-semibold text-slate-700 capitalize">{key}</Label>
@@ -242,7 +295,7 @@ export function EditSkuModal({ isOpen, onClose, variant, availableAttributes, av
             </Button>
             <Button
               type="submit"
-              disabled={isLoading}
+              disabled={isLoading || triggerMisconfigured}
               className="h-9 text-xs shadow-none bg-[#024AE5] hover:bg-[#024AE5]/90 text-white px-6"
             >
               {isLoading && <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />}

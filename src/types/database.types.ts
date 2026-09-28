@@ -324,7 +324,12 @@ export interface ProductVariant {
   shank_diameter?: number | null;
   list_price: number;
   stock_quantity: number;
+  /** Target stock level the auto purchase order restocks up to. Not customer-facing. */
   min_quantity?: number;
+  /** Reorder threshold: auto PO fires when stock <= this. 0 disables auto-ordering. */
+  trigger_quantity?: number;
+  /** Customer-facing minimum order quantity (storefront). */
+  min_order_quantity?: number;
   specifications?: Record<string, any>;
   is_archived?: boolean;
   archived_at?: string | null;
@@ -367,6 +372,7 @@ export interface PurchaseOrder {
   sku_code: string;
   product_title: string;
   min_quantity: number;
+  trigger_quantity: number;
   actual_quantity: number;
   order_quantity: number;
   specifications: Record<string, any>;

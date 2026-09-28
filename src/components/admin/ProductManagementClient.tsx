@@ -564,7 +564,12 @@ export function ProductManagementClient({
                                     ))}
                                     <TableHead className="font-bold text-slate-800 h-9 text-center">LIST PRICE</TableHead>
                                     <TableHead className="font-bold text-slate-800 h-9 text-center">STOCK</TableHead>
-                                    <TableHead className="font-bold text-slate-800 h-9 text-center whitespace-nowrap">MIN UNITS</TableHead>
+                                    <TableHead
+                                      className="font-bold text-slate-800 h-9 text-center whitespace-nowrap"
+                                      title="Minimum SKU Quantity / Trigger Quantity / Minimum Order Quantity"
+                                    >
+                                      MIN / TRIGGER / MOQ
+                                    </TableHead>
                                     <TableHead className="font-bold text-slate-800 h-9 text-right pr-4">ACTIONS</TableHead>
                                   </TableRow>
                                 </TableHeader>
@@ -607,8 +612,11 @@ export function ProductManagementClient({
                                           )}
                                         </TableCell>
                                         <TableCell className="text-center py-2.5">
-                                          <span className="inline-flex items-center text-slate-700 font-bold text-[11px] bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
-                                            {v.min_quantity ?? 0} Units
+                                          <span
+                                            className="inline-flex items-center text-slate-700 font-bold text-[11px] bg-slate-100 px-2 py-0.5 rounded border border-slate-200 whitespace-nowrap"
+                                            title={`Minimum SKU Quantity: ${v.min_quantity ?? 0} | Trigger Quantity: ${v.trigger_quantity ?? 0} | Minimum Order Quantity: ${v.min_order_quantity ?? 1}`}
+                                          >
+                                            {v.min_quantity ?? 0} / {v.trigger_quantity ?? 0} / {v.min_order_quantity ?? 1}
                                           </span>
                                         </TableCell>
                                         <TableCell className="text-right pr-4">

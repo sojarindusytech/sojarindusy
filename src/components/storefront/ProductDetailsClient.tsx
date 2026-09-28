@@ -126,7 +126,7 @@ export function ProductDetailsClient({
   const updateQuantity = (variantId: string, delta: number) => {
     setQuantities((prev) => {
       const variant = product.variants?.find((v) => v.id === variantId);
-      const minQty = variant?.min_quantity && variant.min_quantity > 0 ? variant.min_quantity : 1;
+      const minQty = variant?.min_order_quantity && variant.min_order_quantity > 0 ? variant.min_order_quantity : 1;
       const current = prev[variantId] ?? minQty;
       const next = Math.max(minQty, current + delta);
       return { ...prev, [variantId]: next };
@@ -1186,8 +1186,10 @@ export function ProductDetailsClient({
                       </tr>
                     ) : (
                       paginatedVariants.map((v) => {
-                        const minQty = v.min_quantity && v.min_quantity > 0 ? v.min_quantity : 1;
+                        const minQty = v.min_order_quantity && v.min_order_quantity > 0 ? v.min_order_quantity : 1;
                         const qty = quantities[v.id] ?? minQty;
+                        const availableStock = v.stock_quantity ?? 0;
+                        const exceedsStock = qty > availableStock;
                         return (
                           <tr
                             key={v.id}
@@ -1259,9 +1261,24 @@ export function ProductDetailsClient({
                                     <Plus className="h-3 w-3" />
                                   </button>
                                 </div>
-                                {v.min_quantity && v.min_quantity > 0 ? (
-                                  <span className="text-[10px] text-slate-400 font-medium whitespace-nowrap">
-                                    Min: {v.min_quantity}
+                                {v.min_order_quantity && v.min_order_quantity > 0 ? (
+                                  <span
+                                    className="text-[10px] text-slate-400 font-medium whitespace-nowrap"
+                                    title="Minimum order quantity"
+                                  >
+                                    Min: {v.min_order_quantity}
+                                  </span>
+                                ) : null}
+                                {/* Backorder notice: ordering beyond stock is allowed, but the
+                                    customer is told the overflow ships on a longer lead time. */}
+                                {exceedsStock ? (
+                                  <span
+                                    role="status"
+                                    className="block max-w-[200px] text-center text-[10px] font-medium leading-tight text-amber-700 whitespace-normal"
+                                  >
+                                    Only {availableStock} units are currently in stock. Any
+                                    additional quantity ordered will take approximately 1 month to
+                                    be delivered.
                                   </span>
                                 ) : null}
                               </div>
@@ -1278,7 +1295,7 @@ export function ProductDetailsClient({
                                       )}`
                                     );
                                   } else {
-                                    const minQty = v.min_quantity && v.min_quantity > 0 ? v.min_quantity : 1;
+                                    const minQty = v.min_order_quantity && v.min_order_quantity > 0 ? v.min_order_quantity : 1;
                                     const qty = quantities[v.id] ?? minQty;
                                     const itemSpecs: Record<string, any> = {
                                       ...(v.specifications || {}),

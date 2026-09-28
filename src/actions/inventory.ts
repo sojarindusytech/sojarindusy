@@ -187,7 +187,7 @@ export async function adjustVariantStock(
       notes: movementReason,
     });
 
-    // Auto-generate Purchase Order if stock dropped below min_quantity
+    // Auto-generate a Purchase Order if stock fell to or below trigger_quantity
     try {
       const { checkAndGeneratePurchaseOrder } = await import("@/actions/purchase-order");
       await checkAndGeneratePurchaseOrder(variant.id, targetStock);

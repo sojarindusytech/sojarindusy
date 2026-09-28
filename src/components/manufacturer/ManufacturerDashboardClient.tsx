@@ -23,7 +23,19 @@ import {
   Calendar,
   AlertCircle,
 } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { cn } from "@/lib/utils";
+import {
+  DATE_RANGE_OPTIONS,
+  isWithinDateRange,
+  type DateRangeKey,
+} from "@/lib/date-range";
 
 interface ManufacturerDashboardClientProps {
   orders: PurchaseOrder[];
@@ -34,6 +46,9 @@ export function ManufacturerDashboardClient({
 }: ManufacturerDashboardClientProps) {
   const [activeTab, setActiveTab] = useState<"active" | "past">("active");
   const [searchQuery, setSearchQuery] = useState("");
+  const [dateRange, setDateRange] = useState<DateRangeKey>("all");
+  const [customFrom, setCustomFrom] = useState("");
+  const [customTo, setCustomTo] = useState("");
 
   // Split Active Orders (Placed, Dispatched / In Transit) and Past Orders (Received)
   const activeOrders = useMemo(
@@ -52,17 +67,27 @@ export function ManufacturerDashboardClient({
   // Current list based on active tab
   const currentOrders = activeTab === "active" ? activeOrders : pastOrders;
 
-  // Filter by search query
+  // Filter by search query and the placed-date range
   const filteredOrders = useMemo(() => {
-    if (!searchQuery.trim()) return currentOrders;
     const q = searchQuery.toLowerCase().trim();
-    return currentOrders.filter(
-      (o) =>
+    return currentOrders.filter((o) => {
+      const matchesSearch =
+        !q ||
         o.order_number?.toLowerCase().includes(q) ||
         o.sku_code?.toLowerCase().includes(q) ||
-        o.product_title?.toLowerCase().includes(q)
-    );
-  }, [currentOrders, searchQuery]);
+        o.product_title?.toLowerCase().includes(q);
+
+      // Filter on the same date the DATE PLACED column renders.
+      const matchesDate = isWithinDateRange(
+        o.placed_at || o.created_at,
+        dateRange,
+        customFrom,
+        customTo
+      );
+
+      return matchesSearch && matchesDate;
+    });
+  }, [currentOrders, searchQuery, dateRange, customFrom, customTo]);
 
   // Aggregate Metrics
   const totalActiveUnits = activeOrders.reduce(
@@ -180,16 +205,61 @@ export function ManufacturerDashboardClient({
             </button>
           </div>
 
-          {/* Search Box */}
-          <div className="relative w-full sm:w-72">
-            <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-slate-400" />
-            <Input
-              type="text"
-              placeholder="Search by PO #, SKU, or Title..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-8 h-9 text-xs bg-slate-50/50 border-slate-200 focus:bg-white"
-            />
+          {/* Search + date filters, grouped so the tabs stay left */}
+          <div className="flex flex-col sm:flex-row sm:items-center gap-2 w-full sm:w-auto">
+            {/* Search Box */}
+            <div className="relative w-full sm:w-64">
+              <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-slate-400" />
+              <Input
+                type="text"
+                placeholder="Search by PO #, SKU, or Title..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-8 h-9 text-xs bg-slate-50/50 border-slate-200 focus:bg-white"
+              />
+            </div>
+
+            {/* Date filter on the order's placed date */}
+            <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+              <Select
+                value={dateRange}
+                onValueChange={(v) => setDateRange(v as DateRangeKey)}
+              >
+                <SelectTrigger className="h-9 text-xs bg-slate-50/50 border-slate-200 w-full sm:w-[150px]">
+                  <Calendar className="h-3.5 w-3.5 text-slate-400 mr-1.5 shrink-0" />
+                  <SelectValue placeholder="All Time" />
+                </SelectTrigger>
+                <SelectContent>
+                  {DATE_RANGE_OPTIONS.map((opt) => (
+                    <SelectItem key={opt.value} value={opt.value} className="text-xs">
+                      {opt.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              {dateRange === "custom" ? (
+                <div className="flex items-center gap-2">
+                  <Input
+                    type="date"
+                    value={customFrom}
+                    max={customTo || undefined}
+                    onChange={(e) => setCustomFrom(e.target.value)}
+                    aria-label="From date"
+                    className="h-9 text-xs bg-slate-50/50 border-slate-200 w-full sm:w-[140px]"
+                  />
+                  <span className="text-xs text-slate-400 shrink-0">to</span>
+                  <Input
+                    type="date"
+                    value={customTo}
+                    min={customFrom || undefined}
+                    onChange={(e) => setCustomTo(e.target.value)}
+                    aria-label="To date"
+                    className="h-9 text-xs bg-slate-50/50 border-slate-200 w-full sm:w-[140px]"
+                  />
+                </div>
+              ) : null}
+            </div>
           </div>
         </div>
 
@@ -260,15 +330,16 @@ export function ManufacturerDashboardClient({
                       </TableCell>
 
                       {/* Specifications */}
-                      <TableCell className="max-w-[220px]">
+                      <TableCell className="min-w-[180px]">
                         {specItems.length > 0 ? (
                           <div className="flex flex-wrap gap-1">
                             {specItems.slice(0, 3).map(([k, v]) => (
                               <span
                                 key={k}
-                                className="inline-flex items-center text-[10px] bg-slate-50 text-slate-600 px-1.5 py-0.5 rounded border border-slate-200"
+                                className="inline-flex shrink-0 items-center gap-1 text-[10px] bg-slate-50 text-slate-600 px-1.5 py-0.5 rounded border border-slate-200 whitespace-nowrap"
                               >
-                                <span className="font-semibold mr-1">{k}:</span> {String(v)}
+                                <span className="font-semibold">{k}:</span>
+                                <span>{String(v)}</span>
                               </span>
                             ))}
                             {specItems.length > 3 && (

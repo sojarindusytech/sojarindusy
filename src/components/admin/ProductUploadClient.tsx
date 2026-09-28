@@ -92,7 +92,9 @@ const SYSTEM_MAPPABLE_FIELDS = [
   { key: "shankDia", label: "Shank Dia (D2)", dataType: "Decimal" },
   { key: "listPrice", label: "List Price (Excl. GST)", dataType: "Decimal" },
   { key: "stockQuantity", label: "Stock Quantity", dataType: "Integer" },
-  { key: "minQuantity", label: "Min Order Units (Min SKU)", dataType: "Integer" },
+  { key: "minQuantity", label: "Minimum SKU Quantity", dataType: "Integer" },
+  { key: "triggerQuantity", label: "Trigger Quantity", dataType: "Integer" },
+  { key: "minOrderQuantity", label: "Minimum Order Quantity", dataType: "Integer" },
 ];
 
 export function ProductUploadClient({
@@ -473,7 +475,9 @@ export function ProductUploadClient({
         else if (lower === "l" || lower.includes("overall")) initialMap[h] = "overallLength";
         else if (lower === "d2" || lower.includes("shank")) initialMap[h] = "shankDia";
         else if (lower.includes("price")) initialMap[h] = "listPrice";
-        else if (lower.includes("min") || lower.includes("moq")) initialMap[h] = "minQuantity";
+        else if (lower.includes("trigger") || lower.includes("reorder")) initialMap[h] = "triggerQuantity";
+        else if (lower.includes("target") || /min.*(sku|stock|level)/.test(lower)) initialMap[h] = "minQuantity";
+        else if (lower.includes("moq") || lower.includes("min")) initialMap[h] = "minOrderQuantity";
         else if (lower.includes("stock") || lower.includes("qty")) initialMap[h] = "stockQuantity";
         else initialMap[h] = h;
       });
@@ -682,6 +686,8 @@ export function ProductUploadClient({
           let list_price: number = 0;
           let stock_quantity: number = 0;
           let min_quantity: number = 0;
+          let trigger_quantity: number = 0;
+          let min_order_quantity: number = 1;
           const specifications: Record<string, any> = {
             Attribute: upload.attributeName,
             Tag: upload.attributeName,
@@ -700,6 +706,10 @@ export function ProductUploadClient({
               stock_quantity = val ? parseInt(val.toString().replace(/[^0-9]/g, ""), 10) || 0 : 0;
             else if (sysField === "minQuantity")
               min_quantity = val ? parseInt(val.toString().replace(/[^0-9]/g, ""), 10) || 0 : 0;
+            else if (sysField === "triggerQuantity")
+              trigger_quantity = val ? parseInt(val.toString().replace(/[^0-9]/g, ""), 10) || 0 : 0;
+            else if (sysField === "minOrderQuantity")
+              min_order_quantity = Math.max(1, val ? parseInt(val.toString().replace(/[^0-9]/g, ""), 10) || 1 : 1);
             else specifications[sysField || header] = val;
           });
 
@@ -712,6 +722,8 @@ export function ProductUploadClient({
             list_price,
             stock_quantity,
             min_quantity,
+            trigger_quantity,
+            min_order_quantity,
             specifications,
           });
         });
