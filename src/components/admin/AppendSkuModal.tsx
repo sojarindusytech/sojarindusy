@@ -46,7 +46,9 @@ const TARGET_COLUMNS: TargetColumn[] = [
   { key: "shankDia", label: "Shank Dia (D2)", dataType: "Decimal" },
   { key: "listPrice", label: "List Price (Excl. GST)", dataType: "Decimal" },
   { key: "stockQuantity", label: "Stock Quantity", dataType: "Integer" },
-  { key: "minQuantity", label: "Min Order Units (Min SKU)", dataType: "Integer" },
+  { key: "minQuantity", label: "Minimum SKU Quantity", dataType: "Integer" },
+  { key: "triggerQuantity", label: "Trigger Quantity", dataType: "Integer" },
+  { key: "minOrderQuantity", label: "Minimum Order Quantity", dataType: "Integer" },
 ];
 
 const SYSTEM_MAPPABLE_FIELDS = TARGET_COLUMNS;
@@ -154,7 +156,9 @@ export function AppendSkuModal({ isOpen, onClose, productId, availableAttributes
         else if (lower === "l" || lower.includes("overall")) initialMap[h] = "overallLength";
         else if (lower === "d2" || lower.includes("shank")) initialMap[h] = "shankDia";
         else if (lower.includes("price")) initialMap[h] = "listPrice";
-        else if (lower.includes("min") || lower.includes("moq")) initialMap[h] = "minQuantity";
+        else if (lower.includes("trigger") || lower.includes("reorder")) initialMap[h] = "triggerQuantity";
+        else if (lower.includes("target") || /min.*(sku|stock|level)/.test(lower)) initialMap[h] = "minQuantity";
+        else if (lower.includes("moq") || lower.includes("min")) initialMap[h] = "minOrderQuantity";
         else if (lower.includes("stock") || lower.includes("qty")) initialMap[h] = "stockQuantity";
         else initialMap[h] = h;
       });
@@ -213,6 +217,8 @@ export function AppendSkuModal({ isOpen, onClose, productId, availableAttributes
       const listPriceStr = getMappedVal("listPrice");
       const stockQtyStr = getMappedVal("stockQuantity");
       const minQtyStr = getMappedVal("minQuantity");
+      const triggerQtyStr = getMappedVal("triggerQuantity");
+      const minOrderQtyStr = getMappedVal("minOrderQuantity");
 
       if (!sku) {
         rowErrors.push(`Row ${rowIndex + 1}: Missing SKU Code`);
@@ -221,6 +227,8 @@ export function AppendSkuModal({ isOpen, onClose, productId, availableAttributes
       const listPrice = listPriceStr ? parseFloat(listPriceStr.toString().replace(/[^0-9.]/g, "")) : 0;
       const stockQty = stockQtyStr ? parseInt(stockQtyStr.toString().replace(/[^0-9]/g, ""), 10) : 0;
       const minQty = minQtyStr ? parseInt(minQtyStr.toString().replace(/[^0-9]/g, ""), 10) : 0;
+      const triggerQty = triggerQtyStr ? parseInt(triggerQtyStr.toString().replace(/[^0-9]/g, ""), 10) : 0;
+      const minOrderQty = Math.max(1, (minOrderQtyStr ? parseInt(minOrderQtyStr.toString().replace(/[^0-9]/g, ""), 10) : 1) || 1);
 
       const specs: any = {};
       let attributeIdToLink: string | undefined = undefined;
@@ -245,6 +253,8 @@ export function AppendSkuModal({ isOpen, onClose, productId, availableAttributes
         list_price: listPrice,
         stock_quantity: stockQty,
         min_quantity: minQty,
+        trigger_quantity: triggerQty,
+        min_order_quantity: minOrderQty,
         specifications: specs,
       });
     });

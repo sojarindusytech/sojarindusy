@@ -25,6 +25,8 @@ export interface CreateProductPayload {
     list_price: number;
     stock_quantity: number;
     min_quantity?: number;
+    trigger_quantity?: number;
+    min_order_quantity?: number;
     specifications?: Record<string, any>;
   }>;
 }
@@ -338,6 +340,8 @@ export async function createFullProduct(payload: CreateProductPayload): Promise<
         list_price: Number(v.list_price) || 0,
         stock_quantity: Number(v.stock_quantity) || 0,
         min_quantity: Number(v.min_quantity) || 0,
+        trigger_quantity: Number(v.trigger_quantity) || 0,
+        min_order_quantity: Math.max(1, Number(v.min_order_quantity) || 1),
         specifications: v.specifications || {},
       }));
 

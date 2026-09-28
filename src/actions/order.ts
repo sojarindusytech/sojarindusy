@@ -150,7 +150,7 @@ export async function createCustomerOrder(
             notes: `Auto-reserved for ${customerDetails.company_name}`,
           });
 
-          // Check if stock dropped below min_quantity and auto-generate Purchase Order
+          // Auto-generate a Purchase Order if stock fell to or below trigger_quantity
           try {
             await checkAndGeneratePurchaseOrder(item.variantId, newStock);
           } catch (poErr) {
