@@ -12,9 +12,11 @@ import {
   ShieldCheck,
   CheckCircle2,
   FileDown,
+  Loader2,
 } from "lucide-react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { generateQuotePdf } from "@/lib/generateQuotePdf";
+import { createCartQuote } from "@/actions/quote";
 import toast from "react-hot-toast";
 import { cn } from "@/lib/utils";
 
@@ -32,13 +34,34 @@ export function CartDrawer() {
   } = useCart();
   const router = useRouter();
 
-  const handleDownloadQuote = () => {
+  const [isQuoting, setIsQuoting] = useState(false);
+
+  // Creates a real, numbered quotation on the server (prices come from the database) and downloads its PDF.
+  const handleDownloadQuote = async () => {
     if (items.length === 0) {
       toast.error("Cart is empty. Add items to generate a quotation.");
       return;
     }
-    generateQuotePdf(items, { subtotal, gstAmount, totalAmount });
-    toast.success("Generating official Commercial Price Quotation PDF...");
+    setIsQuoting(true);
+    const res = await createCartQuote(items.map((i) => ({ variantId: i.variantId, quantity: i.quantity })));
+    setIsQuoting(false);
+
+    if (!res.success) {
+      toast.error(res.error);
+      if (res.needsLogin) {
+        setIsCartOpen(false);
+        router.push("/login");
+      }
+      return;
+    }
+
+    toast.success(`Quotation ${res.quoteNumber} ready.`);
+    const link = document.createElement("a");
+    link.href = `/api/quotes/${res.quoteId}/pdf?download=1`;
+    link.rel = "noopener";
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
   };
 
   return (
@@ -200,10 +223,11 @@ export function CartDrawer() {
                 type="button"
                 variant="outline"
                 onClick={handleDownloadQuote}
+                disabled={isQuoting}
                 className="w-full h-9.5 text-xs font-bold border-slate-300 text-slate-800 hover:text-[#024AE5] hover:border-blue-300 hover:bg-blue-50/50 shadow-none gap-2 cursor-pointer transition-colors"
               >
-                <FileDown className="h-4 w-4 text-[#024AE5]" />
-                <span>Download as Quote (PDF)</span>
+                {isQuoting ? <Loader2 className="h-4 w-4 animate-spin text-[#024AE5]" /> : <FileDown className="h-4 w-4 text-[#024AE5]" />}
+                <span>{isQuoting ? "Preparing quotation..." : "Download as Quote (PDF)"}</span>
               </Button>
 
               <Button

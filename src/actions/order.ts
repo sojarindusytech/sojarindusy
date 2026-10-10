@@ -7,6 +7,7 @@ import { Order, OrderItem, CustomerOrderDetails, Profile } from "@/types/databas
 import { OrderStatus, ORDER_STATUSES, ORDER_STATUS_CONFIG } from "@/lib/constants";
 import { recordStockMovement } from "@/actions/inventory";
 import { checkAndGeneratePurchaseOrder } from "@/actions/purchase-order";
+import { createInvoiceFromOrder } from "@/actions/invoice";
 import { createNotification } from "@/actions/notification";
 import { revalidatePath } from "next/cache";
 
@@ -259,8 +260,14 @@ export async function updateOrderStatus(
         updates.delivered_at = new Date().toISOString();
       }
       if (!existingOrder.invoice_number) {
-        const orderSuffix = existingOrder.order_number?.replace("ORD-", "") || `${Math.floor(1000 + Math.random() * 9000)}`;
-        updates.invoice_number = `INV-${orderSuffix}`;
+        // Delivery must never fail because invoicing did. On error the order keeps no
+        // invoice_number, so the next DELIVERED save (or Invoices > New) retries it.
+        const invoiceResult = await createInvoiceFromOrder(orderId);
+        if (invoiceResult.success) {
+          updates.invoice_number = invoiceResult.invoice.invoice_number;
+        } else {
+          console.error(`[updateOrderStatus] Invoice for order ${existingOrder.order_number} failed: ${invoiceResult.error}`);
+        }
       }
     }
 

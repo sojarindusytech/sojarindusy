@@ -1,4 +1,4 @@
-import { fetchCustomerOrdersList } from "@/actions/order";
+import { fetchCustomerInvoices } from "@/actions/invoice";
 import { CustomerInvoicesView } from "@/components/customer/CustomerInvoicesView";
 import type { Metadata } from "next";
 
@@ -10,7 +10,7 @@ export const metadata: Metadata = {
 export const dynamic = "force-dynamic";
 
 export default async function CustomerInvoicesPage() {
-  const orders = await fetchCustomerOrdersList();
+  const invoices = await fetchCustomerInvoices();
 
-  return <CustomerInvoicesView orders={orders} />;
+  return <CustomerInvoicesView invoices={invoices} />;
 }

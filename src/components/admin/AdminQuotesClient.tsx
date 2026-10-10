@@ -1,14 +1,12 @@
 "use client";
 
-import React, { useState } from "react";
-import { CommercialQuote, QuoteStatus } from "@/types/database.types";
+import React, { useEffect, useState } from "react";
+import { CommercialQuote, QuoteStatus, QuoteStatusHistoryEntry } from "@/types/database.types";
 import { QUOTE_STATUS_CONFIG } from "@/lib/constants";
-import {
-  updateCommercialQuoteStatus,
-  fetchCommercialQuotesList,
-  createCommercialQuote,
-} from "@/actions/quote";
-import { generateQuotePdf } from "@/lib/generateQuotePdf";
+import { updateCommercialQuoteStatus, fetchCommercialQuotesList, getQuoteFormData, fetchQuoteStatusHistory, type QuoteFormData } from "@/actions/quote";
+import { QuoteFormModal } from "./QuoteFormModal";
+import { Skeleton } from "@/components/ui/skeleton";
+import { PaginationBar, usePagination } from "@/components/common/Pagination";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -50,12 +48,12 @@ import {
   Phone,
   Mail,
   RefreshCw,
-  Printer,
+  Download,
+  Eye,
   Plus,
   IndianRupee,
   Calendar,
   Layers,
-  Trash2,
 } from "lucide-react";
 import toast from "react-hot-toast";
 
@@ -74,27 +72,32 @@ export function AdminQuotesClient({ initialQuotes }: AdminQuotesClientProps) {
   const [statusDraft, setStatusDraft] = useState<QuoteStatus>("draft");
   const [notesDraft, setNotesDraft] = useState("");
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
+  // Status timeline (separate table) for the quote open in the status modal.
+  const [history, setHistory] = useState<{ quoteId: string; rows: QuoteStatusHistoryEntry[] } | null>(null);
+  const selectedId = selectedQuote?.id ?? null;
+  useEffect(() => {
+    if (!selectedId) return;
+    let cancelled = false;
+    fetchQuoteStatusHistory(selectedId).then((rows) => { if (!cancelled) setHistory({ quoteId: selectedId, rows }); });
+    return () => { cancelled = true; };
+  }, [selectedId]);
+  const historyLoading = !!selectedId && history?.quoteId !== selectedId;
 
   // View Quote Detail State
   const [viewingQuote, setViewingQuote] = useState<CommercialQuote | null>(null);
 
-  // Create Quote Dialog State
+  // Create form + PDF preview
   const [isCreateOpen, setIsCreateOpen] = useState(false);
-  const [isCreating, setIsCreating] = useState(false);
-  const [newCompanyName, setNewCompanyName] = useState("");
-  const [newContactPerson, setNewContactPerson] = useState("");
-  const [newEmail, setNewEmail] = useState("");
-  const [newMobile, setNewMobile] = useState("");
-  const [newGstin, setNewGstin] = useState("");
-  const [newAddress, setNewAddress] = useState("");
-  const [newPaymentTerms, setNewPaymentTerms] = useState("30 Days PDC against delivery");
-  const [newDeliveryTerms, setNewDeliveryTerms] = useState("Ex-Works MIDC Waluj, 5-7 business days");
-  const [newValidDays, setNewValidDays] = useState("30");
-  const [newItems, setNewItems] = useState<
-    Array<{ title: string; sku: string; quantity: number; unit_price: number }>
-  >([
-    { title: "Solid Carbide End Mill 10mm 4-Flute", sku: "EM-SC-4F-10MM", quantity: 20, unit_price: 1450 },
-  ]);
+  // Customers / open RFQs / defaults for the form, fetched ahead of the click so its dropdowns are ready on open.
+  const [formData, setFormData] = useState<QuoteFormData | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    getQuoteFormData().then((d) => { if (!cancelled) setFormData(d); });
+    return () => { cancelled = true; };
+  }, []);
+  const [pdfQuote, setPdfQuote] = useState<CommercialQuote | null>(null);
+  // Id of the quote whose PDF has finished loading; the skeleton shows until it matches.
+  const [loadedPdfId, setLoadedPdfId] = useState<string | null>(null);
 
   // Metrics
   const totalCount = quotes.length;
@@ -115,12 +118,14 @@ export function AdminQuotesClient({ initialQuotes }: AdminQuotesClientProps) {
       const matchEmail = q.email?.toLowerCase().includes(term);
       const matchMobile = q.mobile?.toLowerCase().includes(term);
       const matchItems = q.items?.some(
-        (i) => i.title.toLowerCase().includes(term) || i.sku.toLowerCase().includes(term)
+        (i) => i.name.toLowerCase().includes(term) || (i.sku ?? "").toLowerCase().includes(term)
       );
       return matchNum || matchCompany || matchContact || matchEmail || matchMobile || matchItems;
     }
     return true;
   });
+
+  const pager = usePagination(filteredQuotes, `${searchQuery}|${statusFilter}`);
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
@@ -139,6 +144,26 @@ export function AdminQuotesClient({ initialQuotes }: AdminQuotesClientProps) {
     setSelectedQuote(quote);
     setStatusDraft(quote.status);
     setNotesDraft(quote.admin_notes || "");
+  };
+
+  // Inline status change from the table. Notes are untouched; use the quote's detail modal to add one.
+  const [statusUpdatingId, setStatusUpdatingId] = useState<string | null>(null);
+  const handleInlineStatus = async (quote: CommercialQuote, next: QuoteStatus) => {
+    if (next === quote.status) return;
+    setStatusUpdatingId(quote.id);
+    try {
+      const res = await updateCommercialQuoteStatus(quote.id, { status: next });
+      if (res.success) {
+        setQuotes((prev) => prev.map((q) => (q.id === quote.id ? { ...q, status: next, updated_at: new Date().toISOString() } : q)));
+        toast.success(`${quote.quote_number} marked ${QUOTE_STATUS_CONFIG[next]?.label ?? next}`);
+      } else {
+        toast.error(res.error || "Failed to update status");
+      }
+    } catch {
+      toast.error("Unexpected error updating status");
+    } finally {
+      setStatusUpdatingId(null);
+    }
   };
 
   const handleSaveStatus = async () => {
@@ -167,145 +192,6 @@ export function AdminQuotesClient({ initialQuotes }: AdminQuotesClientProps) {
       toast.error("Unexpected error updating quotation status");
     } finally {
       setIsUpdatingStatus(false);
-    }
-  };
-
-  const handlePrintPdf = (quote: CommercialQuote) => {
-    try {
-      const cartItems = quote.items.map((item) => ({
-        id: item.id,
-        productId: item.id,
-        variantId: item.id,
-        title: item.title,
-        sku: item.sku,
-        unitPrice: item.unit_price,
-        quantity: item.quantity,
-        specifications: item.specifications || {},
-      }));
-
-      generateQuotePdf(
-        cartItems,
-        {
-          subtotal: quote.subtotal,
-          gstAmount: quote.tax_amount,
-          totalAmount: quote.total_amount,
-        },
-        {
-          companyName: quote.company_name,
-          contactName: quote.contact_person,
-          email: quote.email,
-          mobile: quote.mobile,
-          address: quote.address || undefined,
-          gstin: quote.gstin || undefined,
-        }
-      );
-    } catch {
-      toast.error("Failed to generate PDF quotation");
-    }
-  };
-
-  // Create Quote Calculation Helpers
-  const calcSubtotal = newItems.reduce((acc, item) => acc + item.quantity * item.unit_price, 0);
-  const calcGst = calcSubtotal * 0.18;
-  const calcTotal = calcSubtotal + calcGst;
-
-  const handleAddItemRow = () => {
-    setNewItems((prev) => [
-      ...prev,
-      { title: "", sku: "", quantity: 1, unit_price: 0 },
-    ]);
-  };
-
-  const handleRemoveItemRow = (index: number) => {
-    if (newItems.length <= 1) {
-      toast.error("Quotation must have at least one line item");
-      return;
-    }
-    setNewItems((prev) => prev.filter((_, idx) => idx !== index));
-  };
-
-  const handleItemChange = (index: number, field: string, value: any) => {
-    setNewItems((prev) =>
-      prev.map((item, idx) => {
-        if (idx === index) {
-          return { ...item, [field]: value };
-        }
-        return item;
-      })
-    );
-  };
-
-  const handleCreateQuote = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newCompanyName.trim()) {
-      toast.error("Client company name is required");
-      return;
-    }
-    if (!newContactPerson.trim()) {
-      toast.error("Contact person is required");
-      return;
-    }
-    if (!newEmail.trim() && !newMobile.trim()) {
-      toast.error("Either email or mobile number is required");
-      return;
-    }
-    if (newItems.some((i) => !i.title.trim() || i.quantity <= 0 || i.unit_price <= 0)) {
-      toast.error("Please fill in valid titles, quantities, and unit rates for all items");
-      return;
-    }
-
-    setIsCreating(true);
-    try {
-      const validUntilDate = new Date(
-        Date.now() + parseInt(newValidDays || "30", 10) * 24 * 60 * 60 * 1000
-      )
-        .toISOString()
-        .split("T")[0];
-
-      const res = await createCommercialQuote({
-        company_name: newCompanyName.trim(),
-        contact_person: newContactPerson.trim(),
-        email: newEmail.trim(),
-        mobile: newMobile.trim(),
-        gstin: newGstin.trim() || null,
-        address: newAddress.trim() || null,
-        items: newItems.map((item, idx) => ({
-          id: `item-${Date.now()}-${idx}`,
-          title: item.title,
-          sku: item.sku || `SKU-${idx + 1}`,
-          quantity: Number(item.quantity),
-          unit_price: Number(item.unit_price),
-          total_price: Number(item.quantity) * Number(item.unit_price),
-        })),
-        subtotal: calcSubtotal,
-        tax_rate: 18,
-        tax_amount: calcGst,
-        total_amount: calcTotal,
-        status: "sent",
-        valid_until: validUntilDate,
-        payment_terms: newPaymentTerms,
-        delivery_terms: newDeliveryTerms,
-        admin_notes: "Created from Admin Commercial Quotes workspace",
-      });
-
-      if (res.success && res.quote) {
-        toast.success(`Quotation ${res.quote.quote_number} generated successfully!`);
-        setQuotes((prev) => [res.quote!, ...prev]);
-        setIsCreateOpen(false);
-        // Reset form
-        setNewCompanyName("");
-        setNewContactPerson("");
-        setNewEmail("");
-        setNewMobile("");
-        setNewGstin("");
-        setNewAddress("");
-      } else {
-        toast.error(res.error || "Failed to create quotation");
-      }
-    } catch {
-      toast.error("Unexpected error creating quotation");
-    } finally {
-      setIsCreating(false);
     }
   };
 
@@ -374,7 +260,7 @@ export function AdminQuotesClient({ initialQuotes }: AdminQuotesClientProps) {
             <span className="text-2xl font-bold text-slate-900">
               ₹{totalPipelineValue.toLocaleString("en-IN")}
             </span>
-            <span className="text-xs text-slate-500">incl. 18% GST</span>
+            <span className="text-xs text-slate-500">incl. GST where applicable</span>
           </div>
         </Card>
 
@@ -414,7 +300,7 @@ export function AdminQuotesClient({ initialQuotes }: AdminQuotesClientProps) {
             <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
             <Input
               type="text"
-              placeholder="Search by quote # (e.g. QT-2609), company name, contact, item SKU..."
+              placeholder="Search by quote #, company name, contact, item SKU..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-9 bg-slate-50/50 border-slate-200 focus:bg-white text-sm"
@@ -460,14 +346,17 @@ export function AdminQuotesClient({ initialQuotes }: AdminQuotesClientProps) {
       {/* Commercial Quotes Table */}
       <Card className="bg-white border border-slate-200 shadow-sm rounded-xl overflow-hidden">
         <div className="overflow-x-auto [scrollbar-width:thin]">
-          <Table className="min-w-[900px]">
+          <Table className="min-w-[1000px]">
             <TableHeader className="bg-slate-50/75 border-b border-slate-200">
-              <TableRow>
-                <TableHead className="w-[180px] font-semibold text-slate-700">Quote Number</TableHead>
-                <TableHead className="font-semibold text-slate-700">Client / Company</TableHead>
-                <TableHead className="font-semibold text-slate-700">Line Items</TableHead>
-                <TableHead className="font-semibold text-slate-700 text-right">Subtotal & GST</TableHead>
-                <TableHead className="font-semibold text-slate-700 text-right">Total Amount</TableHead>
+              <TableRow className="whitespace-nowrap">
+                <TableHead className="font-semibold text-slate-700">Quote #</TableHead>
+                <TableHead className="font-semibold text-slate-700">Date</TableHead>
+                <TableHead className="font-semibold text-slate-700">Valid Until</TableHead>
+                <TableHead className="font-semibold text-slate-700">Client</TableHead>
+                <TableHead className="font-semibold text-slate-700 text-center">Items</TableHead>
+                <TableHead className="font-semibold text-slate-700 text-right">Taxable</TableHead>
+                <TableHead className="font-semibold text-slate-700 text-right">GST</TableHead>
+                <TableHead className="font-semibold text-slate-700 text-right">Total</TableHead>
                 <TableHead className="font-semibold text-slate-700">Status</TableHead>
                 <TableHead className="font-semibold text-slate-700 text-right">Actions</TableHead>
               </TableRow>
@@ -475,7 +364,7 @@ export function AdminQuotesClient({ initialQuotes }: AdminQuotesClientProps) {
             <TableBody>
               {filteredQuotes.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="h-44 text-center">
+                  <TableCell colSpan={10} className="h-44 text-center">
                     <div className="flex flex-col items-center justify-center text-slate-400">
                       <FileText className="w-8 h-8 mb-2 text-slate-300" />
                       <p className="text-sm font-medium text-slate-600">No commercial quotations found</p>
@@ -486,139 +375,83 @@ export function AdminQuotesClient({ initialQuotes }: AdminQuotesClientProps) {
                   </TableCell>
                 </TableRow>
               ) : (
-                filteredQuotes.map((quote) => {
+                pager.pageItems.map((quote) => {
                   const statusMeta = QUOTE_STATUS_CONFIG[quote.status] || {
                     label: quote.status,
                     badgeBg: "bg-slate-100",
                     badgeText: "text-slate-700",
                     border: "border-slate-200",
                   };
+                  const fmtDay = (iso: string) =>
+                    new Date(iso).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
+                  const money = (n: number) => `₹${n.toLocaleString("en-IN", { minimumFractionDigits: 2 })}`;
 
+                  // One line per quote: every cell is nowrap, long text truncates (full text on hover).
                   return (
-                    <TableRow key={quote.id} className="hover:bg-slate-50/60 transition-colors">
-                      {/* Quote Number & Dates */}
-                      <TableCell className="align-top py-3.5">
-                        <div className="font-mono font-bold text-sm text-[#024AE5]">
+                    <TableRow key={quote.id} className="hover:bg-slate-50/60 transition-colors whitespace-nowrap">
+                      <TableCell className="py-2.5 font-mono font-bold text-xs text-[#024AE5]">
+                        <button onClick={() => handleOpenStatusModal(quote)} className="hover:underline" title="Notes & status history">
                           {quote.quote_number}
-                        </div>
-                        <div className="flex items-center gap-1 text-[11px] text-slate-500 mt-1">
-                          <Calendar className="w-3 h-3 text-slate-400" />
-                          <span>{new Date(quote.created_at).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}</span>
-                        </div>
-                        <div className="text-[11px] text-slate-400 mt-0.5">
-                          Valid: {new Date(quote.valid_until).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}
-                        </div>
+                        </button>
                       </TableCell>
-
-                      {/* Client / Company Details */}
-                      <TableCell className="align-top py-3.5">
-                        <div className="font-semibold text-sm text-slate-900 flex items-center gap-1.5">
-                          <Building2 className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                          <span>{quote.company_name}</span>
-                        </div>
-                        <div className="text-xs text-slate-600 mt-0.5 font-medium">
-                          Attn: {quote.contact_person}
-                        </div>
-                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-slate-500 mt-1.5">
-                          {quote.mobile && (
-                            <span className="flex items-center gap-1">
-                              <Phone className="w-3 h-3 text-slate-400" />
-                              {quote.mobile}
-                            </span>
-                          )}
-                          {quote.email && (
-                            <span className="flex items-center gap-1">
-                              <Mail className="w-3 h-3 text-slate-400" />
-                              {quote.email}
-                            </span>
-                          )}
-                        </div>
-                        {quote.gstin && (
-                          <div className="text-[10px] font-mono text-slate-400 mt-1">
-                            GSTIN: {quote.gstin}
-                          </div>
-                        )}
+                      <TableCell className="py-2.5 text-xs text-slate-600">{fmtDay(quote.quote_date)}</TableCell>
+                      <TableCell className="py-2.5 text-xs text-slate-500">{fmtDay(quote.valid_until)}</TableCell>
+                      <TableCell
+                        className="py-2.5 max-w-[240px] truncate text-xs font-semibold text-slate-900"
+                        title={[quote.company_name, quote.contact_person, quote.mobile, quote.email, quote.gstin && `GSTIN ${quote.gstin}`].filter(Boolean).join(" · ")}
+                      >
+                        {quote.company_name}
+                        {quote.contact_person ? <span className="font-normal text-slate-500"> · {quote.contact_person}</span> : null}
                       </TableCell>
-
-                      {/* Items Summary */}
-                      <TableCell className="align-top py-3.5 max-w-[260px]">
-                        <div className="text-xs font-semibold text-slate-800 flex items-center gap-1.5">
-                          <Layers className="w-3.5 h-3.5 text-slate-400" />
-                          <span>{quote.items.length} Line Item{quote.items.length !== 1 ? "s" : ""}</span>
-                        </div>
-                        <div className="space-y-1 mt-1.5">
-                          {quote.items.slice(0, 2).map((item, idx) => (
-                            <div key={idx} className="text-[11px] text-slate-600 truncate">
-                              <span className="font-mono font-medium text-slate-700 mr-1.5">
-                                {item.quantity}×
-                              </span>
-                              <span>{item.title}</span>
-                            </div>
-                          ))}
-                          {quote.items.length > 2 && (
-                            <button
-                              onClick={() => setViewingQuote(quote)}
-                              className="text-[11px] text-[#024AE5] font-medium hover:underline pt-0.5"
-                            >
-                              +{quote.items.length - 2} more items...
-                            </button>
-                          )}
-                        </div>
-                      </TableCell>
-
-                      {/* Subtotal & GST */}
-                      <TableCell className="align-top py-3.5 text-right font-mono">
-                        <div className="text-xs text-slate-700">
-                          ₹{quote.subtotal.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
-                        </div>
-                        <div className="text-[11px] text-slate-400 mt-0.5">
-                          +18% GST: ₹{quote.tax_amount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
-                        </div>
-                      </TableCell>
-
-                      {/* Total Amount */}
-                      <TableCell className="align-top py-3.5 text-right">
-                        <div className="font-mono font-bold text-sm text-[#024AE5]">
-                          ₹{quote.total_amount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
-                        </div>
-                        <div className="text-[10px] text-slate-400">Grand Total (Net)</div>
-                      </TableCell>
-
-                      {/* Status */}
-                      <TableCell className="align-top py-3.5">
-                        <Badge
-                          variant="outline"
-                          className={`${statusMeta.badgeBg} ${statusMeta.badgeText} ${statusMeta.border} text-xs font-medium px-2.5 py-0.5`}
+                      <TableCell className="py-2.5 text-center">
+                        <button
+                          onClick={() => setViewingQuote(quote)}
+                          className="text-xs font-medium text-[#024AE5] hover:underline"
+                          title={quote.items.map((i) => `${i.quantity}× ${i.name}`).join(", ")}
                         >
-                          {statusMeta.label}
-                        </Badge>
-                        {quote.admin_notes && (
-                          <div className="text-[11px] text-slate-500 italic mt-1.5 max-w-[150px] truncate" title={quote.admin_notes}>
-                            &quot;{quote.admin_notes}&quot;
-                          </div>
-                        )}
+                          {quote.items.length} item{quote.items.length !== 1 ? "s" : ""}
+                        </button>
                       </TableCell>
-
-                      {/* Actions */}
-                      <TableCell className="align-top py-3.5 text-right">
-                        <div className="flex items-center justify-end gap-1.5">
+                      <TableCell className="py-2.5 text-right font-mono text-xs text-slate-700">{money(quote.subtotal)}</TableCell>
+                      <TableCell className="py-2.5 text-right font-mono text-xs text-slate-500">
+                        {quote.gst_enabled ? money(quote.tax_amount) : "—"}
+                      </TableCell>
+                      <TableCell className="py-2.5 text-right font-mono font-bold text-xs text-[#024AE5]">{money(quote.total_amount)}</TableCell>
+                      <TableCell className="py-2.5" title={quote.admin_notes ? `Note: ${quote.admin_notes}` : undefined}>
+                        <Select
+                          value={quote.status}
+                          disabled={statusUpdatingId === quote.id}
+                          onValueChange={(v) => handleInlineStatus(quote, v as QuoteStatus)}
+                        >
+                          <SelectTrigger
+                            className={`h-7 w-[130px] text-[11px] font-medium px-2 py-0 ${statusMeta.badgeBg} ${statusMeta.badgeText} ${statusMeta.border}`}
+                            aria-label={`Status of ${quote.quote_number}`}
+                          >
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent className="bg-white">
+                            {(Object.keys(QUOTE_STATUS_CONFIG) as QuoteStatus[]).map((st) => (
+                              <SelectItem key={st} value={st} className="text-xs">{QUOTE_STATUS_CONFIG[st].label}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </TableCell>
+                      <TableCell className="py-2.5 text-right">
+                        <div className="flex items-center justify-end gap-1">
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => handlePrintPdf(quote)}
-                            className="h-8 px-2.5 border-[#024AE5]/30 text-[#024AE5] hover:bg-[#024AE5]/5 text-xs font-medium"
-                            title="Print / Export Official PDF Quote"
+                            onClick={() => setPdfQuote(quote)}
+                            className="h-7 px-2 border-[#024AE5]/30 text-[#024AE5] hover:bg-[#024AE5]/5 text-xs font-medium"
+                            title="View official PDF quotation"
                           >
-                            <Printer className="w-3.5 h-3.5 mr-1" />
-                            PDF Quote
+                            <Eye className="w-3.5 h-3.5 mr-1" />
+                            PDF
                           </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleOpenStatusModal(quote)}
-                            className="h-8 px-2.5 text-slate-600 hover:text-slate-900 hover:bg-slate-100 text-xs"
-                          >
-                            Status
+                          <Button asChild variant="ghost" size="sm" className="h-7 px-2 text-slate-600" title="Download PDF">
+                            <a href={`/api/quotes/${quote.id}/pdf?download=1`}>
+                              <Download className="w-3.5 h-3.5" />
+                            </a>
                           </Button>
                         </div>
                       </TableCell>
@@ -629,15 +462,16 @@ export function AdminQuotesClient({ initialQuotes }: AdminQuotesClientProps) {
             </TableBody>
           </Table>
         </div>
+        <PaginationBar state={pager} noun="quotations" />
       </Card>
 
       {/* Status & Internal Notes Modal */}
       <Dialog open={!!selectedQuote} onOpenChange={(open) => !open && setSelectedQuote(null)}>
-        <DialogContent className="sm:max-w-[500px] p-6 pr-12">
+        <DialogContent className="sm:max-w-[640px] p-6 pr-12 max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="text-lg font-bold text-slate-900 flex items-center gap-2">
               <FileText className="w-5 h-5 text-[#024AE5]" />
-              Update Status & Notes
+              Notes & Status History
             </DialogTitle>
             <DialogDescription className="text-xs text-slate-500">
               Manage commercial status for quotation{" "}
@@ -678,6 +512,49 @@ export function AdminQuotesClient({ initialQuotes }: AdminQuotesClientProps) {
                   onChange={(e) => setNotesDraft(e.target.value)}
                   className="border-slate-200 text-xs leading-relaxed"
                 />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold text-slate-700">Status History</Label>
+                <div className="border border-slate-200 rounded-lg overflow-hidden">
+                  <Table>
+                    <TableHeader className="bg-slate-50">
+                      <TableRow>
+                        <TableHead className="text-[11px]">When</TableHead>
+                        <TableHead className="text-[11px]">Change</TableHead>
+                        <TableHead className="text-[11px]">By</TableHead>
+                        <TableHead className="text-[11px]">Note</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {historyLoading ? (
+                        Array.from({ length: 2 }).map((_, i) => (
+                          <TableRow key={i}>
+                            <TableCell colSpan={4}><Skeleton className="h-4 w-full" /></TableCell>
+                          </TableRow>
+                        ))
+                      ) : !history || history.rows.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={4} className="text-center text-xs text-slate-400 py-4">No status changes recorded yet.</TableCell>
+                        </TableRow>
+                      ) : (
+                        history.rows.map((h) => (
+                          <TableRow key={h.id} className="text-xs">
+                            <TableCell className="whitespace-nowrap text-slate-500">
+                              {new Date(h.changed_at).toLocaleString("en-IN", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })}
+                            </TableCell>
+                            <TableCell className="whitespace-nowrap font-medium text-slate-800">
+                              {h.from_status ? `${QUOTE_STATUS_CONFIG[h.from_status]?.label ?? h.from_status} → ` : ""}
+                              {QUOTE_STATUS_CONFIG[h.to_status]?.label ?? h.to_status}
+                            </TableCell>
+                            <TableCell className="text-slate-600">{h.changed_by_name || "—"}</TableCell>
+                            <TableCell className="text-slate-500 max-w-[180px] truncate" title={h.notes ?? undefined}>{h.notes || "—"}</TableCell>
+                          </TableRow>
+                        ))
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
               </div>
 
               <div className="pt-3 flex items-center justify-end gap-2 border-t border-slate-100">
@@ -743,17 +620,17 @@ export function AdminQuotesClient({ initialQuotes }: AdminQuotesClientProps) {
                     {viewingQuote.items.map((item, idx) => (
                       <TableRow key={idx}>
                         <TableCell className="py-2.5">
-                          <div className="font-semibold text-xs text-slate-900">{item.title}</div>
-                          <div className="font-mono text-[10px] text-slate-400">{item.sku}</div>
+                          <div className="font-semibold text-xs text-slate-900">{item.name}</div>
+                          <div className="font-mono text-[10px] text-slate-400">{item.description || item.sku}</div>
                         </TableCell>
                         <TableCell className="text-center font-mono text-xs py-2.5">
                           {item.quantity}
                         </TableCell>
                         <TableCell className="text-right font-mono text-xs py-2.5">
-                          ₹{item.unit_price.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                          ₹{item.unitPrice.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                         </TableCell>
                         <TableCell className="text-right font-mono font-semibold text-xs py-2.5 text-slate-900">
-                          ₹{item.total_price.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                          ₹{item.taxable.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                         </TableCell>
                       </TableRow>
                     ))}
@@ -764,11 +641,11 @@ export function AdminQuotesClient({ initialQuotes }: AdminQuotesClientProps) {
               {/* Financial summary box */}
               <div className="bg-slate-50 rounded-lg p-3.5 space-y-1.5 text-xs font-mono">
                 <div className="flex justify-between text-slate-600">
-                  <span>Subtotal:</span>
+                  <span>Taxable amount:</span>
                   <span>₹{viewingQuote.subtotal.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</span>
                 </div>
                 <div className="flex justify-between text-slate-600">
-                  <span>GST (18%):</span>
+                  <span>{viewingQuote.gst_enabled ? "GST:" : "GST: not applied"}</span>
                   <span>₹{viewingQuote.tax_amount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</span>
                 </div>
                 <div className="flex justify-between font-bold text-sm text-[#024AE5] pt-1.5 border-t border-slate-200">
@@ -781,13 +658,13 @@ export function AdminQuotesClient({ initialQuotes }: AdminQuotesClientProps) {
                 <Button
                   size="sm"
                   onClick={() => {
-                    handlePrintPdf(viewingQuote);
+                    setPdfQuote(viewingQuote);
                     setViewingQuote(null);
                   }}
                   className="bg-[#024AE5] text-white"
                 >
-                  <Printer className="w-3.5 h-3.5 mr-1.5" />
-                  Print / Download PDF
+                  <Eye className="w-3.5 h-3.5 mr-1.5" />
+                  View PDF
                 </Button>
               </div>
             </div>
@@ -795,220 +672,47 @@ export function AdminQuotesClient({ initialQuotes }: AdminQuotesClientProps) {
         </DialogContent>
       </Dialog>
 
-      {/* Create New Quotation Modal */}
-      <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-        <DialogContent className="max-w-2xl w-[95vw] sm:w-full max-h-[90vh] overflow-y-auto p-4 sm:p-6 rounded-xl sm:rounded-2xl">
+      {isCreateOpen && (
+        <QuoteFormModal
+          data={formData}
+          onOpenChange={setIsCreateOpen}
+          onCreated={(quote) => {
+            setIsCreateOpen(false);
+            // The RFQ list and the next-number preview just changed.
+            getQuoteFormData().then(setFormData);
+            setQuotes((prev) => [quote, ...prev]);
+            setPdfQuote(quote);
+          }}
+        />
+      )}
+
+      {/* PDF preview: the same react-pdf render that Download saves */}
+      <Dialog open={!!pdfQuote} onOpenChange={(open) => !open && setPdfQuote(null)}>
+        <DialogContent className="max-w-4xl h-[90vh] flex flex-col">
           <DialogHeader>
-            <DialogTitle className="text-lg font-bold text-slate-900 flex items-center gap-2">
-              <Plus className="w-5 h-5 text-[#024AE5]" />
-              Create Commercial Quotation
-            </DialogTitle>
-            <DialogDescription className="text-xs text-slate-500">
-              Issue an official tooling price estimate with automatic 18% GST and itemized pricing.
-            </DialogDescription>
+            <DialogTitle className="font-mono">{pdfQuote?.quote_number}</DialogTitle>
+            <DialogDescription>{pdfQuote?.company_name}</DialogDescription>
           </DialogHeader>
-
-          <form onSubmit={handleCreateQuote} className="space-y-4 pt-2">
-            {/* Customer Details */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div className="space-y-1">
-                <Label className="text-xs font-semibold text-slate-700">Company Name *</Label>
-                <Input
-                  required
-                  placeholder="e.g. Tata Motors Ltd"
-                  value={newCompanyName}
-                  onChange={(e) => setNewCompanyName(e.target.value)}
-                  className="text-xs border-slate-200"
-                />
-              </div>
-              <div className="space-y-1">
-                <Label className="text-xs font-semibold text-slate-700">Contact Person *</Label>
-                <Input
-                  required
-                  placeholder="e.g. Ramesh Kulkarni"
-                  value={newContactPerson}
-                  onChange={(e) => setNewContactPerson(e.target.value)}
-                  className="text-xs border-slate-200"
-                />
-              </div>
-              <div className="space-y-1">
-                <Label className="text-xs font-semibold text-slate-700">Email Address</Label>
-                <Input
-                  type="email"
-                  placeholder="ramesh@company.com"
-                  value={newEmail}
-                  onChange={(e) => setNewEmail(e.target.value)}
-                  className="text-xs border-slate-200"
-                />
-              </div>
-              <div className="space-y-1">
-                <Label className="text-xs font-semibold text-slate-700">Mobile Number</Label>
-                <Input
-                  placeholder="+91 98000 00000"
-                  value={newMobile}
-                  onChange={(e) => setNewMobile(e.target.value)}
-                  className="text-xs border-slate-200"
-                />
-              </div>
-              <div className="space-y-1">
-                <Label className="text-xs font-semibold text-slate-700">GSTIN</Label>
-                <Input
-                  placeholder="27AAAAA0000A1Z5"
-                  value={newGstin}
-                  onChange={(e) => setNewGstin(e.target.value)}
-                  className="text-xs border-slate-200 font-mono"
-                />
-              </div>
-              <div className="space-y-1">
-                <Label className="text-xs font-semibold text-slate-700">Validity (Days)</Label>
-                <Input
-                  type="number"
-                  min="1"
-                  max="90"
-                  value={newValidDays}
-                  onChange={(e) => setNewValidDays(e.target.value)}
-                  className="text-xs border-slate-200"
-                />
-              </div>
-            </div>
-
-            <div className="space-y-1">
-              <Label className="text-xs font-semibold text-slate-700">Delivery Address / Plant Location</Label>
-              <Input
-                placeholder="Plot No, MIDC Industrial Area, City, State"
-                value={newAddress}
-                onChange={(e) => setNewAddress(e.target.value)}
-                className="text-xs border-slate-200"
+          {pdfQuote && (
+            <div className="relative flex-1 min-h-0">
+              {loadedPdfId !== pdfQuote.id && (
+                <div className="absolute inset-0 z-10 rounded-lg border border-slate-200 bg-white p-6 space-y-5" aria-busy="true" aria-label="Loading quotation">
+                  <Skeleton className="h-14 w-28" />
+                  <Skeleton className="h-24" />
+                  {Array.from({ length: 5 }).map((_, i) => (
+                    <Skeleton key={i} className="h-10 bg-slate-100" />
+                  ))}
+                </div>
+              )}
+              <iframe
+                key={pdfQuote.id}
+                title={`Quotation ${pdfQuote.quote_number}`}
+                src={`/api/quotes/${pdfQuote.id}/pdf`}
+                onLoad={() => setLoadedPdfId(pdfQuote.id)}
+                className="h-full w-full rounded-lg border border-slate-200 bg-slate-50"
               />
             </div>
-
-            {/* Line Items Builder */}
-            <div className="space-y-2 pt-2 border-t border-slate-200">
-              <div className="flex items-center justify-between">
-                <Label className="text-xs font-bold text-slate-800 uppercase tracking-wider">
-                  Line Items & Unit Rates
-                </Label>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={handleAddItemRow}
-                  className="h-7 text-xs border-[#024AE5]/30 text-[#024AE5]"
-                >
-                  <Plus className="w-3.5 h-3.5 mr-1" />
-                  Add Line Item
-                </Button>
-              </div>
-
-              <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
-                {newItems.map((item, idx) => (
-                  <div
-                    key={idx}
-                    className="p-2.5 bg-slate-50 rounded-lg border border-slate-200 grid grid-cols-12 gap-2 items-center text-xs"
-                  >
-                    <div className="col-span-5">
-                      <Input
-                        required
-                        placeholder="Item Description / Tool Name"
-                        value={item.title}
-                        onChange={(e) => handleItemChange(idx, "title", e.target.value)}
-                        className="h-8 text-xs bg-white"
-                      />
-                    </div>
-                    <div className="col-span-2">
-                      <Input
-                        placeholder="SKU"
-                        value={item.sku}
-                        onChange={(e) => handleItemChange(idx, "sku", e.target.value)}
-                        className="h-8 text-xs font-mono bg-white"
-                      />
-                    </div>
-                    <div className="col-span-2">
-                      <Input
-                        required
-                        type="number"
-                        min="1"
-                        placeholder="Qty"
-                        value={item.quantity}
-                        onChange={(e) => handleItemChange(idx, "quantity", Number(e.target.value))}
-                        className="h-8 text-xs font-mono bg-white text-center"
-                      />
-                    </div>
-                    <div className="col-span-2">
-                      <Input
-                        required
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        placeholder="Rate ₹"
-                        value={item.unit_price}
-                        onChange={(e) => handleItemChange(idx, "unit_price", Number(e.target.value))}
-                        className="h-8 text-xs font-mono bg-white text-right"
-                      />
-                    </div>
-                    <div className="col-span-1 text-center">
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleRemoveItemRow(idx)}
-                        className="h-8 w-8 p-0 text-rose-500 hover:bg-rose-50"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </Button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Calculations Box */}
-            <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 space-y-1 font-mono text-xs">
-              <div className="flex justify-between text-slate-600">
-                <span>Subtotal:</span>
-                <span>₹{calcSubtotal.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</span>
-              </div>
-              <div className="flex justify-between text-slate-600">
-                <span>GST (18%):</span>
-                <span>₹{calcGst.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</span>
-              </div>
-              <div className="flex justify-between font-bold text-sm text-[#024AE5] pt-1.5 border-t border-slate-200">
-                <span>Grand Total:</span>
-                <span>₹{calcTotal.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</span>
-              </div>
-            </div>
-
-            <div className="pt-2 flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-2 border-t border-slate-100">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => setIsCreateOpen(false)}
-                disabled={isCreating}
-                className="w-full sm:w-auto h-9 sm:h-8"
-              >
-                Cancel
-              </Button>
-              <Button
-                type="submit"
-                size="sm"
-                disabled={isCreating}
-                className="w-full sm:w-auto h-9 sm:h-8 bg-[#024AE5] hover:bg-[#024AE5]/90 text-white font-medium shadow-sm justify-center"
-              >
-                {isCreating ? (
-                  <>
-                    <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
-                    Generating Quotation...
-                  </>
-                ) : (
-                  <>
-                    <Send className="w-3.5 h-3.5 mr-1.5" />
-                    Issue Quotation
-                  </>
-                )}
-              </Button>
-            </div>
-          </form>
+          )}
         </DialogContent>
       </Dialog>
     </div>

@@ -163,87 +163,54 @@ export interface RFQUpdate {
   updated_at?: string;
 }
 
-export interface QuoteItem {
-  id: string;
-  title: string;
-  sku: string;
-  quantity: number;
-  unit_price: number;
-  total_price: number;
-  specifications?: Record<string, any>;
-}
-
+/** items / totals mirror InvoiceLine / InvoiceTotals from src/lib/invoice.ts. */
 export interface CommercialQuote {
   id: string;
   quote_number: string;
+  quote_fy?: string | null;
+  seq?: number | null;
   rfq_id?: string | null;
+  user_id?: string | null;
+  quote_date: string;
+  valid_until: string;
   company_name: string;
-  contact_person: string;
-  email: string;
-  mobile: string;
+  contact_person?: string | null;
+  email?: string | null;
+  mobile?: string | null;
   gstin?: string | null;
   address?: string | null;
-  items: QuoteItem[];
+  place_of_supply?: string | null;
+  gst_enabled: boolean;
+  items: import("@/lib/invoice").InvoiceLine[];
+  totals: import("@/lib/invoice").InvoiceTotals;
+  /** Taxable amount after discounts. */
   subtotal: number;
-  tax_rate: number;
   tax_amount: number;
   total_amount: number;
+  amount_in_words?: string | null;
   status: QuoteStatus;
-  valid_until: string;
   payment_terms?: string | null;
   delivery_terms?: string | null;
   admin_notes?: string | null;
+  created_by?: string | null;
   created_at: string;
   updated_at: string;
 }
 
-export interface CommercialQuoteInsert {
-  id?: string;
-  quote_number?: string;
-  rfq_id?: string | null;
-  company_name: string;
-  contact_person: string;
-  email: string;
-  mobile: string;
-  gstin?: string | null;
-  address?: string | null;
-  items: QuoteItem[];
-  subtotal: number;
-  tax_rate?: number;
-  tax_amount: number;
-  total_amount: number;
-  status?: QuoteStatus;
-  valid_until: string;
-  payment_terms?: string | null;
-  delivery_terms?: string | null;
-  admin_notes?: string | null;
-  created_at?: string;
-  updated_at?: string;
+export interface QuoteStatusHistoryEntry {
+  id: string;
+  quote_id: string;
+  from_status: QuoteStatus | null;
+  to_status: QuoteStatus;
+  notes: string | null;
+  changed_by: string | null;
+  /** Display name of whoever made the change (joined from profiles). */
+  changed_by_name?: string | null;
+  changed_at: string;
 }
 
-export interface CommercialQuoteUpdate {
-  id?: string;
-  quote_number?: string;
-  rfq_id?: string | null;
-  company_name?: string;
-  contact_person?: string;
-  email?: string;
-  mobile?: string;
-  gstin?: string | null;
-  address?: string | null;
-  items?: QuoteItem[];
-  subtotal?: number;
-  tax_rate?: number;
-  tax_amount?: number;
-  total_amount?: number;
-  status?: QuoteStatus;
-  valid_until?: string;
-  payment_terms?: string | null;
-  delivery_terms?: string | null;
-  admin_notes?: string | null;
-  created_at?: string;
-  updated_at?: string;
-}
+export type CommercialQuoteInsert = Omit<CommercialQuote, "id" | "created_at" | "updated_at">;
+export type CommercialQuoteUpdate = Partial<CommercialQuote>;
 
 export interface Order {
   id: string;
@@ -265,6 +232,85 @@ export interface Order {
   invoice_number?: string | null;
   customer_details?: CustomerOrderDetails | null;
   notes?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface SalesSettings {
+  id: boolean;
+  company_name: string;
+  address: string;
+  gstin: string | null;
+  state_code: string;
+  state_name: string;
+  msme: string | null;
+  website: string | null;
+  phone: string | null;
+  email: string | null;
+  logo_url: string | null;
+  signature_url: string | null;
+  bank_name: string | null;
+  bank_address: string | null;
+  account_no: string | null;
+  ifsc: string | null;
+  account_holder: string | null;
+  terms: string | null;
+  gst_billing_enabled: boolean;
+  default_gst_rate: number;
+  invoice_prefix: string;
+  invoice_fy: string | null;
+  invoice_next_number: number;
+  invoice_pad: number;
+  po_prefix: string;
+  po_fy: string | null;
+  po_next_number: number;
+  po_pad: number;
+  rfq_prefix: string;
+  rfq_fy: string | null;
+  rfq_next_number: number;
+  rfq_pad: number;
+  quote_prefix: string;
+  quote_fy: string | null;
+  quote_next_number: number;
+  quote_pad: number;
+  quote_validity_days: number;
+  quote_payment_terms: string | null;
+  quote_delivery_terms: string | null;
+  /** Copies printed on the invoice PDF, one page set each. */
+  invoice_copies: import("@/lib/invoice").InvoiceCopy[];
+  updated_at: string;
+}
+
+export interface InvoiceBillTo {
+  name: string;
+  address: string;
+  contact?: string | null;
+  gstin?: string | null;
+  /** "24-Gujarat" style, same shape as Place of Supply. */
+  state?: string | null;
+}
+
+export type InvoiceStatus = "issued" | "cancelled";
+
+/** items / totals mirror InvoiceLine / InvoiceTotals from src/lib/invoice.ts. */
+export interface Invoice {
+  id: string;
+  invoice_number: string;
+  invoice_fy: string | null;
+  seq: number | null;
+  order_id: string | null;
+  user_id: string | null;
+  invoice_date: string;
+  po_number: string | null;
+  place_of_supply: string | null;
+  gst_enabled: boolean;
+  bill_to: InvoiceBillTo;
+  items: import("@/lib/invoice").InvoiceLine[];
+  totals: import("@/lib/invoice").InvoiceTotals;
+  total_amount: number;
+  amount_in_words: string | null;
+  status: InvoiceStatus;
+  created_by: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -330,6 +376,10 @@ export interface ProductVariant {
   trigger_quantity?: number;
   /** Customer-facing minimum order quantity (storefront). */
   min_order_quantity?: number;
+  /** GST % for this SKU. null/undefined uses the sales-settings default. */
+  gst_rate?: number | null;
+  /** HSN/SAC code. null/undefined uses the sales-settings default. */
+  hsn_code?: string | null;
   specifications?: Record<string, any>;
   is_archived?: boolean;
   archived_at?: string | null;

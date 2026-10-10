@@ -20,7 +20,6 @@ import {
   Layers,
   X,
   LogOut,
-  Truck,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
@@ -74,16 +73,9 @@ const navItems: NavSectionItem[] = [
     icon: ShoppingBag,
     subItems: [
       { title: "Order List", href: "/admin/orders" },
-      { title: "Purchase Orders", href: "/admin/purchase-orders" },
       { title: "Order Returns", href: "/admin/order-returns" },
       { title: "Dispatch / Delivery", href: "/admin/dispatch" },
     ],
-  },
-  {
-    id: "purchase-orders",
-    title: "Purchase Orders",
-    href: "/admin/purchase-orders",
-    icon: Truck,
   },
   {
     id: "sales",
@@ -91,13 +83,14 @@ const navItems: NavSectionItem[] = [
     icon: FileSpreadsheet,
     subItems: [
       { title: "Invoice", href: "/admin/invoices" },
+      { title: "Purchase Orders", href: "/admin/purchase-orders" },
       { title: "RFQs", href: "/admin/rfqs" },
       { title: "Quotes", href: "/admin/quotes" },
       { title: "Debit Note", href: "/admin/debit-notes" },
       { title: "Credit Note", href: "/admin/credit-notes" },
       { title: "E-Way Bill", href: "/admin/eway-bills" },
-      { title: "Expense", href: "/admin/expenses" },
       { title: "Delivery (Challan)", href: "/admin/delivery-challans" },
+      { title: "Sales Settings", href: "/admin/settings/sales" },
     ],
   },
   {

@@ -15,6 +15,8 @@ import { Label } from "@/components/ui/label";
 import { Loader2 } from "lucide-react";
 import toast from "react-hot-toast";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { GstRateSelect } from "./GstRateSelect";
+import { normalizeHsn } from "@/lib/invoice";
 
 interface BulkUpdateModalProps {
   isOpen: boolean;
@@ -51,11 +53,14 @@ const QUANTITY_FIELDS: Record<QuantityField, { label: string; hint: string; min:
 const isQuantityField = (f: string): f is QuantityField => f in QUANTITY_FIELDS;
 
 export function BulkUpdateModal({ isOpen, onClose, selectedVariantIds, onSuccess }: BulkUpdateModalProps) {
-  const [fieldToUpdate, setFieldToUpdate] = useState<QuantityField | "list_price" | "stock_quantity" | "list_price_percentage">("list_price");
+  const [fieldToUpdate, setFieldToUpdate] = useState<QuantityField | "list_price" | "stock_quantity" | "list_price_percentage" | "gst_rate" | "hsn_code">("list_price");
   const [listPrice, setListPrice] = useState("");
   const [stockQuantity, setStockQuantity] = useState("");
   const [minQuantity, setMinQuantity] = useState("0");
   const [listPricePercentage, setListPricePercentage] = useState("");
+  // "" = clear the SKU-level GST % so it falls back to the Sales Settings default.
+  const [gstRate, setGstRate] = useState("18");
+  const [hsnCode, setHsnCode] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -78,6 +83,11 @@ export function BulkUpdateModal({ isOpen, onClose, selectedVariantIds, onSuccess
       return;
     }
 
+    if (fieldToUpdate === "hsn_code" && !normalizeHsn(hsnCode).ok) {
+      toast.error("HSN code must be 4 to 8 digits.");
+      return;
+    }
+
     setIsLoading(true);
     
     const updates: any = {};
@@ -90,6 +100,10 @@ export function BulkUpdateModal({ isOpen, onClose, selectedVariantIds, onSuccess
       updates[fieldToUpdate] = Math.max(floor, parseInt(minQuantity, 10) || floor);
     } else if (fieldToUpdate === "list_price_percentage") {
       updates.list_price_percentage = parseFloat(listPricePercentage);
+    } else if (fieldToUpdate === "gst_rate") {
+      updates.gst_rate = gstRate === "" ? null : Number(gstRate);
+    } else if (fieldToUpdate === "hsn_code") {
+      updates.hsn_code = hsnCode.trim() || null;
     }
 
     const result = await bulkUpdateSkus(selectedVariantIds, updates);
@@ -103,6 +117,7 @@ export function BulkUpdateModal({ isOpen, onClose, selectedVariantIds, onSuccess
       setStockQuantity("");
       setMinQuantity("0");
       setListPricePercentage("");
+      setHsnCode("");
       onSuccess();
       onClose();
     }
@@ -134,6 +149,8 @@ export function BulkUpdateModal({ isOpen, onClose, selectedVariantIds, onSuccess
                 <SelectItem value="min_quantity" className="text-xs">Minimum SKU Quantity</SelectItem>
                 <SelectItem value="trigger_quantity" className="text-xs">Trigger Quantity</SelectItem>
                 <SelectItem value="min_order_quantity" className="text-xs">Minimum Order Quantity</SelectItem>
+                <SelectItem value="gst_rate" className="text-xs">GST %</SelectItem>
+                <SelectItem value="hsn_code" className="text-xs">HSN Code</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -162,6 +179,29 @@ export function BulkUpdateModal({ isOpen, onClose, selectedVariantIds, onSuccess
                 className="h-9 text-xs border-slate-200"
                 required
               />
+            </div>
+          ) : fieldToUpdate === "gst_rate" ? (
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold text-slate-700">New GST %</Label>
+              <GstRateSelect value={gstRate} onChange={setGstRate} defaultLabel="Clear (use Sales Settings default)" />
+              <p className="text-[10px] text-slate-500 leading-tight">
+                Applied to every selected SKU and used on new invoices. Existing invoices are not changed.
+              </p>
+            </div>
+          ) : fieldToUpdate === "hsn_code" ? (
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold text-slate-700">New HSN Code</Label>
+              <Input
+                inputMode="numeric"
+                maxLength={8}
+                value={hsnCode}
+                onChange={(e) => setHsnCode(e.target.value.replace(/\D/g, ""))}
+                placeholder="e.g. 82090010"
+                className="h-9 text-xs border-slate-200"
+              />
+              <p className="text-[10px] text-slate-500 leading-tight">
+                4 to 8 digits. Leave blank to clear the HSN code on the selected SKUs.
+              </p>
             </div>
           ) : isQuantityField(fieldToUpdate) ? (
             <div className="space-y-1.5">

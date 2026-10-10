@@ -7,6 +7,19 @@ import { RFQ, RFQStatus, RFQInsert, RFQUpdate, Profile } from "@/types/database.
 import { createNotification } from "@/actions/notification";
 import { revalidatePath } from "next/cache";
 
+/**
+ * Next RFQ number from the DB counter (Sales Settings: prefix / FY / next number).
+ * A customer submitting an RFQ must never fail over numbering, so if the counter is
+ * unavailable (e.g. migration not applied) fall back to the old random number and log it.
+ */
+async function allocateRfqNumber(adminDb: ReturnType<typeof createAdminClient>): Promise<string> {
+  const { data, error } = await (adminDb as any).rpc("next_rfq_number");
+  if (!error && data) return data as string;
+  console.error("[allocateRfqNumber] next_rfq_number failed, using fallback number:", error);
+  const now = new Date();
+  return `RFQ-${now.getFullYear().toString().slice(-2)}${(now.getMonth() + 1).toString().padStart(2, "0")}-${Math.floor(1000 + Math.random() * 9000)}`;
+}
+
 export async function fetchCustomerRfqsList(): Promise<RFQ[]> {
   try {
     const authClient = await createClient();
@@ -73,7 +86,7 @@ export async function submitCustomerRfq(payload: {
 
     const profileData = profile as Profile | null;
 
-    const rfqNumber = `RFQ-${new Date().getFullYear().toString().slice(-2)}${(new Date().getMonth() + 1).toString().padStart(2, "0")}-${Math.floor(1000 + Math.random() * 9000)}`;
+    const rfqNumber = await allocateRfqNumber(adminDb);
 
     const newRfqData: RFQInsert = {
       rfq_number: rfqNumber,
@@ -134,6 +147,82 @@ export async function submitCustomerRfq(payload: {
     return { success: true, rfq: data as RFQ };
   } catch (err: any) {
     return { success: false, error: err?.message || "Failed to submit RFQ." };
+  }
+}
+
+/**
+ * Record an RFQ on a customer's behalf (phone / email / walk-in). The RFQ number is
+ * the next one from Sales Settings unless `manualNumber` is given, in which case it
+ * is checked for duplicates and does not move the counter.
+ */
+export async function createManualRfq(payload: {
+  customerId?: string | null;
+  company_name: string;
+  contact_person?: string | null;
+  email?: string | null;
+  mobile?: string | null;
+  item_name: string;
+  quantity: string;
+  required_by_date?: string | null;
+  specifications?: string | null;
+  manualNumber?: string | null;
+}): Promise<{ success: boolean; error?: string; rfq?: RFQ }> {
+  try {
+    await requireAdmin();
+    const adminDb = createAdminClient();
+
+    const company = payload.company_name?.trim();
+    const item = payload.item_name?.trim();
+    const quantity = payload.quantity?.trim();
+    if (!company) return { success: false, error: "Company / customer name is required." };
+    if (!item) return { success: false, error: "Product / tooling description is required." };
+    if (!quantity) return { success: false, error: "Quantity is required." };
+    if (payload.required_by_date && !/^\d{4}-\d{2}-\d{2}$/.test(payload.required_by_date)) {
+      return { success: false, error: "Required-by date is invalid." };
+    }
+    const manualNumber = payload.manualNumber?.trim() || null;
+    if (manualNumber && manualNumber.length > 50) return { success: false, error: "RFQ number is too long." };
+
+    let rfqNumber: string;
+    if (manualNumber) {
+      const { data: dup } = await (adminDb.from("rfqs") as any).select("id").eq("rfq_number", manualNumber).maybeSingle();
+      if (dup) return { success: false, error: `RFQ number "${manualNumber}" already exists.` };
+      rfqNumber = manualNumber;
+    } else {
+      rfqNumber = await allocateRfqNumber(adminDb);
+    }
+
+    const now = new Date().toISOString();
+    const row = {
+      rfq_number: rfqNumber,
+      // Linking a customer makes the RFQ appear in their dashboard; walk-ins stay unlinked.
+      user_id: payload.customerId || null,
+      company_name: company,
+      contact_person: payload.contact_person?.trim() || null,
+      email: payload.email?.trim() || null,
+      mobile: payload.mobile?.trim() || null,
+      item_name: item,
+      quantity,
+      required_by_date: payload.required_by_date || null,
+      specifications: payload.specifications?.trim() || null,
+      status: "pending",
+      created_at: now,
+      updated_at: now,
+    };
+
+    const { data, error } = await (adminDb.from("rfqs") as any).insert(row).select().single();
+    if (error) {
+      if (error.code === "23505") return { success: false, error: `RFQ number "${rfqNumber}" already exists.` };
+      return { success: false, error: error.message };
+    }
+
+    revalidatePath("/admin/rfqs");
+    revalidatePath("/dashboard/rfqs");
+    revalidatePath("/admin/quotes");
+    return { success: true, rfq: data as RFQ };
+  } catch (err) {
+    console.error("[createManualRfq] Exception:", err);
+    return { success: false, error: err instanceof Error ? err.message : "Failed to create RFQ." };
   }
 }
 

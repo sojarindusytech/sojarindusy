@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import { useRouter } from "next/navigation";
 import { PurchaseOrder, PurchaseOrderStatus } from "@/types/database.types";
 import { updatePurchaseOrderStatus } from "@/actions/purchase-order";
 import { Card, CardContent } from "@/components/ui/card";
@@ -43,6 +44,7 @@ import {
   ArrowRight,
   ShieldCheck,
   RefreshCw,
+  FilePlus2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -51,6 +53,8 @@ import {
   type DateRangeKey,
 } from "@/lib/date-range";
 import toast from "react-hot-toast";
+import { PurchaseOrderFormModal } from "./PurchaseOrderFormModal";
+import { PaginationBar, usePagination } from "@/components/common/Pagination";
 
 interface AdminPurchaseOrdersClientProps {
   initialOrders: PurchaseOrder[];
@@ -59,7 +63,15 @@ interface AdminPurchaseOrdersClientProps {
 export function AdminPurchaseOrdersClient({
   initialOrders,
 }: AdminPurchaseOrdersClientProps) {
+  const router = useRouter();
+  const [creating, setCreating] = useState(false);
   const [orders, setOrders] = useState<PurchaseOrder[]>(initialOrders);
+  // Re-sync after router.refresh() (e.g. a PO was just created) without an effect.
+  const [syncedInitial, setSyncedInitial] = useState(initialOrders);
+  if (syncedInitial !== initialOrders) {
+    setSyncedInitial(initialOrders);
+    setOrders(initialOrders);
+  }
   const [activeTab, setActiveTab] = useState<"active" | "past">("active");
   const [searchQuery, setSearchQuery] = useState("");
   const [dateRange, setDateRange] = useState<DateRangeKey>("all");
@@ -111,6 +123,8 @@ export function AdminPurchaseOrdersClient({
       return matchesSearch && matchesDate;
     });
   }, [currentList, searchQuery, dateRange, customFrom, customTo]);
+
+  const pager = usePagination(filteredOrders, `${activeTab}|${searchQuery}|${dateRange}|${customFrom}|${customTo}`);
 
   // Aggregate Metrics
   const totalActiveUnits = activeOrders.reduce(
@@ -204,6 +218,16 @@ export function AdminPurchaseOrdersClient({
 
   return (
     <div className="space-y-6">
+      {creating && (
+        <PurchaseOrderFormModal
+          onOpenChange={setCreating}
+          onCreated={() => {
+            setCreating(false);
+            router.refresh();
+          }}
+        />
+      )}
+
       {/* Title & Description */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-slate-200 pb-5">
         <div>
@@ -212,9 +236,13 @@ export function AdminPurchaseOrdersClient({
             <span>Manufacturer Purchase Orders</span>
           </h1>
           <p className="text-xs text-slate-500 mt-0.5">
-            Automated replenishment orders generated when SKU stock falls below the configured Minimum SKU threshold.
+            Automated replenishment orders generated when SKU stock falls below the configured Minimum SKU threshold, plus orders you place by hand.
           </p>
         </div>
+        <Button onClick={() => setCreating(true)} className="gap-1.5 shrink-0">
+          <FilePlus2 className="h-4 w-4" />
+          New Purchase Order
+        </Button>
       </div>
 
       {/* KPI Summary Cards */}
@@ -409,7 +437,7 @@ export function AdminPurchaseOrdersClient({
                   </TableCell>
                 </TableRow>
               ) : (
-                filteredOrders.map((po) => {
+                pager.pageItems.map((po) => {
                   const specs = po.specifications || {};
                   const specItems = Object.entries(specs).filter(
                     ([k, v]) => v && k !== "Tag"
@@ -587,6 +615,7 @@ export function AdminPurchaseOrdersClient({
             </TableBody>
           </Table>
         </div>
+        <PaginationBar state={pager} noun="purchase orders" />
       </div>
 
       {/* Confirmation Dialog When Marking Order as Received */}

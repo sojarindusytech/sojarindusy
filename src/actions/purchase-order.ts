@@ -10,6 +10,18 @@ import { evaluateReorder } from "@/lib/reorder";
 import { revalidatePath } from "next/cache";
 
 /**
+ * Next PO number from the DB counter (Sales Settings: prefix / FY / next number).
+ * Auto POs must never be lost over numbering, so if the counter is unavailable
+ * (e.g. migration not applied) fall back to the old random number and log it.
+ */
+async function allocatePoNumber(adminDb: ReturnType<typeof createAdminClient>): Promise<string> {
+  const { data, error } = await (adminDb as any).rpc("next_po_number");
+  if (!error && data) return data as string;
+  console.error("[allocatePoNumber] next_po_number failed, using fallback number:", error);
+  return `PO-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
+}
+
+/**
  * Checks an SKU variant's stock against its trigger_quantity threshold.
  *
  * Fires when currentStock <= trigger_quantity, ordering enough to restock up to
@@ -74,9 +86,7 @@ export async function checkAndGeneratePurchaseOrder(
 
     // 3. Order quantity, decided above (guaranteed >= 1)
     const orderQuantity = decision.orderQuantity;
-    const year = new Date().getFullYear();
-    const randomSuffix = Math.floor(1000 + Math.random() * 9000);
-    const orderNumber = `PO-${year}-${randomSuffix}`;
+    const orderNumber = await allocatePoNumber(adminDb);
 
     const newPO = {
       order_number: orderNumber,
@@ -137,6 +147,96 @@ export async function checkAndGeneratePurchaseOrder(
   } catch (err: any) {
     console.error("[checkAndGeneratePurchaseOrder] Exception:", err);
     return { created: false, reason: err.message };
+  }
+}
+
+/**
+ * Place a purchase order by hand (not triggered by low stock). The PO number is
+ * the next one from Sales Settings unless `manualNumber` is given, in which case
+ * it is checked for duplicates and does not move the counter.
+ */
+export async function createManualPurchaseOrder(payload: {
+  variantId: string;
+  quantity: number;
+  notes?: string | null;
+  manualNumber?: string | null;
+}): Promise<{ success: boolean; error?: string; order?: PurchaseOrder }> {
+  try {
+    await requireAdmin();
+    const adminDb = createAdminClient();
+
+    const quantity = Math.floor(Number(payload.quantity));
+    if (!Number.isFinite(quantity) || quantity < 1) return { success: false, error: "Quantity must be at least 1." };
+
+    const manualNumber = payload.manualNumber?.trim() || null;
+    if (manualNumber && manualNumber.length > 50) return { success: false, error: "PO number is too long." };
+
+    const { data: variantData, error: variantErr } = await (adminDb.from("product_variants") as any)
+      .select("id, sku, min_quantity, trigger_quantity, stock_quantity, specifications, product_id, products(id, title)")
+      .eq("id", payload.variantId)
+      .single();
+    if (variantErr || !variantData) return { success: false, error: "SKU not found." };
+
+    let orderNumber: string;
+    if (manualNumber) {
+      const { data: dup } = await (adminDb.from("purchase_orders") as any)
+        .select("id")
+        .eq("order_number", manualNumber)
+        .maybeSingle();
+      if (dup) return { success: false, error: `PO number "${manualNumber}" already exists.` };
+      orderNumber = manualNumber;
+    } else {
+      orderNumber = await allocatePoNumber(adminDb);
+    }
+
+    const now = new Date().toISOString();
+    const { data: created, error: insertErr } = await (adminDb.from("purchase_orders") as any)
+      .insert({
+        order_number: orderNumber,
+        variant_id: variantData.id,
+        product_id: variantData.product_id,
+        sku_code: variantData.sku,
+        product_title: variantData.products?.title || "Tooling Product",
+        min_quantity: Number(variantData.min_quantity) || 0,
+        trigger_quantity: Number(variantData.trigger_quantity) || 0,
+        actual_quantity: Number(variantData.stock_quantity) || 0,
+        order_quantity: quantity,
+        specifications: variantData.specifications || {},
+        notes: payload.notes?.trim() || null,
+        status: "Placed",
+        placed_at: now,
+        created_at: now,
+        updated_at: now,
+      })
+      .select("*")
+      .single();
+
+    if (insertErr) {
+      if (insertErr.code === "23505") return { success: false, error: `PO number "${orderNumber}" already exists.` };
+      console.error("[createManualPurchaseOrder] insert failed:", insertErr);
+      return { success: false, error: insertErr.message };
+    }
+
+    try {
+      const meta = { order_number: orderNumber, sku: variantData.sku, quantity };
+      await createNotification({
+        role: "manufacturer",
+        title: "New Production Order",
+        message: `New PO #${orderNumber} placed: ${quantity} units of ${variantData.products?.title || "product"} (${variantData.sku}).`,
+        type: "purchase_order",
+        link: "/manufacturer",
+        metadata: meta,
+      });
+    } catch (notifErr) {
+      console.warn("[createManualPurchaseOrder] Notification dispatch error:", notifErr);
+    }
+
+    revalidatePath("/admin/purchase-orders");
+    revalidatePath("/manufacturer");
+    return { success: true, order: created as PurchaseOrder };
+  } catch (err) {
+    console.error("[createManualPurchaseOrder] Exception:", err);
+    return { success: false, error: err instanceof Error ? err.message : "Failed to create purchase order." };
   }
 }
 

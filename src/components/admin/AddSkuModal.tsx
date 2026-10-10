@@ -16,6 +16,8 @@ import { Loader2 } from "lucide-react";
 import toast from "react-hot-toast";
 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { GstRateSelect } from "./GstRateSelect";
+import { normalizeHsn } from "@/lib/invoice";
 
 interface AddSkuModalProps {
   isOpen: boolean;
@@ -37,6 +39,9 @@ export function AddSkuModal({ isOpen, onClose, productId, availableAttributes, a
   const [minQuantity, setMinQuantity] = useState("0");
   const [triggerQuantity, setTriggerQuantity] = useState("0");
   const [minOrderQuantity, setMinOrderQuantity] = useState("1");
+  // "" = no SKU-level GST %, use the Sales Settings default.
+  const [gstRate, setGstRate] = useState("");
+  const [hsnCode, setHsnCode] = useState("");
   const [selectedAttributeName, setSelectedAttributeName] = useState<string>("none");
   const [isLoading, setIsLoading] = useState(false);
 
@@ -54,6 +59,10 @@ export function AddSkuModal({ isOpen, onClose, productId, availableAttributes, a
     }
     if (triggerMisconfigured) {
       toast.error("Minimum SKU Quantity must be greater than Trigger Quantity.");
+      return;
+    }
+    if (!normalizeHsn(hsnCode).ok) {
+      toast.error("HSN code must be 4 to 8 digits.");
       return;
     }
 
@@ -75,6 +84,8 @@ export function AddSkuModal({ isOpen, onClose, productId, availableAttributes, a
       min_quantity: Math.max(0, parseInt(minQuantity, 10) || 0),
       trigger_quantity: Math.max(0, parseInt(triggerQuantity, 10) || 0),
       min_order_quantity: Math.max(1, parseInt(minOrderQuantity, 10) || 1),
+      gst_rate: gstRate === "" ? null : Number(gstRate),
+      hsn_code: hsnCode.trim() || null,
       specifications: specs,
     });
     setIsLoading(false);
@@ -92,6 +103,10 @@ export function AddSkuModal({ isOpen, onClose, productId, availableAttributes, a
       setListPrice("");
       setStockQuantity("0");
       setMinQuantity("0");
+      setTriggerQuantity("0");
+      setMinOrderQuantity("1");
+      setGstRate("");
+      setHsnCode("");
       setSelectedAttributeName("none");
       onClose();
     }
@@ -198,6 +213,25 @@ export function AddSkuModal({ isOpen, onClose, productId, availableAttributes, a
                 type="number"
                 value={stockQuantity}
                 onChange={(e) => setStockQuantity(e.target.value)}
+                className="h-9 text-xs border-slate-200"
+              />
+            </div>
+          </div>
+
+          {/* Tax: used on invoices. Blank GST % falls back to the Sales Settings default. */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold text-slate-700 whitespace-nowrap">GST %</Label>
+              <GstRateSelect value={gstRate} onChange={setGstRate} />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold text-slate-700 whitespace-nowrap">HSN Code</Label>
+              <Input
+                inputMode="numeric"
+                maxLength={8}
+                value={hsnCode}
+                onChange={(e) => setHsnCode(e.target.value.replace(/\D/g, ""))}
+                placeholder="e.g. 82090010"
                 className="h-9 text-xs border-slate-200"
               />
             </div>
