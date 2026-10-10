@@ -631,7 +631,7 @@ export function InquiriesManagementClient({
                         alt="WhatsApp"
                         width={16}
                         height={16}
-                        className="w-4 h-4 shrink-0"
+                        className="w-4 h-4 shrink-0 brightness-0 invert"
                       />
                       <span>Chat on WhatsApp</span>
                       <ExternalLink className="w-3 h-3 opacity-70" />

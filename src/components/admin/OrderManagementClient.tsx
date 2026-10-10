@@ -13,6 +13,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   Table,
   TableBody,
   TableCell,
@@ -226,31 +233,21 @@ export function OrderManagementClient({ initialOrders }: OrderManagementClientPr
             />
           </div>
 
-          <div className="flex items-center gap-1.5 w-full sm:w-auto overflow-x-auto pb-1 sm:pb-0">
-            <button
-              onClick={() => setStatusFilter("ALL")}
-              className={`px-2.5 py-1 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors ${
-                statusFilter === "ALL"
-                  ? "bg-[#024AE5] text-white"
-                  : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-              }`}
-            >
-              All ({orders.length})
-            </button>
-            {Object.entries(ORDER_STATUSES).map(([key, val]) => (
-              <button
-                key={key}
-                onClick={() => setStatusFilter(val)}
-                className={`px-2.5 py-1 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors capitalize ${
-                  statusFilter === val
-                    ? "bg-[#024AE5] text-white"
-                    : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-                }`}
-              >
-                {ORDER_STATUS_CONFIG[val]?.label || val}
-              </button>
-            ))}
-          </div>
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="h-9 text-xs bg-slate-50/50 border-slate-200 w-full sm:w-[190px]">
+              <SelectValue placeholder="Filter by status" />
+            </SelectTrigger>
+            <SelectContent className="bg-white">
+              <SelectItem value="ALL" className="text-xs">
+                All Statuses ({orders.length})
+              </SelectItem>
+              {Object.entries(ORDER_STATUSES).map(([key, val]) => (
+                <SelectItem key={key} value={val} className="text-xs capitalize">
+                  {ORDER_STATUS_CONFIG[val]?.label || val}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
       </Card>
 

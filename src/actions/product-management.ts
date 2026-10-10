@@ -5,6 +5,24 @@ import { requireAdmin } from "@/lib/auth-guard";
 import { revalidatePath } from "next/cache";
 import { ProductImage, ProductDocument } from "@/types/database.types";
 import { recordStockMovement } from "@/actions/inventory";
+import { normalizeHsn } from "@/lib/invoice";
+
+/** Rejects out-of-range GST % or malformed HSN before anything is written. */
+function validateTaxFields(f: { gst_rate?: number | null; hsn_code?: string | null }): string | null {
+  if (f.gst_rate !== undefined && f.gst_rate !== null && !(f.gst_rate >= 0 && f.gst_rate <= 100)) {
+    return "GST % must be between 0 and 100.";
+  }
+  if (f.hsn_code !== undefined && !normalizeHsn(f.hsn_code).ok) {
+    return "HSN code must be 4 to 8 digits.";
+  }
+  return null;
+}
+
+/** Only call after validateTaxFields: blank/invalid collapse to null. */
+function cleanHsn(v: string | null | undefined): string | null {
+  const r = normalizeHsn(v);
+  return r.ok ? r.value : null;
+}
 
 export interface UpdateFullProductPayload {
   title: string;
@@ -203,6 +221,10 @@ export async function addSingleSku(
     min_quantity?: number;
     trigger_quantity?: number;
     min_order_quantity?: number;
+    /** null/undefined = use the Sales Settings default. */
+    gst_rate?: number | null;
+    /** null/blank = no HSN. */
+    hsn_code?: string | null;
     specifications?: Record<string, any>;
   }
 ): Promise<{ success?: boolean; error?: string }> {
@@ -212,6 +234,9 @@ export async function addSingleSku(
   if (!payload.sku?.trim()) {
     return { error: "SKU is required." };
   }
+
+  const taxError = validateTaxFields(payload);
+  if (taxError) return { error: taxError };
 
   try {
     const { data: insertedData, error } = await supabase
@@ -228,6 +253,8 @@ export async function addSingleSku(
         min_quantity: payload.min_quantity ?? 0,
         trigger_quantity: payload.trigger_quantity ?? 0,
         min_order_quantity: Math.max(1, payload.min_order_quantity ?? 1),
+        gst_rate: payload.gst_rate ?? null,
+        hsn_code: cleanHsn(payload.hsn_code),
         specifications: payload.specifications || {},
       } as never)
       .select("id, sku, stock_quantity, product_id, products(title)")
@@ -490,6 +517,10 @@ export async function bulkUpdateSkus(
     trigger_quantity?: number;
     min_order_quantity?: number;
     list_price_percentage?: number;
+    /** null clears the SKU's own rate so it falls back to the Sales Settings default. */
+    gst_rate?: number | null;
+    /** null/blank clears the HSN code. */
+    hsn_code?: string | null;
   }
 ): Promise<{ success?: boolean; error?: string }> {
   await requireAdmin();
@@ -498,6 +529,9 @@ export async function bulkUpdateSkus(
   if (!variantIds || variantIds.length === 0) {
     return { error: "No SKUs selected for update." };
   }
+
+  const taxError = validateTaxFields(updates);
+  if (taxError) return { error: taxError };
 
   try {
     // 1. Fetch current state of variants
@@ -565,6 +599,12 @@ export async function bulkUpdateSkus(
       if (updates.min_order_quantity !== undefined) {
         // A customer cannot order zero units; floor at 1 regardless of input.
         updatePayload.min_order_quantity = Math.max(1, updates.min_order_quantity);
+      }
+      if (updates.gst_rate !== undefined) {
+        updatePayload.gst_rate = updates.gst_rate;
+      }
+      if (updates.hsn_code !== undefined) {
+        updatePayload.hsn_code = cleanHsn(updates.hsn_code);
       }
 
       const { error } = await supabase
@@ -643,6 +683,10 @@ export async function updateSingleSku(
     min_quantity?: number;
     trigger_quantity?: number;
     min_order_quantity?: number;
+    /** null = use the Sales Settings default; undefined = leave unchanged. */
+    gst_rate?: number | null;
+    /** null/blank = no HSN; undefined = leave unchanged. */
+    hsn_code?: string | null;
     specifications?: Record<string, any>;
   }
 ): Promise<{ success?: boolean; error?: string }> {
@@ -652,6 +696,9 @@ export async function updateSingleSku(
   if (!payload.sku?.trim()) {
     return { error: "SKU is required." };
   }
+
+  const taxError = validateTaxFields(payload);
+  if (taxError) return { error: taxError };
 
   try {
     // 1. Fetch current variant for stock change comparison
@@ -679,6 +726,8 @@ export async function updateSingleSku(
         min_quantity: payload.min_quantity ?? 0,
         trigger_quantity: payload.trigger_quantity ?? 0,
         min_order_quantity: Math.max(1, payload.min_order_quantity ?? 1),
+        ...(payload.gst_rate !== undefined ? { gst_rate: payload.gst_rate } : {}),
+        ...(payload.hsn_code !== undefined ? { hsn_code: cleanHsn(payload.hsn_code) } : {}),
         specifications: payload.specifications || {},
         updated_at: new Date().toISOString(),
       } as never)

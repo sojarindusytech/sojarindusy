@@ -1,0 +1,109 @@
+"use server";
+
+import { createAdminClient } from "@/lib/supabase/admin";
+import { requireAdmin } from "@/lib/auth-guard";
+import { salesSettingsSchema, type SalesSettingsInput } from "@/lib/validations/sales-settings";
+import type { SalesSettings } from "@/types/database.types";
+import { financialYear } from "@/lib/invoice";
+import { loadSalesSettings } from "@/lib/sales-settings";
+import { revalidatePath } from "next/cache";
+
+const ASSET_BUCKET = "invoice-assets";
+const ASSET_KINDS = ["logo", "signature"] as const;
+type AssetKind = (typeof ASSET_KINDS)[number];
+
+export async function getSalesSettings(): Promise<SalesSettings | null> {
+  await requireAdmin();
+  return loadSalesSettings();
+}
+
+export async function updateSalesSettings(
+  input: SalesSettingsInput
+): Promise<{ success: boolean; error?: string; fieldErrors?: Record<string, string> }> {
+  try {
+    await requireAdmin();
+
+    const parsed = salesSettingsSchema.safeParse(input);
+    if (!parsed.success) {
+      const fieldErrors: Record<string, string> = {};
+      for (const issue of parsed.error.issues) {
+        const key = String(issue.path[0] ?? "form");
+        fieldErrors[key] ??= issue.message;
+      }
+      return { success: false, error: "Please fix the highlighted fields.", fieldErrors };
+    }
+
+    // An edited counter is meant for the current financial year. Stamp the FY so
+    // next_invoice_number() doesn't see a stale FY and reset it to 1. An
+    // unchanged counter is left alone so an untouched new year still starts at 1.
+    const current = await loadSalesSettings();
+    const counterEdited = current?.invoice_next_number !== parsed.data.invoice_next_number;
+    const rfqCounterEdited = current?.rfq_next_number !== parsed.data.rfq_next_number;
+    const quoteCounterEdited = current?.quote_next_number !== parsed.data.quote_next_number;
+    const poCounterEdited = current?.po_next_number !== parsed.data.po_next_number;
+
+    const { error } = await (createAdminClient().from("sales_settings") as any)
+      .update({
+        ...parsed.data,
+        ...(counterEdited ? { invoice_fy: financialYear() } : {}),
+        ...(poCounterEdited ? { po_fy: financialYear() } : {}),
+        ...(quoteCounterEdited ? { quote_fy: financialYear() } : {}),
+        ...(rfqCounterEdited ? { rfq_fy: financialYear() } : {}),
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", true);
+
+    if (error) {
+      console.error("[updateSalesSettings] Update error:", error);
+      return { success: false, error: error.message };
+    }
+
+    revalidatePath("/admin/settings/sales");
+    revalidatePath("/admin/invoices");
+    return { success: true };
+  } catch (err) {
+    console.error("[updateSalesSettings] Exception:", err);
+    return { success: false, error: err instanceof Error ? err.message : "Failed to save settings." };
+  }
+}
+
+/**
+ * Upload the invoice logo or signature. Returns the public URL; the caller
+ * puts it in the form and persists it with the normal Save.
+ */
+export async function uploadInvoiceAsset(
+  formData: FormData
+): Promise<{ publicUrl?: string; error?: string }> {
+  try {
+    await requireAdmin();
+
+    const kind = formData.get("kind") as AssetKind | null;
+    const file = formData.get("file") as File | null;
+    if (!kind || !ASSET_KINDS.includes(kind)) return { error: "Unknown asset type." };
+    if (!file || file.size === 0) return { error: "No file provided." };
+    // @react-pdf/renderer can only draw PNG/JPEG.
+    if (file.type !== "image/png" && file.type !== "image/jpeg") {
+      return { error: "Only PNG or JPG images are supported on invoices." };
+    }
+    if (file.size > 2 * 1024 * 1024) return { error: "Image must be 2 MB or smaller." };
+
+    const ext = file.type === "image/png" ? "png" : "jpg";
+    const filePath = `${kind}_${Date.now()}.${ext}`;
+    const supabase = createAdminClient();
+
+    const { error } = await supabase.storage
+      .from(ASSET_BUCKET)
+      .upload(filePath, Buffer.from(await file.arrayBuffer()), { contentType: file.type, upsert: true });
+
+    if (error) {
+      if (error.message.includes("Bucket not found")) {
+        return { error: `Storage bucket '${ASSET_BUCKET}' does not exist yet. Run the 20261010 SQL migration.` };
+      }
+      return { error: error.message };
+    }
+
+    return { publicUrl: supabase.storage.from(ASSET_BUCKET).getPublicUrl(filePath).data.publicUrl };
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : "Failed to upload image." };
+  }
+}

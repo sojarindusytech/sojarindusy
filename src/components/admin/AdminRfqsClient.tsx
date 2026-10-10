@@ -48,8 +48,11 @@ import {
   Layers,
   Building2,
   CheckCircle2,
+  FilePlus2,
 } from "lucide-react";
 import toast from "react-hot-toast";
+import { RfqFormModal } from "./RfqFormModal";
+import { PaginationBar, usePagination } from "@/components/common/Pagination";
 
 interface AdminRfqsClientProps {
   initialRfqs: RFQ[];
@@ -60,6 +63,7 @@ export function AdminRfqsClient({ initialRfqs }: AdminRfqsClientProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("ALL");
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [creating, setCreating] = useState(false);
 
   // Review & Quote Editor State
   const [editingRfq, setEditingRfq] = useState<RFQ | null>(null);
@@ -91,6 +95,8 @@ export function AdminRfqsClient({ initialRfqs }: AdminRfqsClientProps) {
     }
     return true;
   });
+
+  const pager = usePagination(filteredRfqs, `${searchQuery}|${statusFilter}`);
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
@@ -203,17 +209,33 @@ export function AdminRfqsClient({ initialRfqs }: AdminRfqsClientProps) {
           </p>
         </div>
 
+        <div className="flex items-center gap-2 w-full sm:w-auto">
+        <Button onClick={() => setCreating(true)} size="sm" className="gap-2 flex-1 sm:flex-none justify-center">
+          <FilePlus2 className="w-4 h-4" />
+          <span>New RFQ</span>
+        </Button>
         <Button
           variant="outline"
           size="sm"
           onClick={handleRefresh}
           disabled={isRefreshing}
-          className="cursor-pointer gap-2 border-slate-200 hover:bg-slate-50 w-full sm:w-auto justify-center"
+          className="cursor-pointer gap-2 border-slate-200 hover:bg-slate-50 flex-1 sm:flex-none justify-center"
         >
           <RefreshCw className={`w-4 h-4 ${isRefreshing ? "animate-spin text-[#024AE5]" : "text-slate-500"}`} />
           <span>Refresh</span>
         </Button>
+        </div>
       </div>
+
+      {creating && (
+        <RfqFormModal
+          onOpenChange={setCreating}
+          onCreated={() => {
+            setCreating(false);
+            void handleRefresh();
+          }}
+        />
+      )}
 
       {/* KPI Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -349,7 +371,7 @@ export function AdminRfqsClient({ initialRfqs }: AdminRfqsClientProps) {
                 </TableCell>
               </TableRow>
             ) : (
-              filteredRfqs.map((rfq) => {
+              pager.pageItems.map((rfq) => {
                 const initialChar =
                   rfq.company_name?.charAt(0)?.toUpperCase() ||
                   rfq.contact_person?.charAt(0)?.toUpperCase() ||
@@ -475,6 +497,7 @@ export function AdminRfqsClient({ initialRfqs }: AdminRfqsClientProps) {
           </TableBody>
         </Table>
         </div>
+        <PaginationBar state={pager} noun="RFQs" />
       </Card>
 
       {/* Review & Issue Quote Modal */}

@@ -1,6 +1,11 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // Invoice PDFs read Roboto from disk at render time; make sure it ships with the route.
+  outputFileTracingIncludes: {
+    "/api/invoices/[id]/pdf": ["./src/assets/fonts/**"],
+    "/api/quotes/[id]/pdf": ["./src/assets/fonts/**"],
+  },
   images: {
     remotePatterns: [
       {

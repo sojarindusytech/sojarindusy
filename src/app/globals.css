@@ -200,9 +200,70 @@ main {
   animation: pageEnter 0.18s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-/* Subtle tactile feedback on press */
-button:active:not(:disabled),
-a:active {
-  transform: scale(0.985);
-  transition: transform 0.08s ease-out;
+/*
+ * Press feedback for everything clickable. Lives in @layer base with :where() (zero
+ * specificity) so component utilities such as the Button's own active:scale-* still win,
+ * unlike the previous unlayered rule which overrode them.
+ */
+@media (prefers-reduced-motion: no-preference) {
+  @layer base {
+    :where(
+      button,
+      [role="button"],
+      [role="tab"],
+      [role="menuitem"],
+      summary,
+      label[for],
+      a[href],
+      select,
+      input:is([type="checkbox"], [type="radio"], [type="submit"], [type="button"], [type="file"]),
+      .cursor-pointer
+    ) {
+      transition-property: transform, opacity, filter, background-color, border-color, color, box-shadow;
+      transition-duration: 0.14s;
+      transition-timing-function: cubic-bezier(0.34, 1.4, 0.64, 1);
+    }
+
+    :where(
+      button:not(:disabled),
+      [role="button"]:not([aria-disabled="true"]),
+      [role="tab"],
+      [role="menuitem"],
+      summary,
+      label[for],
+      select:not(:disabled),
+      .cursor-pointer
+    ):active {
+      transform: scale(0.97);
+      transition-duration: 0.07s;
+    }
+
+    /* Inline links ignore transform, so they dim instead. */
+    :where(a[href]):active {
+      opacity: 0.7;
+    }
+
+    :where(input:is([type="checkbox"], [type="radio"]):not(:disabled)):active {
+      transform: scale(0.85);
+      transition-duration: 0.07s;
+    }
+  }
+}
+
+/* Tailwind v4 preflight resets buttons to cursor:default; restore pointer on interactive elements. */
+@layer base {
+  button:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]),
+  a[href],
+  summary,
+  select:not(:disabled),
+  label[for],
+  input:is([type="checkbox"], [type="radio"], [type="submit"], [type="button"], [type="file"]):not(:disabled) {
+    cursor: pointer;
+  }
+
+  button:disabled,
+  [aria-disabled="true"] {
+    cursor: not-allowed;
+  }
 }
