@@ -10,7 +10,6 @@ cutting tools (end mills, drills, oscillating blades, carbide wear parts) to Ind
 - **The manufacturer** sees purchase orders raised automatically when stock runs low.
 
 ## Stack
-
 Next.js 16 (App Router) · React 19 · TypeScript · Supabase (Postgres, Auth, Storage) ·
 Tailwind CSS · shadcn/ui · Vitest
 
