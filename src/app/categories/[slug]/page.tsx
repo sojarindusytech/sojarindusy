@@ -5,7 +5,8 @@ import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/componen
 import { Clock, Tag, Folder, ChevronRight, Package } from "lucide-react";
 import Link from "next/link";
 import { fetchCategoryBySlug, fetchCategoriesTree } from "@/actions/category";
-import { fetchProductsByCategory } from "@/actions/product";
+import { getProductsByCategory } from "@/lib/server/catalog";
+import { getStorefrontViewer, toStorefrontProducts } from "@/lib/server/storefront";
 import { notFound } from "next/navigation";
 import Image from "next/image";
 import { ProductCard } from "@/components/storefront/ProductCard";
@@ -22,7 +23,7 @@ export default async function CategoryPage({ params }: { params: Promise<{ slug:
     .filter(c => c.parent_id === category.id && c.is_active)
     .sort((a, b) => a.display_order - b.display_order);
 
-  const products = await fetchProductsByCategory(slug);
+  const products = toStorefrontProducts(await getProductsByCategory(slug), await getStorefrontViewer());
 
   // Build breadcrumb
   let breadcrumb: typeof category[] = [];

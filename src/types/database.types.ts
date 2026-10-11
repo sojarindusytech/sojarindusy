@@ -40,12 +40,25 @@ export interface Profile {
 }
 
 export interface OrderItem {
+  /** The SKU (product_variants.id); legacy lines may hold "item-N". */
   id: string;
+  product_id?: string;
   name: string;
   sku: string;
   quantity: number;
+  /** Units taken from stock when the order was placed. */
+  reserved_quantity?: number;
+  /** Units ordered beyond stock; they ship once restocked. */
+  backordered_quantity?: number;
   unit_price: number;
   total_price: number;
+  /** This line's share of the coupon discount (orders with tax_snapshot). */
+  discount_amount?: number;
+  /** total_price - discount_amount: the value GST was charged on. */
+  taxable_amount?: number;
+  /** GST % charged on this line (0 when GST billing was off). */
+  gst_rate?: number;
+  gst_amount?: number;
   specifications?: Record<string, any>;
 }
 
@@ -232,6 +245,14 @@ export interface Order {
   invoice_number?: string | null;
   customer_details?: CustomerOrderDetails | null;
   notes?: string | null;
+  /** Coupon discount, taken off the subtotal before GST. 0 when none. */
+  discount_amount?: number;
+  coupon_code?: string | null;
+  /** The coupon's rules as they were when the order was placed. */
+  coupon_snapshot?: CouponSnapshot | null;
+  /** How GST was charged; null on orders placed before per-line GST. */
+  tax_snapshot?: OrderTaxSnapshot | null;
+  idempotency_key?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -432,6 +453,8 @@ export interface PurchaseOrder {
   placed_at: string;
   dispatched_at?: string | null;
   received_at?: string | null;
+  /** True when raised automatically by the low-stock check (at most one open per SKU). */
+  is_auto?: boolean;
   created_at: string;
   updated_at: string;
   product?: {
@@ -501,6 +524,101 @@ export interface Product {
   categories?: Category[];
   attributes?: Attribute[];
   tags?: Attribute[]; // Backward compatibility alias
+}
+
+// ---- Coupons --------------------------------------------------------------------
+
+export type CouponDiscountType = "percent" | "fixed";
+export type CouponAppliesTo = "all" | "products" | "categories";
+export type CouponCustomerScope = "all" | "selected";
+export type CouponRedemptionStatus = "reserved" | "applied" | "released";
+
+export interface Coupon {
+  id: string;
+  code: string;
+  description: string | null;
+  discount_type: CouponDiscountType;
+  /** Percent (0-100] or rupees, depending on discount_type. Numeric columns arrive as numbers or strings. */
+  discount_value: number | string;
+  max_discount: number | string | null;
+  min_order_value: number | string;
+  valid_from: string;
+  valid_until: string | null;
+  /** null = unlimited */
+  max_total_uses: number | null;
+  /** null = unlimited, 1 = one-time use */
+  max_uses_per_customer: number | null;
+  first_order_only: boolean;
+  can_combine: boolean;
+  applies_to: CouponAppliesTo;
+  customer_scope: CouponCustomerScope;
+  is_active: boolean;
+  version: number;
+  created_by: string | null;
+  deleted_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+/** What checkout needs to evaluate a code; see coupon_checkout_context(). */
+export interface CouponCheckoutContext {
+  coupon: Coupon;
+  product_ids: string[];
+  /** Includes every sub-category of the categories chosen on the coupon. */
+  category_ids: string[];
+  customer_allowed: boolean;
+  total_uses: number;
+  customer_uses: number;
+  has_prior_orders: boolean;
+}
+
+export interface CouponUsageSummary {
+  coupon_id: string;
+  active_uses: number | string;
+  released_uses: number | string;
+  total_discount: number | string;
+}
+
+/** GST basis of an order, frozen when it was placed (orders.tax_snapshot). */
+export interface OrderTaxSnapshot {
+  gst_enabled: boolean;
+  seller_state_code: string | null;
+  /** "24-Gujarat"; null when the customer's state was unknown. */
+  place_of_supply: string | null;
+  /** true: CGST + SGST; false: IGST. */
+  intra_state: boolean;
+  cgst: number;
+  sgst: number;
+  igst: number;
+}
+
+export interface CouponSnapshot {
+  coupon_id: string;
+  code: string;
+  description: string | null;
+  discount_type: CouponDiscountType;
+  discount_value: number;
+  max_discount: number | null;
+  min_order_value: number;
+  applies_to: CouponAppliesTo;
+  first_order_only: boolean;
+  version: number;
+  eligible_subtotal?: number;
+}
+
+export interface CouponRedemption {
+  id: string;
+  coupon_id: string;
+  order_id: string;
+  user_id: string;
+  coupon_code: string;
+  discount_amount: number | string;
+  status: CouponRedemptionStatus;
+  expires_at: string | null;
+  released_at: string | null;
+  release_reason: string | null;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface Database {

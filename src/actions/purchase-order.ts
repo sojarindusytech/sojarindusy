@@ -1,154 +1,16 @@
 "use server";
 
-import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { requireAdmin } from "@/lib/auth-guard";
+import { guardOrError, requireAdmin, requireAdminOrManufacturer } from "@/lib/auth-guard";
+import { receivePurchaseOrder } from "@/lib/server/rpc";
+import { allocatePoNumber } from "@/lib/server/purchase-orders";
+import { notifyAll } from "@/lib/server/notifications";
 import { PurchaseOrder, PurchaseOrderStatus } from "@/types/database.types";
-import { recordStockMovement } from "@/actions/inventory";
-import { createNotification } from "@/actions/notification";
-import { evaluateReorder } from "@/lib/reorder";
 import { revalidatePath } from "next/cache";
 
-/**
- * Next PO number from the DB counter (Sales Settings: prefix / FY / next number).
- * Auto POs must never be lost over numbering, so if the counter is unavailable
- * (e.g. migration not applied) fall back to the old random number and log it.
- */
-async function allocatePoNumber(adminDb: ReturnType<typeof createAdminClient>): Promise<string> {
-  const { data, error } = await (adminDb as any).rpc("next_po_number");
-  if (!error && data) return data as string;
-  console.error("[allocatePoNumber] next_po_number failed, using fallback number:", error);
-  return `PO-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
-}
+// Auto-generating purchase orders is server-only: see src/lib/server/purchase-orders.ts.
 
-/**
- * Checks an SKU variant's stock against its trigger_quantity threshold.
- *
- * Fires when currentStock <= trigger_quantity, ordering enough to restock up to
- * min_quantity: order_quantity = min_quantity - trigger_quantity.
- * A trigger_quantity of 0 means auto-ordering is disabled for that SKU.
- * Skipped entirely if an active order (Placed / Dispatched) already exists.
- */
-export async function checkAndGeneratePurchaseOrder(
-  variantId: string,
-  currentStock: number
-): Promise<{ created: boolean; order?: PurchaseOrder; reason?: string }> {
-  try {
-    const adminDb = createAdminClient();
-
-    // 1. Fetch variant and product metadata
-    const { data: variantData, error: variantErr } = await (adminDb
-      .from("product_variants") as any)
-      .select("id, sku, min_quantity, trigger_quantity, specifications, product_id, products(id, title)")
-      .eq("id", variantId)
-      .single();
-
-    if (variantErr || !variantData) {
-      return { created: false, reason: "Variant not found" };
-    }
-
-    const targetQty = Number(variantData.min_quantity) || 0;      // restock-up-to level
-    const triggerQty = Number(variantData.trigger_quantity) || 0;  // reorder threshold
-
-    const decision = evaluateReorder({
-      currentStock,
-      minQuantity: targetQty,
-      triggerQuantity: triggerQty,
-    });
-
-    if (!decision.shouldOrder) {
-      if (decision.misconfigured) {
-        console.warn(
-          `[checkAndGeneratePurchaseOrder] SKU ${variantData.sku}: ${decision.reason}`
-        );
-      }
-      return { created: false, reason: decision.reason };
-    }
-
-    // 2. Deduplication check: check if an active (un-received) PO already exists for this variant
-    const { data: activeOrders, error: activeErr } = await (adminDb
-      .from("purchase_orders") as any)
-      .select("id, order_number, status")
-      .eq("variant_id", variantId)
-      .in("status", ["Placed", "Dispatched / In Transit"])
-      .limit(1);
-
-    if (activeErr) {
-      console.error("[checkAndGeneratePurchaseOrder] Error checking active orders:", activeErr);
-    }
-
-    if (activeOrders && activeOrders.length > 0) {
-      return {
-        created: false,
-        reason: `Active order ${activeOrders[0].order_number} already in progress (${activeOrders[0].status})`,
-      };
-    }
-
-    // 3. Order quantity, decided above (guaranteed >= 1)
-    const orderQuantity = decision.orderQuantity;
-    const orderNumber = await allocatePoNumber(adminDb);
-
-    const newPO = {
-      order_number: orderNumber,
-      variant_id: variantData.id,
-      product_id: variantData.product_id,
-      sku_code: variantData.sku,
-      product_title: variantData.products?.title || "Tooling Product",
-      min_quantity: targetQty,
-      trigger_quantity: triggerQty,
-      actual_quantity: currentStock,
-      order_quantity: orderQuantity,
-      specifications: variantData.specifications || {},
-      status: "Placed",
-      placed_at: new Date().toISOString(),
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    };
-
-    const { data: createdData, error: insertErr } = await (adminDb
-      .from("purchase_orders") as any)
-      .insert(newPO)
-      .select("*")
-      .single();
-
-    if (insertErr) {
-      console.error("[checkAndGeneratePurchaseOrder] Failed to insert auto PO:", insertErr);
-      return { created: false, reason: insertErr.message };
-    }
-
-    // Send notifications to Admin and Manufacturer
-    try {
-      await createNotification({
-        role: "admin",
-        title: "Low Stock: Auto PO Placed",
-        message: `PO #${orderNumber} automatically created for ${variantData.sku} (${orderQuantity} units).`,
-        type: "purchase_order",
-        link: "/admin/purchase-orders",
-        metadata: { order_number: orderNumber, sku: variantData.sku, quantity: orderQuantity },
-      });
-
-      await createNotification({
-        role: "manufacturer",
-        title: "New Production Order",
-        message: `New PO #${orderNumber} placed: ${orderQuantity} units of ${newPO.product_title} (${variantData.sku}).`,
-        type: "purchase_order",
-        link: "/manufacturer",
-        metadata: { order_number: orderNumber, sku: variantData.sku, quantity: orderQuantity },
-      });
-    } catch (notifErr) {
-      console.warn("[checkAndGeneratePurchaseOrder] Notification dispatch error:", notifErr);
-    }
-
-    revalidatePath("/admin/purchase-orders");
-    revalidatePath("/manufacturer");
-    revalidatePath("/admin/products");
-
-    return { created: true, order: createdData as PurchaseOrder };
-  } catch (err: any) {
-    console.error("[checkAndGeneratePurchaseOrder] Exception:", err);
-    return { created: false, reason: err.message };
-  }
-}
+const OPEN_STATUSES: PurchaseOrderStatus[] = ["Placed", "Dispatched / In Transit"];
 
 /**
  * Place a purchase order by hand (not triggered by low stock). The PO number is
@@ -161,103 +23,114 @@ export async function createManualPurchaseOrder(payload: {
   notes?: string | null;
   manualNumber?: string | null;
 }): Promise<{ success: boolean; error?: string; order?: PurchaseOrder }> {
+  const guard = await guardOrError(requireAdmin);
+  if (!guard.ctx) return { success: false, error: guard.error };
+
   try {
-    await requireAdmin();
     const adminDb = createAdminClient();
 
     const quantity = Math.floor(Number(payload.quantity));
     if (!Number.isFinite(quantity) || quantity < 1) return { success: false, error: "Quantity must be at least 1." };
+    if (quantity > 10_000_000) return { success: false, error: "Quantity is too large." };
 
     const manualNumber = payload.manualNumber?.trim() || null;
     if (manualNumber && manualNumber.length > 50) return { success: false, error: "PO number is too long." };
+    if ((payload.notes?.length ?? 0) > 2000) return { success: false, error: "Notes are too long." };
 
-    const { data: variantData, error: variantErr } = await (adminDb.from("product_variants") as any)
+    const { data: variantData, error: variantErr } = await adminDb
+      .from("product_variants")
       .select("id, sku, min_quantity, trigger_quantity, stock_quantity, specifications, product_id, products(id, title)")
       .eq("id", payload.variantId)
       .single();
     if (variantErr || !variantData) return { success: false, error: "SKU not found." };
+    const variant = variantData as unknown as {
+      id: string;
+      sku: string;
+      min_quantity: number | null;
+      trigger_quantity: number | null;
+      stock_quantity: number | null;
+      specifications: Record<string, unknown> | null;
+      product_id: string;
+      products: { id: string; title: string } | null;
+    };
 
     let orderNumber: string;
     if (manualNumber) {
-      const { data: dup } = await (adminDb.from("purchase_orders") as any)
+      const { data: dup } = await adminDb
+        .from("purchase_orders" as never)
         .select("id")
         .eq("order_number", manualNumber)
         .maybeSingle();
       if (dup) return { success: false, error: `PO number "${manualNumber}" already exists.` };
       orderNumber = manualNumber;
     } else {
-      orderNumber = await allocatePoNumber(adminDb);
+      const allocated = await allocatePoNumber();
+      if (!allocated) return { success: false, error: "Could not number the purchase order. Please try again." };
+      orderNumber = allocated;
     }
 
-    const now = new Date().toISOString();
-    const { data: created, error: insertErr } = await (adminDb.from("purchase_orders") as any)
+    const productTitle = variant.products?.title || "Tooling Product";
+    const { data: created, error: insertErr } = await adminDb
+      .from("purchase_orders" as never)
       .insert({
         order_number: orderNumber,
-        variant_id: variantData.id,
-        product_id: variantData.product_id,
-        sku_code: variantData.sku,
-        product_title: variantData.products?.title || "Tooling Product",
-        min_quantity: Number(variantData.min_quantity) || 0,
-        trigger_quantity: Number(variantData.trigger_quantity) || 0,
-        actual_quantity: Number(variantData.stock_quantity) || 0,
+        variant_id: variant.id,
+        product_id: variant.product_id,
+        sku_code: variant.sku,
+        product_title: productTitle,
+        min_quantity: Number(variant.min_quantity) || 0,
+        trigger_quantity: Number(variant.trigger_quantity) || 0,
+        actual_quantity: Number(variant.stock_quantity) || 0,
         order_quantity: quantity,
-        specifications: variantData.specifications || {},
+        specifications: variant.specifications || {},
         notes: payload.notes?.trim() || null,
         status: "Placed",
-        placed_at: now,
-        created_at: now,
-        updated_at: now,
-      })
+        is_auto: false,
+      } as never)
       .select("*")
       .single();
 
     if (insertErr) {
       if (insertErr.code === "23505") return { success: false, error: `PO number "${orderNumber}" already exists.` };
-      console.error("[createManualPurchaseOrder] insert failed:", insertErr);
-      return { success: false, error: insertErr.message };
+      console.error("[createManualPurchaseOrder] insert failed:", insertErr.message);
+      return { success: false, error: "Could not create the purchase order." };
     }
 
-    try {
-      const meta = { order_number: orderNumber, sku: variantData.sku, quantity };
-      await createNotification({
+    await notifyAll([
+      {
         role: "manufacturer",
         title: "New Production Order",
-        message: `New PO #${orderNumber} placed: ${quantity} units of ${variantData.products?.title || "product"} (${variantData.sku}).`,
+        message: `New PO #${orderNumber} placed: ${quantity} units of ${productTitle} (${variant.sku}).`,
         type: "purchase_order",
         link: "/manufacturer",
-        metadata: meta,
-      });
-    } catch (notifErr) {
-      console.warn("[createManualPurchaseOrder] Notification dispatch error:", notifErr);
-    }
+        metadata: { order_number: orderNumber, sku: variant.sku, quantity },
+      },
+    ]);
 
     revalidatePath("/admin/purchase-orders");
     revalidatePath("/manufacturer");
-    return { success: true, order: created as PurchaseOrder };
+    return { success: true, order: created as unknown as PurchaseOrder };
   } catch (err) {
     console.error("[createManualPurchaseOrder] Exception:", err);
-    return { success: false, error: err instanceof Error ? err.message : "Failed to create purchase order." };
+    return { success: false, error: "Failed to create purchase order." };
   }
 }
 
 /**
- * Fetch list of purchase orders with optional filtering for Active vs Past
+ * Fetch purchase orders, optionally only open (isPast=false) or received (isPast=true).
+ * Visible to administrators and the manufacturer only.
  */
 export async function getPurchaseOrders(params?: {
   isPast?: boolean;
   status?: PurchaseOrderStatus;
   search?: string;
 }): Promise<PurchaseOrder[]> {
+  const guard = await guardOrError(requireAdminOrManufacturer);
+  if (!guard.ctx) return [];
+
   try {
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-
-    if (!user) {
-      return [];
-    }
-
-    const adminDb = createAdminClient();
-    let query = (adminDb.from("purchase_orders") as any)
+    let query = createAdminClient()
+      .from("purchase_orders" as never)
       .select(`
         *,
         product:products(id, title, slug),
@@ -268,21 +141,21 @@ export async function getPurchaseOrders(params?: {
     if (params?.isPast === true) {
       query = query.eq("status", "Received");
     } else if (params?.isPast === false) {
-      query = query.in("status", ["Placed", "Dispatched / In Transit"]);
+      query = query.in("status", OPEN_STATUSES);
     } else if (params?.status) {
       query = query.eq("status", params.status);
     }
 
     const { data, error } = await query;
     if (error) {
-      console.error("[getPurchaseOrders] Query error:", error);
+      console.error("[getPurchaseOrders] Query error:", error.message);
       return [];
     }
 
-    let orders = (data || []) as PurchaseOrder[];
+    let orders = (data || []) as unknown as PurchaseOrder[];
 
-    if (params?.search && params.search.trim()) {
-      const term = params.search.toLowerCase().trim();
+    const term = params?.search?.toLowerCase().trim();
+    if (term) {
       orders = orders.filter(
         (o) =>
           o.order_number?.toLowerCase().includes(term) ||
@@ -299,139 +172,91 @@ export async function getPurchaseOrders(params?: {
 }
 
 /**
- * Update Purchase Order status.
- * Marking as 'Received' automatically increments SKU stock and records in inventory_logs.
+ * Update a purchase order's status.
+ *   Placed -> Dispatched / In Transit -> Received
+ * Marking it Received credits the SKU's stock exactly once, inside one locked
+ * database step, even if two admins click at the same time.
  */
 export async function updatePurchaseOrderStatus(
   orderId: string,
   newStatus: PurchaseOrderStatus,
   notes?: string
 ): Promise<{ success: boolean; error?: string }> {
+  const guard = await guardOrError(requireAdmin);
+  if (!guard.ctx) return { success: false, error: guard.error };
+  const actorId = guard.ctx.userId;
+
   try {
-    await requireAdmin();
-    const adminDb = createAdminClient();
-
-    // 1. Fetch existing PO
-    const { data: existingOrderData, error: fetchErr } = await (adminDb
-      .from("purchase_orders") as any)
-      .select("*")
-      .eq("id", orderId)
-      .single();
-
-    if (fetchErr || !existingOrderData) {
-      return { success: false, error: "Purchase order not found." };
-    }
-
-    const existingPO = existingOrderData as PurchaseOrder;
-
-    const updates: any = {
-      status: newStatus,
-      updated_at: new Date().toISOString(),
-    };
-
-    if (notes !== undefined) {
-      updates.notes = notes;
-    }
-
-    if (newStatus === "Dispatched / In Transit" && !existingPO.dispatched_at) {
-      updates.dispatched_at = new Date().toISOString();
-    }
-
-    // 2. If transitioning to 'Received', credit SKU stock and write inventory audit log
-    if (newStatus === "Received" && existingPO.status !== "Received") {
-      updates.received_at = new Date().toISOString();
-
-      // Fetch current stock
-      const { data: variantData, error: varFetchErr } = await (adminDb
-        .from("product_variants") as any)
-        .select("id, sku, stock_quantity, product_id, products(id, title)")
-        .eq("id", existingPO.variant_id)
-        .single();
-
-      if (!varFetchErr && variantData) {
-        const currentStock = Number(variantData.stock_quantity) || 0;
-        const newStock = currentStock + existingPO.order_quantity;
-
-        // Update SKU stock
-        const { error: stockUpdErr } = await (adminDb
-          .from("product_variants") as any)
-          .update({
-            stock_quantity: newStock,
-            updated_at: new Date().toISOString(),
-          })
-          .eq("id", existingPO.variant_id);
-
-        if (stockUpdErr) {
-          return { success: false, error: `Failed to increment stock: ${stockUpdErr.message}` };
-        }
-
-        // Record stock movement
-        await recordStockMovement({
-          variantId: existingPO.variant_id,
-          productId: existingPO.product_id,
-          skuCode: existingPO.sku_code,
-          productTitle: existingPO.product_title,
-          movementType: "RESTOCK",
-          quantityDelta: existingPO.order_quantity,
-          balanceBefore: currentStock,
-          balanceAfter: newStock,
-          referenceId: existingPO.order_number,
-          notes: notes ? `Auto PO Receipt: ${notes}` : `Auto Purchase Order ${existingPO.order_number} received from Manufacturer`,
-        });
+    if (newStatus === "Received") {
+      const { data, error } = await receivePurchaseOrder(orderId, notes?.trim() || null, actorId);
+      if (error) {
+        return {
+          success: false,
+          error: error.code === "PO_NOT_FOUND" ? "Purchase order not found." : "Could not receive the purchase order.",
+        };
       }
-    }
+      if (data.already_received) {
+        return { success: false, error: `PO ${data.order_number} was already received.` };
+      }
 
-    // 3. Update the purchase order record
-    const { error: updateErr } = await (adminDb
-      .from("purchase_orders") as any)
-      .update(updates)
-      .eq("id", orderId);
-
-    if (updateErr) {
-      return { success: false, error: updateErr.message };
-    }
-
-    // Send notifications on status change
-    try {
-      if (newStatus === "Received") {
-        await createNotification({
+      await notifyAll([
+        {
           role: "admin",
           title: "PO Restocked & Received",
-          message: `PO #${existingPO.order_number} received. ${existingPO.order_quantity} units credited into SKU ${existingPO.sku_code} stock.`,
+          message: `PO #${data.order_number} received. ${data.quantity} units credited into SKU ${data.sku} stock.`,
           type: "inventory",
           link: "/admin/purchase-orders",
-          metadata: { order_number: existingPO.order_number, quantity: existingPO.order_quantity },
-        });
-
-        await createNotification({
+          metadata: { order_number: data.order_number, quantity: data.quantity },
+        },
+        {
           role: "manufacturer",
           title: "PO Received by Sojar",
-          message: `Sojar Indusy has verified and received delivery of PO #${existingPO.order_number}.`,
+          message: `Sojar Indusy has verified and received delivery of PO #${data.order_number}.`,
           type: "purchase_order",
           link: "/manufacturer",
-          metadata: { order_number: existingPO.order_number },
-        });
-      } else if (newStatus === "Dispatched / In Transit") {
-        await createNotification({
+          metadata: { order_number: data.order_number },
+        },
+      ]);
+    } else if (newStatus === "Dispatched / In Transit") {
+      const now = new Date().toISOString();
+      const { data, error } = await createAdminClient()
+        .from("purchase_orders" as never)
+        .update({
+          status: newStatus,
+          dispatched_at: now,
+          updated_at: now,
+          ...(notes !== undefined ? { notes } : {}),
+        } as never)
+        .eq("id", orderId)
+        .eq("status", "Placed") // only from Placed: never re-open a received PO
+        .select("order_number");
+
+      if (error) return { success: false, error: "Could not update the purchase order." };
+      const rows = (data || []) as unknown as { order_number: string }[];
+      if (rows.length === 0) {
+        return { success: false, error: "Only a placed purchase order can be marked dispatched." };
+      }
+
+      await notifyAll([
+        {
           role: "admin",
           title: "PO In Transit",
-          message: `PO #${existingPO.order_number} marked Dispatched / In Transit.`,
+          message: `PO #${rows[0].order_number} marked Dispatched / In Transit.`,
           type: "purchase_order",
           link: "/admin/purchase-orders",
-          metadata: { order_number: existingPO.order_number },
-        });
-      }
-    } catch (notifErr) {
-      console.warn("[updatePurchaseOrderStatus] Notification dispatch error:", notifErr);
+          metadata: { order_number: rows[0].order_number },
+        },
+      ]);
+    } else {
+      return { success: false, error: "A purchase order cannot be moved back to Placed." };
     }
 
     revalidatePath("/admin/purchase-orders");
     revalidatePath("/manufacturer");
     revalidatePath("/admin/products");
-
     return { success: true };
-  } catch (err: any) {
+  } catch (err) {
     console.error("[updatePurchaseOrderStatus] Exception:", err);
-    return { success: false, error: err.message || "Failed to update order status." };
+    return { success: false, error: "Failed to update order status." };
   }
 }

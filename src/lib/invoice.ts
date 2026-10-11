@@ -14,6 +14,12 @@ export interface InvoiceLineInput {
   unitPrice: number;
   /** Discount percentage on the line (0-100). */
   discountPct?: number | null;
+  /**
+   * Exact discount in rupees (e.g. a coupon share carried over from an order).
+   * When set it wins over discountPct, so the invoice reproduces the order to
+   * the paisa; the printed percentage is derived from it.
+   */
+  discountAmount?: number | null;
   /** GST % for this line. Ignored (treated as 0) when GST billing is off. */
   gstRate?: number | null;
 }
@@ -121,9 +127,18 @@ export function computeInvoice(input: ComputeInvoiceInput): ComputedInvoice {
   const lines: InvoiceLine[] = input.items.map((it) => {
     const quantity = Math.max(0, Number(it.quantity) || 0);
     const unitPrice = Math.max(0, Number(it.unitPrice) || 0);
-    const discountPct = clamp(Number(it.discountPct) || 0, 0, 100);
     const gross = round2(quantity * unitPrice);
-    const discountAmount = round2((gross * discountPct) / 100);
+    const fixedDiscount =
+      it.discountAmount === null || it.discountAmount === undefined
+        ? null
+        : clamp(round2(Number(it.discountAmount) || 0), 0, gross);
+    const discountPct =
+      fixedDiscount === null
+        ? clamp(Number(it.discountPct) || 0, 0, 100)
+        : gross > 0
+          ? round2((fixedDiscount / gross) * 100)
+          : 0;
+    const discountAmount = fixedDiscount ?? round2((gross * discountPct) / 100);
     const taxable = round2(gross - discountAmount);
     const gstRate = gstEnabled ? clamp(resolveGstRate(it.gstRate, defaultGstRate), 0, 100) : 0;
 

@@ -208,7 +208,7 @@ export function CartDrawer() {
                 <span className="font-mono font-medium">₹{subtotal.toFixed(2)}</span>
               </div>
               <div className="flex items-center justify-between text-slate-600">
-                <span>Standard GST (18%)</span>
+                <span>GST (estimated at 18%)</span>
                 <span className="font-mono font-medium">₹{gstAmount.toFixed(2)}</span>
               </div>
               <div className="flex items-center justify-between text-sm font-bold text-slate-900 pt-1.5 border-t border-slate-200">

@@ -1,6 +1,7 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect } from "react";
+import React, { createContext, useCallback, useContext, useState, useEffect } from "react";
+import { computeOrderTotals } from "@/lib/pricing";
 
 export interface CartItem {
   variantId: string;
@@ -19,6 +20,8 @@ interface CartContextType {
   removeItem: (variantId: string) => void;
   updateQuantity: (variantId: string, quantity: number) => void;
   clearCart: () => void;
+  /** Replace stale prices with the ones the server reported. */
+  applyPriceChanges: (changes: { variantId: string; newPrice: number }[]) => void;
   subtotal: number;
   gstAmount: number;
   totalAmount: number;
@@ -64,9 +67,8 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     setItems((prev) => {
       const existingIdx = prev.findIndex((i) => i.variantId === item.variantId);
       if (existingIdx > -1) {
-        const updated = [...prev];
-        updated[existingIdx].quantity += quantity;
-        return updated;
+        // Immutable update: the updater may run twice in React strict mode.
+        return prev.map((i, idx) => (idx === existingIdx ? { ...i, quantity: i.quantity + quantity } : i));
       }
       return [...prev, { ...item, quantity }];
     });
@@ -91,9 +93,20 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     setItems([]);
   };
 
-  const subtotal = items.reduce((acc, item) => acc + item.unitPrice * item.quantity, 0);
-  const gstAmount = Math.round(subtotal * 0.18 * 100) / 100;
-  const totalAmount = Math.round((subtotal + gstAmount) * 100) / 100;
+  // Stable identity: checkout hooks list it as an effect dependency.
+  const applyPriceChanges = useCallback((changes: { variantId: string; newPrice: number }[]) => {
+    const newPrices = new Map(changes.map((c) => [c.variantId, c.newPrice]));
+    setItems((prev) =>
+      prev.map((i) => (newPrices.has(i.variantId) ? { ...i, unitPrice: newPrices.get(i.variantId)! } : i))
+    );
+  }, []);
+
+  // Display only, an estimate at the standard 18% GST: checkout shows the
+  // server's totals (per-SKU GST rates, CGST + SGST or IGST).
+  const totals = computeOrderTotals(items.reduce((acc, item) => acc + item.unitPrice * item.quantity, 0));
+  const subtotal = totals.subtotal;
+  const gstAmount = totals.gst;
+  const totalAmount = totals.total;
   const itemCount = items.reduce((acc, item) => acc + item.quantity, 0);
 
   return (
@@ -104,6 +117,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         removeItem,
         updateQuantity,
         clearCart,
+        applyPriceChanges,
         subtotal,
         gstAmount,
         totalAmount,

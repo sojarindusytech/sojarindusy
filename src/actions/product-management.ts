@@ -4,7 +4,8 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { requireAdmin } from "@/lib/auth-guard";
 import { revalidatePath } from "next/cache";
 import { ProductImage, ProductDocument } from "@/types/database.types";
-import { recordStockMovement } from "@/actions/inventory";
+import { recordStockMovement } from "@/lib/server/inventory";
+import { checkAndGeneratePurchaseOrder } from "@/lib/server/purchase-orders";
 import { normalizeHsn } from "@/lib/invoice";
 
 /** Rejects out-of-range GST % or malformed HSN before anything is written. */
@@ -289,7 +290,6 @@ export async function addSingleSku(
     // produce a round trip per row.
     if (inserted) {
       try {
-        const { checkAndGeneratePurchaseOrder } = await import("@/actions/purchase-order");
         await checkAndGeneratePurchaseOrder(inserted.id, payload.stock_quantity);
       } catch (poErr) {
         console.warn("[addSkuToProduct] Notice auto PO check:", poErr);
@@ -648,7 +648,6 @@ export async function bulkUpdateSkus(
         updates.trigger_quantity !== undefined;
 
       if (affectsReorder) {
-        const { checkAndGeneratePurchaseOrder } = await import("@/actions/purchase-order");
         for (const v of existingVariants) {
           const finalStock =
             updates.stock_quantity !== undefined
@@ -761,7 +760,6 @@ export async function updateSingleSku(
     // below its new trigger sees nothing happen until the next customer order or
     // stock adjustment -- which can be weeks away.
     try {
-      const { checkAndGeneratePurchaseOrder } = await import("@/actions/purchase-order");
       await checkAndGeneratePurchaseOrder(variantId, newStock);
     } catch (poErr) {
       console.warn("[updateSku] Notice auto PO check:", poErr);

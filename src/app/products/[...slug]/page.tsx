@@ -1,10 +1,10 @@
-import { fetchProductBySlug, fetchProductsByCategory } from "@/actions/product";
+import { getProductBySlug, getProductsByCategory } from "@/lib/server/catalog";
+import { getStorefrontViewer, isVisibleOnStorefront, toStorefrontProduct, toStorefrontProducts } from "@/lib/server/storefront";
 import { fetchCategoriesTree, fetchCategoryBySlug } from "@/actions/category";
 import { notFound } from "next/navigation";
 import { ProductDetailsClient } from "@/components/storefront/ProductDetailsClient";
 import { CategoryView } from "@/components/storefront/CategoryView";
 import { Category } from "@/types/database.types";
-import { createClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
 
@@ -22,15 +22,11 @@ export default async function CatchAllProductPage({
   }
 
   // 1. Check if the target slug is a Product
-  const product = await fetchProductBySlug(targetSlug);
+  const viewer = await getStorefrontViewer();
+  const found = await getProductBySlug(targetSlug);
+  const product = found && isVisibleOnStorefront(found, viewer) ? toStorefrontProduct(found, viewer) : null;
 
   if (product) {
-    const supabase = await createClient();
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
-    const isLoggedIn = !!session;
-
     const { flatCategories } = await fetchCategoriesTree();
 
     // Build breadcrumb
@@ -63,7 +59,9 @@ export default async function CatchAllProductPage({
       <ProductDetailsClient
         product={product}
         breadcrumb={breadcrumb}
-        isLoggedIn={isLoggedIn}
+        isLoggedIn={viewer.isLoggedIn}
+        canViewPrices={viewer.canViewPrices}
+        isPendingApproval={viewer.isPendingApproval}
       />
     );
   }
@@ -77,7 +75,7 @@ export default async function CatchAllProductPage({
       .filter((c) => c.parent_id === category.id && c.is_active)
       .sort((a, b) => a.display_order - b.display_order);
 
-    const products = await fetchProductsByCategory(targetSlug);
+    const products = toStorefrontProducts(await getProductsByCategory(targetSlug), viewer);
 
     // Build breadcrumb
     let breadcrumb: typeof category[] = [];

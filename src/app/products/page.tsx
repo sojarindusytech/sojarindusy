@@ -6,7 +6,8 @@ import Link from "next/link";
 import Image from "next/image";
 import type { Metadata } from "next";
 import { fetchCategoriesTree } from "@/actions/category";
-import { fetchProductsList } from "@/actions/product";
+import { getAllProducts } from "@/lib/server/catalog";
+import { getStorefrontViewer, toStorefrontProducts } from "@/lib/server/storefront";
 import { ProductCard } from "@/components/storefront/ProductCard";
 
 export const dynamic = "force-dynamic";
@@ -18,10 +19,12 @@ export const metadata: Metadata = {
 };
 
 export default async function ProductsPage() {
-  const [{ flatCategories }, products] = await Promise.all([
+  const [{ flatCategories }, allProducts, viewer] = await Promise.all([
     fetchCategoriesTree(),
-    fetchProductsList(),
+    getAllProducts(),
+    getStorefrontViewer(),
   ]);
+  const products = toStorefrontProducts(allProducts, viewer);
 
   // Show root categories
   const rootCategories = flatCategories

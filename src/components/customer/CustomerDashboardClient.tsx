@@ -1,6 +1,8 @@
 "use client";
 
 import React, { useState } from "react";
+import { getOrderAmounts } from "@/lib/order-amounts";
+import { OrderDiscountRow } from "@/components/common/OrderDiscountRow";
 import { Order, Profile, OrderItem } from "@/types/database.types";
 import {
   ORDER_STATUSES,
@@ -730,7 +732,7 @@ export function CustomerDashboardClient({
                         <TableHead className="font-bold text-slate-700">Invoice / Order #</TableHead>
                         <TableHead className="font-bold text-slate-700">Billing Date</TableHead>
                         <TableHead className="font-bold text-slate-700">Taxable Subtotal</TableHead>
-                        <TableHead className="font-bold text-slate-700">GST (18%)</TableHead>
+                        <TableHead className="font-bold text-slate-700">GST</TableHead>
                         <TableHead className="font-bold text-slate-700">Total Invoice (₹)</TableHead>
                         <TableHead className="font-bold text-slate-700">Status</TableHead>
                         <TableHead className="font-bold text-slate-700 text-right pr-4">Action</TableHead>
@@ -745,8 +747,8 @@ export function CustomerDashboardClient({
                         </TableRow>
                       ) : (
                         orders.map((ord) => {
-                          const sub = ord.subtotal || ord.total_amount * 0.847;
-                          const gst = ord.gst_amount || ord.total_amount * 0.153;
+                          // Taxable value: subtotal after any coupon discount.
+                          const { taxable: sub, gst } = getOrderAmounts(ord);
 
                           return (
                             <TableRow key={ord.id} className="text-xs hover:bg-slate-50">
@@ -1247,13 +1249,14 @@ export function CustomerDashboardClient({
                   <div className="flex justify-between text-slate-600">
                     <span>Taxable Subtotal</span>
                     <span className="font-mono">
-                      ₹{Number(activeOrderDetails.subtotal || activeOrderDetails.total_amount * 0.847).toFixed(2)}
+                      ₹{getOrderAmounts(activeOrderDetails).subtotal.toFixed(2)}
                     </span>
                   </div>
+                  <OrderDiscountRow order={activeOrderDetails} />
                   <div className="flex justify-between text-slate-600">
-                    <span>GST (18% Integrated / CGST+SGST)</span>
+                    <span>{getOrderAmounts(activeOrderDetails).gstLabel}</span>
                     <span className="font-mono">
-                      ₹{Number(activeOrderDetails.gst_amount || activeOrderDetails.total_amount * 0.153).toFixed(2)}
+                      ₹{getOrderAmounts(activeOrderDetails).gst.toFixed(2)}
                     </span>
                   </div>
                   <div className="flex justify-between text-sm font-bold text-slate-900 pt-1.5 border-t border-slate-200">

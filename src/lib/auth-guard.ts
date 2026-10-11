@@ -93,6 +93,15 @@ export async function requireAdmin(): Promise<AuthContext> {
   return ctx;
 }
 
+/** An administrator or the manufacturing partner (read access to purchase orders). */
+export async function requireAdminOrManufacturer(): Promise<AuthContext> {
+  const ctx = await requireUser();
+  if (!isAdminRole(ctx.role) && ctx.role !== "manufacturer") {
+    throw new AuthorizationError("Administrator or manufacturer access required.");
+  }
+  return ctx;
+}
+
 /**
  * Wraps a guard for actions that return `{ error }` to the UI instead of
  * throwing, so an expired session renders a message rather than an error page.

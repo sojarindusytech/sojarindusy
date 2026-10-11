@@ -1,7 +1,7 @@
 "use server";
 
 import { createAdminClient } from "@/lib/supabase/admin";
-import { requireAdmin, requireUser } from "@/lib/auth-guard";
+import { AuthorizationError, requireAdmin, requireApprovedCustomer } from "@/lib/auth-guard";
 import { loadSalesSettings } from "@/lib/sales-settings";
 import { amountInWords, computeInvoice, stateCodeOf, type InvoiceLineInput } from "@/lib/invoice";
 import { getInvoiceFormData, type InvoiceFormCustomer } from "@/actions/invoice";
@@ -240,8 +240,12 @@ export async function createCartQuote(
 ): Promise<{ success: true; quoteId: string; quoteNumber: string } | { success: false; error: string; needsLogin?: boolean }> {
   let userId: string;
   try {
-    userId = (await requireUser()).userId;
-  } catch {
+    // A quotation shows prices, which are for approved accounts only.
+    userId = (await requireApprovedCustomer()).userId;
+  } catch (err) {
+    if (err instanceof AuthorizationError && err.message === "Account pending approval.") {
+      return { success: false, error: "Quotations are available once your account is approved." };
+    }
     return { success: false, error: "Please log in to download a quotation.", needsLogin: true };
   }
 

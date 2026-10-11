@@ -4,7 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireAdmin } from "@/lib/auth-guard";
 import { RFQ, RFQStatus, RFQInsert, RFQUpdate, Profile } from "@/types/database.types";
-import { createNotification } from "@/actions/notification";
+import { createNotification } from "@/lib/server/notifications";
 import { revalidatePath } from "next/cache";
 
 /**
@@ -73,6 +73,19 @@ export async function submitCustomerRfq(payload: {
 
     if (!payload.quantity || !payload.quantity.trim()) {
       return { success: false, error: "Estimated quantity is required." };
+    }
+
+    if (
+      payload.item_name.length > 300 ||
+      payload.quantity.length > 100 ||
+      (payload.specifications?.length ?? 0) > 5000 ||
+      (payload.drawing_url?.length ?? 0) > 2000
+    ) {
+      return { success: false, error: "Some fields are too long. Please shorten them and try again." };
+    }
+    // The link is shown to admins: only allow web links (never javascript: or data:).
+    if (payload.drawing_url?.trim() && !/^https?:\/\//i.test(payload.drawing_url.trim())) {
+      return { success: false, error: "The drawing link must start with http:// or https://." };
     }
 
     const adminDb = createAdminClient();

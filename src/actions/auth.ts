@@ -12,7 +12,7 @@ import {
   UserTitle,
 } from "@/lib/constants";
 import { fullSignUpSchema, loginSchema, forgotPasswordSchema, resetPasswordSchema } from "@/lib/validations/auth";
-import { createNotification } from "@/actions/notification";
+import { createNotification } from "@/lib/server/notifications";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 

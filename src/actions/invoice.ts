@@ -373,6 +373,11 @@ export async function updateInvoice(
 /**
  * Idempotent: an order has at most one invoice. Called when an order is
  * delivered, and available to admins as a manual retry.
+ *
+ * Orders placed with per-line GST (orders.tax_snapshot set) are invoiced
+ * exactly as charged: each line's coupon discount and GST rate, and the GST
+ * basis (billing on/off, place of supply) from the order, not today's
+ * settings. Older orders fall back to the SKU's current GST rate.
  */
 export async function createInvoiceFromOrder(orderId: string): Promise<Result<{ invoice: Invoice }>> {
   try {
@@ -407,10 +412,14 @@ export async function createInvoiceFromOrder(orderId: string): Promise<Result<{ 
 
     const cd = order.customer_details;
     const stateName = cd?.state || profile?.state || null;
-    const placeOfSupply = placeOfSupplyFor(stateName);
+    const tax = order.tax_snapshot ?? null;
+    const placeOfSupply = tax ? tax.place_of_supply : placeOfSupplyFor(stateName);
 
     const lines: InvoiceLineInput[] = items.map((i) => {
       const v = bySku.get(i.sku);
+      const pricing: Pick<InvoiceLineInput, "discountPct" | "discountAmount" | "gstRate"> = tax
+        ? { discountAmount: Number(i.discount_amount) || 0, gstRate: Number(i.gst_rate) || 0 }
+        : { discountPct: 0, gstRate: v?.gst_rate === null || v?.gst_rate === undefined ? null : Number(v.gst_rate) };
       return {
         name: i.sku || i.name,
         sku: i.sku,
@@ -418,8 +427,7 @@ export async function createInvoiceFromOrder(orderId: string): Promise<Result<{ 
         hsn: v?.hsn_code ?? null,
         quantity: i.quantity,
         unitPrice: i.unit_price,
-        discountPct: 0,
-        gstRate: v?.gst_rate === null || v?.gst_rate === undefined ? null : Number(v.gst_rate),
+        ...pricing,
       };
     });
 
@@ -440,7 +448,7 @@ export async function createInvoiceFromOrder(orderId: string): Promise<Result<{ 
       invoiceDate: todayIso(),
       poNumber: order.order_number,
       placeOfSupply,
-      gstEnabled: settings.gst_billing_enabled,
+      gstEnabled: tax ? tax.gst_enabled : settings.gst_billing_enabled,
       manualNumber: null,
       lines,
     });
