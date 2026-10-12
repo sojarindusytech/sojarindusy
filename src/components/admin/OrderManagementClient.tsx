@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
+import { getOrderAmounts } from "@/lib/order-amounts";
+import { OrderDiscountRow } from "@/components/common/OrderDiscountRow";
 import { Order, OrderItem } from "@/types/database.types";
 import {
   ORDER_STATUSES,
@@ -334,7 +336,7 @@ export function OrderManagementClient({ initialOrders }: OrderManagementClientPr
                           ₹{Number(ord.total_amount).toLocaleString("en-IN")}
                         </div>
                         <div className="text-[10px] text-slate-400">
-                          Incl. 18% GST
+                          Incl. GST
                         </div>
                       </TableCell>
 
@@ -595,13 +597,14 @@ export function OrderManagementClient({ initialOrders }: OrderManagementClientPr
                   <div className="flex justify-between text-slate-600">
                     <span>Subtotal</span>
                     <span className="font-mono">
-                      ₹{Number(viewOrder.subtotal || viewOrder.total_amount * 0.847).toFixed(2)}
+                      ₹{getOrderAmounts(viewOrder).subtotal.toFixed(2)}
                     </span>
                   </div>
+                  <OrderDiscountRow order={viewOrder} />
                   <div className="flex justify-between text-slate-600">
-                    <span>GST (18%)</span>
+                    <span>{getOrderAmounts(viewOrder).gstLabel}</span>
                     <span className="font-mono">
-                      ₹{Number(viewOrder.gst_amount || viewOrder.total_amount * 0.153).toFixed(2)}
+                      ₹{getOrderAmounts(viewOrder).gst.toFixed(2)}
                     </span>
                   </div>
                   <div className="flex justify-between text-sm font-bold text-slate-900 pt-1.5 border-t border-slate-200">

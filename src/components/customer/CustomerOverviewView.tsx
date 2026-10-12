@@ -1,6 +1,8 @@
 "use client";
 
 import React, { useState } from "react";
+import { getOrderAmounts } from "@/lib/order-amounts";
+import { OrderDiscountRow } from "@/components/common/OrderDiscountRow";
 import { Order, Profile, OrderItem } from "@/types/database.types";
 import { ORDER_STATUS_CONFIG, ORDER_STATUSES } from "@/lib/constants";
 import { Card } from "@/components/ui/card";
@@ -400,13 +402,14 @@ export function CustomerOverviewView({
                   <div className="flex justify-between text-slate-600">
                     <span>Taxable Subtotal</span>
                     <span className="font-mono">
-                      ₹{Number(activeOrderDetails.subtotal || activeOrderDetails.total_amount * 0.847).toFixed(2)}
+                      ₹{getOrderAmounts(activeOrderDetails).subtotal.toFixed(2)}
                     </span>
                   </div>
+                  <OrderDiscountRow order={activeOrderDetails} />
                   <div className="flex justify-between text-slate-600">
-                    <span>GST (18% Integrated / CGST+SGST)</span>
+                    <span>{getOrderAmounts(activeOrderDetails).gstLabel}</span>
                     <span className="font-mono">
-                      ₹{Number(activeOrderDetails.gst_amount || activeOrderDetails.total_amount * 0.153).toFixed(2)}
+                      ₹{getOrderAmounts(activeOrderDetails).gst.toFixed(2)}
                     </span>
                   </div>
                   <div className="flex justify-between text-sm font-bold text-slate-900 pt-1.5 border-t border-slate-200">

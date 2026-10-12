@@ -39,6 +39,17 @@ import {
   RotateCcw,
 } from "lucide-react";
 import toast from "react-hot-toast";
+import { allowedStatuses, isFinalStatus } from "@/lib/order-status";
+
+const STATUS_OPTIONS: { value: OrderStatus; label: string; className?: string }[] = [
+  { value: ORDER_STATUSES.PENDING, label: "Pending Review (Order Placed)" },
+  { value: ORDER_STATUSES.CONFIRMED, label: "Confirmed (Stock Allocated)" },
+  { value: ORDER_STATUSES.PROCESSING, label: "Processing / Packaging (Warehouse)" },
+  { value: ORDER_STATUSES.SHIPPED, label: "Shipped / In Transit (Carrier Dispatched)" },
+  { value: ORDER_STATUSES.DELIVERED, label: "Delivered (Completed)" },
+  { value: ORDER_STATUSES.RETURNED, label: "Returned (Customer Return & Restock)", className: "text-purple-700 font-semibold" },
+  { value: ORDER_STATUSES.CANCELLED, label: "Cancelled (Restock Inventory)" },
+];
 
 interface UpdateOrderTrackingModalProps {
   isOpen: boolean;
@@ -67,6 +78,9 @@ export function UpdateOrderTrackingModal({
   const [notes, setNotes] = useState<string>(order.notes || "");
   const [returnReason, setReturnReason] = useState<string>(order.return_reason || "");
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const currentStatus: OrderStatus = order.status || ORDER_STATUSES.PENDING;
+  const allowed = allowedStatuses(currentStatus);
 
   useEffect(() => {
     if (order) {
@@ -174,34 +188,29 @@ export function UpdateOrderTrackingModal({
           {/* Status Selection */}
           <div className="space-y-1.5">
             <Label className="text-xs font-semibold text-slate-700">Order Progression Stage *</Label>
-            <Select value={status} onValueChange={(val: any) => setStatus(val)}>
+            <Select value={status} onValueChange={(val) => setStatus(val as OrderStatus)}>
               <SelectTrigger className="h-9 text-xs border-slate-200 bg-white shadow-none">
                 <SelectValue placeholder="Select Status" />
               </SelectTrigger>
               <SelectContent className="bg-white border-slate-200 shadow-lg text-xs">
-                <SelectItem value={ORDER_STATUSES.PENDING}>
-                  Pending Review (Order Placed)
-                </SelectItem>
-                <SelectItem value={ORDER_STATUSES.CONFIRMED}>
-                  Confirmed (Stock Allocated)
-                </SelectItem>
-                <SelectItem value={ORDER_STATUSES.PROCESSING}>
-                  Processing / Packaging (Warehouse)
-                </SelectItem>
-                <SelectItem value={ORDER_STATUSES.SHIPPED}>
-                  Shipped / In Transit (Carrier Dispatched)
-                </SelectItem>
-                <SelectItem value={ORDER_STATUSES.DELIVERED}>
-                  Delivered (Completed)
-                </SelectItem>
-                <SelectItem value={ORDER_STATUSES.RETURNED} className="text-purple-700 font-semibold">
-                  Returned (Customer Return & Restock)
-                </SelectItem>
-                <SelectItem value={ORDER_STATUSES.CANCELLED}>
-                  Cancelled (Restock Inventory)
-                </SelectItem>
+                {STATUS_OPTIONS.map((opt) => (
+                  <SelectItem
+                    key={opt.value}
+                    value={opt.value}
+                    disabled={!allowed.includes(opt.value)}
+                    className={opt.className}
+                  >
+                    {opt.label}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
+            {isFinalStatus(currentStatus) && (
+              <p className="text-[11px] text-slate-500">
+                This order is {ORDER_STATUS_CONFIG[currentStatus]?.label.toLowerCase()} and can no longer change
+                status. You can still update its notes.
+              </p>
+            )}
           </div>
 
           {/* Contextual Status Alerts & Return Reason Input */}

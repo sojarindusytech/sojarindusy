@@ -1,36 +1,71 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Sojar Indusy
 
-## Getting Started
+B2B storefront and back office for Sojar Indusy / Sojar Solutions, a supplier of carbide
+cutting tools (end mills, drills, oscillating blades, carbide wear parts) to Indian industry.
 
-First, run the development server:
+- **Customers** register, are approved by an admin, then see prices, order, track shipments,
+  request returns and submit RFQs.
+- **Admins** manage the catalogue, stock, customers, orders, dispatch, returns, RFQs, quotes,
+  coupons and purchase orders.
+- **The manufacturer** sees purchase orders raised automatically when stock runs low.
+
+## Stack
+Next.js 16 (App Router) · React 19 · TypeScript · Supabase (Postgres, Auth, Storage) ·
+Tailwind CSS · shadcn/ui · Vitest
+
+## Getting started
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+cp .env.example .env      # fill in the Supabase URL and keys
+npm ci
+npm run dev               # http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+| Script | What it does |
+| --- | --- |
+| `npm run dev` | Development server |
+| `npm run build` / `npm start` | Production build / server |
+| `npm test` | Unit tests and database tests (in-process Postgres, no setup needed) |
+| `npm run typecheck` | TypeScript check |
+| `npm run lint` | ESLint |
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Database
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Migrations live in `supabase/migrations/` and are applied by hand in the Supabase SQL editor.
+Follow the runbook for each release, e.g. [`supabase/RUNBOOK_20261015.md`](supabase/RUNBOOK_20261015.md):
+it lists the order, what runs before and after the app deploy, and how to roll back.
 
-## Learn More
+`tests/db/` applies every migration to an in-process Postgres (PGlite) and tests the access
+rules and database functions, so a migration can be checked before it reaches Supabase.
 
-To learn more about Next.js, take a look at the following resources:
+## How the code is organised
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+| Path | Contents |
+| --- | --- |
+| `src/app/` | Routes: storefront, `/dashboard` (customer), `/admin`, `/manufacturer` |
+| `src/actions/` | Server Actions called by pages and components |
+| `src/lib/server/` | Server-only modules: database function wrappers, checkout, coupons, catalogue |
+| `src/lib/` | Shared logic safe for the browser: pricing, order status rules, constants |
+| `src/components/` | UI by audience: `storefront/`, `customer/`, `admin/`, `manufacturer/`, `ui/` |
+| `supabase/` | Migrations, preflight checks, rollbacks, runbooks |
+| `tests/` | Database tests and test helpers |
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+### Rules that keep it secure
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+1. **Every exported function in a `"use server"` file is a public HTTP endpoint.** Start each
+   one with a guard from `src/lib/auth-guard.ts` (`requireAdmin`, `requireApprovedCustomer`, …).
+   Internal helpers belong in `src/lib/server/`, never in `src/actions/`.
+2. **`src/lib/server/*` and `src/lib/supabase/admin.ts` import `server-only`.** The service-role
+   key bypasses row-level security, so importing these from a Client Component is a build error.
+3. **Never trust money from the browser.** Prices are re-read from the database at checkout;
+   totals, stock and coupon limits are decided inside one locked database function
+   (`place_order`).
+4. **Prices are for approved customers.** Storefront pages pass products through
+   `src/lib/server/storefront.ts`, which strips prices and stock for other viewers before any
+   data reaches the browser.
+5. **An order is priced exactly like its tax invoice.** `src/lib/order-pricing.ts` uses the
+   invoice maths (`src/lib/invoice.ts`): GST per line at the SKU's rate or the Sales Settings
+   default, CGST + SGST or IGST by the customer's state, coupon discount spread over the lines
+   it applies to (before GST). The order stores each line's discount and GST plus a
+   `tax_snapshot`, and the invoice raised on delivery reuses them, so the two always match
+   (the invoice then rounds its total to the rupee). Change GST rules in one place only.

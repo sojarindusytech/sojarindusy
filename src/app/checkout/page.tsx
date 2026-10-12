@@ -18,18 +18,25 @@ import {
   Mail,
   ShieldCheck,
   CheckCircle2,
-  Truck,
   ArrowLeft,
   Loader2,
-  FileText,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
+import { CouponBox } from "@/components/checkout/CouponBox";
+import { useCheckoutCoupon } from "@/components/checkout/useCheckoutCoupon";
+import { useCheckoutPreview } from "@/components/checkout/useCheckoutPreview";
+import { gstLabel } from "@/lib/order-pricing";
+import { formatInr } from "@/lib/pricing";
 
 export default function CheckoutPage() {
   const router = useRouter();
-  const { items, subtotal, gstAmount, totalAmount, clearCart } = useCart();
+  const { items, subtotal, gstAmount, totalAmount, clearCart, applyPriceChanges } = useCart();
+  // One id per checkout attempt. A double click, refresh-and-resubmit or
+  // network retry reuses it, and the server returns the same order instead of
+  // creating a second one. It is renewed only after an order is placed.
+  const [checkoutAttemptId, setCheckoutAttemptId] = useState(() => crypto.randomUUID());
   const [profile, setProfile] = useState<Profile | null>(null);
   const [userEmail, setUserEmail] = useState<string>("");
   const [isLoadingProfile, setIsLoadingProfile] = useState(true);
@@ -38,6 +45,17 @@ export default function CheckoutPage() {
   const [poNumber, setPoNumber] = useState("");
   const [orderNotes, setOrderNotes] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const coupon = useCheckoutCoupon(items, applyPriceChanges);
+  const isAdmin = profile?.role === "admin" || profile?.role === "platform_owner";
+  const isApproved = !profile || isAdmin || profile.approval_status === "approved";
+  const preview = useCheckoutPreview(items, !isLoadingProfile && !!profile && isApproved, applyPriceChanges);
+
+  // The server's totals (per-SKU GST, CGST + SGST or IGST) are what the order
+  // will store. The cart's own 18% figures are only shown until they arrive.
+  const serverTotals = coupon.applied ?? preview.data;
+  const totals = serverTotals?.totals ?? { subtotal, discount: 0, taxable: subtotal, gst: gstAmount, total: totalAmount };
+  const isEstimate = !serverTotals;
+  const canSubmit = isApproved && !isSubmitting && !coupon.isApplying && !coupon.isRefreshing;
 
   useEffect(() => {
     async function loadUser() {
@@ -85,28 +103,47 @@ export default function CheckoutPage() {
       .filter(Boolean)
       .join(" | ");
 
-    const result = await createCustomerOrder({
-      items: items.map((item) => ({
-        variantId: item.variantId,
-        name: item.title,
-        sku: item.sku,
-        quantity: item.quantity,
-        unit_price: item.unitPrice,
-        specifications: item.specifications,
-      })),
-      shippingAddress: deliveryAddress,
-      notes: notesSummary || undefined,
-    });
+    let result: Awaited<ReturnType<typeof createCustomerOrder>>;
+    try {
+      result = await createCustomerOrder({
+        items: items.map((item) => ({
+          variantId: item.variantId,
+          quantity: item.quantity,
+          unit_price: item.unitPrice,
+          specifications: item.specifications,
+        })),
+        shippingAddress: deliveryAddress,
+        notes: notesSummary || undefined,
+        idempotencyKey: checkoutAttemptId,
+        couponCode: coupon.appliedCode,
+      });
+    } catch {
+      // The attempt id is unchanged, so trying again can never create a second order.
+      setIsSubmitting(false);
+      toast.error("Connection problem. Please try again; your order will not be placed twice.");
+      return;
+    }
 
     setIsSubmitting(false);
 
-    if (result.error) {
-      toast.error(result.error);
-    } else {
+    if (result.success) {
+      setCheckoutAttemptId(crypto.randomUUID());
       clearCart();
       toast.success(`Purchase Order #${result.orderNumber} placed successfully!`);
       router.push("/dashboard");
+      return;
     }
+
+    if (result.code === "PRICE_CHANGED" && result.priceChanges?.length) {
+      // Show the customer the current prices before they confirm again.
+      applyPriceChanges(result.priceChanges);
+    } else if (result.code === "COUPON_CHANGED" && coupon.appliedCode) {
+      // The admin edited the coupon: show the new discount before they confirm again.
+      coupon.apply(coupon.appliedCode);
+    } else if (result.code?.startsWith("COUPON_")) {
+      coupon.reject(result.error || "This coupon can no longer be used.");
+    }
+    toast.error(result.error || "We couldn't place your order. Please try again.");
   };
 
   if (isLoadingProfile) {
@@ -162,6 +199,18 @@ export default function CheckoutPage() {
             <ShieldCheck className="h-4 w-4 text-emerald-600" /> GST Tax Invoice
           </span>
         </div>
+
+        {!isApproved && (
+          <div role="status" className="mb-6 rounded-xl border border-amber-200 bg-amber-50 p-4 text-xs text-amber-900">
+            <p className="font-bold">Your account is awaiting approval</p>
+            <p className="mt-1">
+              You can place orders once an administrator approves your business account.{" "}
+              <Link href="/pending-approval" className="font-semibold underline">
+                Check your status
+              </Link>
+            </p>
+          </div>
+        )}
 
         <form onSubmit={handlePlaceOrder} className="grid grid-cols-1 lg:grid-cols-12 gap-8">
           {/* Left Column: Delivery & Client Info */}
@@ -287,16 +336,39 @@ export default function CheckoutPage() {
                 ))}
               </div>
 
+              <CouponBox
+                applied={coupon.applied}
+                error={coupon.error}
+                isApplying={coupon.isApplying}
+                isRefreshing={coupon.isRefreshing}
+                disabled={!isApproved || isSubmitting}
+                onApply={coupon.apply}
+                onRemove={coupon.remove}
+              />
+
               {/* Price Breakdown */}
               <div className="space-y-2 pt-3 border-t border-slate-100 text-xs">
                 <div className="flex items-center justify-between text-slate-600">
                   <span>Subtotal (Excl. Tax)</span>
-                  <span className="font-mono font-medium">₹{subtotal.toFixed(2)}</span>
+                  <span className="font-mono font-medium">{formatInr(totals.subtotal)}</span>
                 </div>
-                <div className="flex items-center justify-between text-slate-600">
-                  <span>GST (18% Integrated / CGST+SGST)</span>
-                  <span className="font-mono font-medium">₹{gstAmount.toFixed(2)}</span>
-                </div>
+                {coupon.applied && totals.discount > 0 && (
+                  <div className="flex items-center justify-between text-emerald-700">
+                    <span>
+                      Discount (<span className="font-mono font-semibold">{coupon.applied.code}</span>)
+                    </span>
+                    <span className="font-mono font-semibold">−{formatInr(totals.discount)}</span>
+                  </div>
+                )}
+                {serverTotals?.gstMode !== "none" && (
+                  <div className="flex items-center justify-between text-slate-600">
+                    <span>
+                      {isEstimate ? "GST (estimated at 18%)" : gstLabel(serverTotals.gstMode)}
+                      {totals.discount > 0 && <span className="block text-[10px] text-slate-400">on {formatInr(totals.taxable)}</span>}
+                    </span>
+                    <span className="font-mono font-medium">{formatInr(totals.gst)}</span>
+                  </div>
+                )}
                 <div className="flex items-center justify-between text-slate-600">
                   <span>Shipping & Factory Handling</span>
                   <span className="font-medium text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded text-[10px]">
@@ -305,8 +377,11 @@ export default function CheckoutPage() {
                 </div>
                 <div className="flex items-center justify-between text-base font-bold text-slate-900 pt-2 border-t border-slate-200">
                   <span>Total Payable</span>
-                  <span className="font-mono text-lg text-[#024AE5]">
-                    ₹{totalAmount.toFixed(2)}
+                  <span className="flex items-center gap-1.5 font-mono text-lg text-[#024AE5]">
+                    {preview.isLoading && !coupon.applied && (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin text-slate-400" aria-label="Updating totals" />
+                    )}
+                    {formatInr(totals.total)}
                   </span>
                 </div>
               </div>
@@ -314,7 +389,7 @@ export default function CheckoutPage() {
               {/* Place Order Button */}
               <Button
                 type="submit"
-                disabled={isSubmitting}
+                disabled={!canSubmit}
                 className="w-full bg-[#024AE5] hover:bg-[#024AE5]/90 text-white font-bold text-sm h-11 shadow-none gap-2 cursor-pointer mt-2"
               >
                 {isSubmitting ? (

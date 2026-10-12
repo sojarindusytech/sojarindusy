@@ -1,10 +1,11 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
-import { createAdminClient } from "@/lib/supabase/admin";
 import { getCurrentUserProfile } from "@/actions/auth";
-import { AppNotification, NotificationType, UserRole } from "@/types/database.types";
+import { AppNotification } from "@/types/database.types";
 import { revalidatePath } from "next/cache";
+
+// Creating notifications is server-only: see src/lib/server/notifications.ts.
 
 /**
  * Fetch all relevant notifications for the current authenticated user.
@@ -115,49 +116,6 @@ export async function markAllNotificationsAsRead(): Promise<{ success: boolean; 
     revalidatePath("/manufacturer");
     return { success: true };
   } catch (err: any) {
-    return { success: false, error: err.message };
-  }
-}
-
-/**
- * Internal/Service action to create a notification.
- * Uses service role to reliably insert notifications across processes.
- */
-export async function createNotification(params: {
-  userId?: string | null;
-  role?: UserRole | null;
-  title: string;
-  message: string;
-  type: NotificationType;
-  link?: string | null;
-  metadata?: Record<string, any>;
-}): Promise<{ success: boolean; id?: string; error?: string }> {
-  try {
-    const adminSupabase = createAdminClient();
-
-    const { data, error } = await (adminSupabase
-      .from("notifications") as any)
-      .insert({
-        user_id: params.userId || null,
-        role: params.role || null,
-        title: params.title,
-        message: params.message,
-        type: params.type,
-        link: params.link || null,
-        metadata: params.metadata || {},
-        is_read: false,
-      })
-      .select("id")
-      .single();
-
-    if (error) {
-      console.error("Failed to create notification:", error);
-      return { success: false, error: error.message };
-    }
-
-    return { success: true, id: (data as any)?.id };
-  } catch (err: any) {
-    console.error("createNotification error:", err);
     return { success: false, error: err.message };
   }
 }

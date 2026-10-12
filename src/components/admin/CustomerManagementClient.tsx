@@ -229,8 +229,8 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
         setTimeout(() => {
           setIsAddModalOpen(false);
           resetAddForm();
-          const newCust: Profile = {
-            id: `off-${Date.now()}`,
+          const newCust: Profile = res.customer ?? {
+            id: crypto.randomUUID(), // display-only fallback; the saved record has the real id
             role: "customer",
             title: formValues.title,
             first_name: formValues.first_name,

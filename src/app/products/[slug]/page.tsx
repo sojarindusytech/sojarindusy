@@ -1,25 +1,22 @@
 export const dynamic = "force-dynamic";
 
-import { fetchProductBySlug } from "@/actions/product";
+import { getProductBySlug, getProductsByCategory } from "@/lib/server/catalog";
+import { getStorefrontViewer, isVisibleOnStorefront, toStorefrontProduct, toStorefrontProducts } from "@/lib/server/storefront";
 import { fetchCategoriesTree, fetchCategoryBySlug } from "@/actions/category";
-import { fetchProductsByCategory } from "@/actions/product";
 import { notFound } from "next/navigation";
 import { ProductDetailsClient } from "@/components/storefront/ProductDetailsClient";
 import { CategoryView } from "@/components/storefront/CategoryView";
 import { Category } from "@/types/database.types";
-import { createClient } from "@/lib/supabase/server";
 
 export default async function ProductPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   
   // Try fetching as a Product
-  const product = await fetchProductBySlug(slug);
+  const viewer = await getStorefrontViewer();
+  const found = await getProductBySlug(slug);
+  const product = found && isVisibleOnStorefront(found, viewer) ? toStorefrontProduct(found, viewer) : null;
   
   if (product) {
-    const supabase = await createClient();
-    const { data: { session } } = await supabase.auth.getSession();
-    const isLoggedIn = !!session;
-
     const { flatCategories } = await fetchCategoriesTree();
     
     // Build breadcrumb
@@ -48,7 +45,15 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
       breadcrumb = deepestPath;
     }
 
-    return <ProductDetailsClient product={product} breadcrumb={breadcrumb} isLoggedIn={isLoggedIn} />;
+    return (
+      <ProductDetailsClient
+        product={product}
+        breadcrumb={breadcrumb}
+        isLoggedIn={viewer.isLoggedIn}
+        canViewPrices={viewer.canViewPrices}
+        isPendingApproval={viewer.isPendingApproval}
+      />
+    );
   }
 
   // Not a product, try fetching as a Category
@@ -60,7 +65,7 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
       .filter(c => c.parent_id === category.id && c.is_active)
       .sort((a, b) => a.display_order - b.display_order);
 
-    const products = await fetchProductsByCategory(slug);
+    const products = toStorefrontProducts(await getProductsByCategory(slug), viewer);
 
     // Build breadcrumb
     let breadcrumb: typeof category[] = [];

@@ -79,6 +79,9 @@ const routeMap: Record<string, RouteMeta> = {
     section: "Sales",
     title: "Purchase Orders",
   },
+  "/admin/coupons": {
+    title: "Coupons",
+  },
   "/admin/orders": {
     section: "Orders",
     title: "Order List",

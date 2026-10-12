@@ -63,10 +63,16 @@ export function ProductDetailsClient({
   product,
   breadcrumb,
   isLoggedIn = false,
+  canViewPrices = false,
+  isPendingApproval = false,
 }: {
   product: Product;
   breadcrumb?: Category[];
   isLoggedIn?: boolean;
+  /** Approved customer or admin. Prices and stock are only in the data when true. */
+  canViewPrices?: boolean;
+  /** Signed in, but the customer account is not approved yet. */
+  isPendingApproval?: boolean;
 }) {
   const router = useRouter();
   const { addItem } = useCart();
@@ -302,7 +308,7 @@ export function ProductDetailsClient({
     (hasOverallLength ? 1 : 0) +
     (hasShankDiameter ? 1 : 0) +
     customSpecKeys.length +
-    (isLoggedIn ? 1 : 0);
+    (canViewPrices ? 1 : 0);
 
   const availableCustomSpecs = useMemo(() => {
     const map: Record<string, string[]> = {};
@@ -955,7 +961,7 @@ export function ProductDetailsClient({
                       ))}
 
                       {/* LIST PRICE Spacer */}
-                      {isLoggedIn && <th className="px-3 py-2 align-middle min-w-[120px]"></th>}
+                      {canViewPrices && <th className="px-3 py-2 align-middle min-w-[120px]"></th>}
 
                       {/* Search Bar - Positioned exactly above STOCK, QTY, and ACTION columns */}
                       <th colSpan={3} className="px-3 py-2 align-middle min-w-[340px]">
@@ -1116,7 +1122,7 @@ export function ProductDetailsClient({
                       ))}
 
                       {/* LIST PRICE */}
-                      {isLoggedIn && (
+                      {canViewPrices && (
                         <th
                           onClick={() => handleSortClick("list_price")}
                           className="px-3 py-3.5 text-right cursor-pointer hover:bg-slate-800/80 transition-colors whitespace-nowrap min-w-[120px]"
@@ -1232,7 +1238,7 @@ export function ProductDetailsClient({
                                 {v.specifications?.[spec] || "-"}
                               </td>
                             ))}
-                            {isLoggedIn && (
+                            {canViewPrices && (
                               <td className="px-3 py-3 text-right font-mono font-bold text-slate-900 whitespace-nowrap">
                                 ₹{(v.list_price || 0).toFixed(2)}
                               </td>
@@ -1271,7 +1277,7 @@ export function ProductDetailsClient({
                                 ) : null}
                                 {/* Backorder notice: ordering beyond stock is allowed, but the
                                     customer is told the overflow ships on a longer lead time. */}
-                                {exceedsStock ? (
+                                {canViewPrices && exceedsStock ? (
                                   <span
                                     role="status"
                                     className="block max-w-[200px] text-center text-[10px] font-medium leading-tight text-amber-700 whitespace-normal"
@@ -1294,6 +1300,13 @@ export function ProductDetailsClient({
                                         window.location.pathname
                                       )}`
                                     );
+                                  } else if (!canViewPrices) {
+                                    if (isPendingApproval) {
+                                      toast.error("Your account is awaiting approval. You can order once it is approved.");
+                                      router.push("/pending-approval");
+                                    } else {
+                                      toast.error("Ordering is available to approved customer accounts.");
+                                    }
                                   } else {
                                     const minQty = v.min_order_quantity && v.min_order_quantity > 0 ? v.min_order_quantity : 1;
                                     const qty = quantities[v.id] ?? minQty;

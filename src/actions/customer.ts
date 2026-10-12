@@ -10,7 +10,7 @@ import {
   UserTitle,
 } from "@/lib/constants";
 import { requireAdmin, requireUser } from "@/lib/auth-guard";
-import { createNotification } from "@/actions/notification";
+import { createNotification } from "@/lib/server/notifications";
 import { revalidatePath } from "next/cache";
 
 export async function fetchCustomersList(): Promise<Profile[]> {
@@ -211,10 +211,19 @@ export async function updateCustomerApprovalStatus(
   };
 }
 
+/**
+ * Add a walk-in / phone client created by an admin.
+ *
+ * profiles.id must be a real auth account (foreign key to auth.users), so the
+ * client gets a login account with no password: they cannot sign in until
+ * they choose to activate it through "Forgot password". The account is
+ * removed again if the profile cannot be saved, so no orphan is left behind.
+ */
 export async function createOfflineCustomer(formData: FormData): Promise<{
   success?: boolean;
   error?: string;
   message?: string;
+  customer?: Profile;
 }> {
   await requireAdmin();
   const supabase = createAdminClient();
@@ -241,9 +250,32 @@ export async function createOfflineCustomer(formData: FormData): Promise<{
   if (!companyName || !firstName || !lastName || !email || !mobile || !companyAddress || !city || !state || !pincode) {
     return { error: "Please fill in all required fields marked with an asterisk (*)." };
   }
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    return { error: "Please enter a valid email address." };
+  }
+  if (!Number.isFinite(creditLimit) || creditLimit < 0 || !Number.isFinite(creditDays) || creditDays < 0) {
+    return { error: "Credit limit and credit days must be zero or more." };
+  }
+
+  // 1. The login account the profile hangs off. No password is set.
+  const { data: created, error: authError } = await supabase.auth.admin.createUser({
+    email,
+    email_confirm: true,
+    user_metadata: { title, first_name: firstName, last_name: lastName, company_name: companyName, channel: "offline" },
+  });
+
+  if (authError || !created?.user) {
+    const exists = authError?.message?.toLowerCase().includes("already") ?? false;
+    if (!exists) console.error("Offline customer auth account failed:", authError?.message);
+    return {
+      error: exists
+        ? "A customer with this email address already exists."
+        : "Could not create the customer account. Please try again.",
+    };
+  }
 
   const newOfflineProfile: Profile = {
-    id: `off-${Date.now().toString(36)}-${Math.random().toString(36).substring(2, 6)}`,
+    id: created.user.id,
     role: "customer",
     title,
     first_name: firstName,
@@ -270,24 +302,30 @@ export async function createOfflineCustomer(formData: FormData): Promise<{
     updated_at: new Date().toISOString(),
   };
 
+  // 2. The profile. Upsert: the on_auth_user_created trigger may already have
+  // inserted a pending default row for this account.
+  const rollback = async (reason: string) => {
+    console.error("Offline customer profile failed, removing auth account:", reason);
+    await supabase.auth.admin.deleteUser(created.user.id).catch((err) => {
+      console.error("Rollback of auth account failed for", created.user.id, err);
+    });
+    return { error: "Could not save the customer record. Please try again." };
+  };
+
   try {
     const { error } = await supabase
       .from("profiles")
-      .insert(newOfflineProfile as never);
-
-    if (error) {
-      console.error("Failed to insert offline customer profile:", error.message);
-      return { error: "Could not save the customer record. Please try again." };
-    }
+      .upsert(newOfflineProfile as never, { onConflict: "id" });
+    if (error) return rollback(error.message);
   } catch (err) {
-    console.error("Offline customer insert failed:", err);
-    return { error: "Could not save the customer record. Please try again." };
+    return rollback(err instanceof Error ? err.message : String(err));
   }
 
   revalidatePath("/admin/customers");
   return {
     success: true,
     message: `Offline customer "${companyName}" added successfully.`,
+    customer: newOfflineProfile,
   };
 }
 

@@ -4,6 +4,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { requireAdmin } from "@/lib/auth-guard";
 import { Product, ProductVariant, ProductImage, ProductDocument } from "@/types/database.types";
 import { generateSlug, uploadCategoryImage } from "@/actions/category";
+import { getAllProducts } from "@/lib/server/catalog";
 import { revalidatePath } from "next/cache";
 
 export interface CreateProductPayload {
@@ -31,230 +32,13 @@ export interface CreateProductPayload {
   }>;
 }
 
-function sortVariants(variants: any[]): ProductVariant[] {
-  if (!variants || !Array.isArray(variants)) return [];
-  return [...variants].sort((a, b) => {
-    if (a.created_at && b.created_at && a.created_at !== b.created_at) {
-      return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
-    }
-    return (a.sku || "").localeCompare(b.sku || "", undefined, { numeric: true, sensitivity: "base" });
-  });
-}
-
+/**
+ * Full product list for the admin catalogue screens (prices, stock, reorder levels).
+ * Storefront pages read through src/lib/server/catalog.ts + storefront.ts instead.
+ */
 export async function fetchProductsList(): Promise<Product[]> {
-  const supabase = createAdminClient();
-
-  try {
-    const { data: dbProducts, error }: any = await (supabase.from("products") as any)
-      .select(`
-        *,
-        variants:product_variants(*)
-      `)
-      .order("created_at", { ascending: false });
-
-    if (error) {
-      console.error("fetchProductsList Error:", error);
-      return [];
-    }
-    if (!dbProducts || dbProducts.length === 0) {
-      return [];
-    }
-
-    const productIds = dbProducts.map((p: any) => p.id);
-
-    // Fetch categories junction
-    const { data: catLinks }: any = await (supabase.from("product_categories") as any)
-      .select(`product_id, categories(*)`)
-      .in("product_id", productIds);
-
-    // Fetch attributes junction (with fallback to product_tags)
-    let attrLinks: any[] = [];
-    const { data: paData, error: paError }: any = await (supabase.from("product_attributes") as any)
-      .select(`product_id, attributes(*)`)
-      .in("product_id", productIds);
-
-    if (!paError && paData) {
-      attrLinks = paData;
-    } else {
-      const { data: ptData }: any = await (supabase.from("product_tags") as any)
-        .select(`product_id, tags(*)`)
-        .in("product_id", productIds);
-      if (ptData) attrLinks = ptData;
-    }
-
-    return dbProducts.map((p: any) => {
-      const pCats = catLinks?.filter((link: any) => link.product_id === p.id) || [];
-      const pAttrs =
-        attrLinks
-          ?.filter((link: any) => link.product_id === p.id)
-          .map((link: any) => link.attributes || link.tags)
-          .filter(Boolean) || [];
-
-      return {
-        ...p,
-        variants: sortVariants(p.variants?.filter((v: any) => !v.is_archived) || []),
-        attributes: pAttrs,
-        tags: pAttrs,
-        categories: pCats.map((pc: any) => pc.categories).filter(Boolean),
-      };
-    }) as Product[];
-  } catch (err) {
-    console.error("fetchProductsList catch:", err);
-    return [];
-  }
-}
-
-export async function fetchProductBySlug(slug: string): Promise<Product | null> {
-  const supabase = createAdminClient();
-
-  try {
-    const { data: dbProduct, error }: any = await (supabase.from("products") as any)
-      .select(`
-        *,
-        variants:product_variants(*)
-      `)
-      .eq("slug", slug)
-      .single();
-
-    if (error || !dbProduct) {
-      if (error && error.code !== "PGRST116") {
-        console.error("fetchProductBySlug Error:", error);
-      }
-      return null;
-    }
-
-    const { data: catLinks }: any = await (supabase.from("product_categories") as any)
-      .select(`categories(*)`)
-      .eq("product_id", dbProduct.id);
-
-    let attrs: any[] = [];
-    const { data: paData, error: paError }: any = await (supabase.from("product_attributes") as any)
-      .select(`attributes(*)`)
-      .eq("product_id", dbProduct.id);
-
-    if (!paError && paData && paData.length > 0) {
-      attrs = paData.map((pa: any) => pa.attributes).filter(Boolean);
-    } else {
-      const { data: ptData }: any = await (supabase.from("product_tags") as any)
-        .select(`tags(*)`)
-        .eq("product_id", dbProduct.id);
-      if (ptData && ptData.length > 0) {
-        attrs = ptData.map((pt: any) => pt.tags).filter(Boolean);
-      }
-    }
-
-    const mappedProduct = {
-      ...dbProduct,
-      variants: sortVariants(dbProduct.variants?.filter((v: any) => !v.is_archived) || []),
-      attributes: attrs,
-      tags: attrs,
-      categories: catLinks?.map((pc: any) => pc.categories).filter(Boolean) || [],
-    };
-
-    return mappedProduct as Product;
-  } catch (err) {
-    console.error("fetchProductBySlug catch:", err);
-    return null;
-  }
-}
-
-export async function fetchProductsByCategory(categorySlug: string): Promise<Product[]> {
-  const supabase = createAdminClient();
-
-  try {
-    const { data: catData, error: catError }: any = await (supabase.from("categories") as any)
-      .select("id, parent_id")
-      .eq("slug", categorySlug)
-      .single();
-
-    const categoryData = catData as any;
-    if (catError || !categoryData) return [];
-
-    // Query all categories to gather descendant tree
-    const { data: allCategories }: any = await (supabase.from("categories") as any)
-      .select("id, parent_id");
-
-    const targetCategoryIds = new Set<string>([categoryData.id]);
-    let added = true;
-    while (added) {
-      added = false;
-      (allCategories || []).forEach((c: any) => {
-        if (c.parent_id && targetCategoryIds.has(c.parent_id) && !targetCategoryIds.has(c.id)) {
-          targetCategoryIds.add(c.id);
-          added = true;
-        }
-      });
-    }
-
-    let { data: linkData, error: linkError }: any = await (supabase.from("product_categories") as any)
-      .select("product_id")
-      .in("category_id", Array.from(targetCategoryIds));
-
-    // Fallback: if leaf category has no direct products, check parent category
-    if ((!linkData || linkData.length === 0) && categoryData.parent_id) {
-      const { data: parentLinks }: any = await (supabase.from("product_categories") as any)
-        .select("product_id")
-        .eq("category_id", categoryData.parent_id);
-      if (parentLinks && parentLinks.length > 0) {
-        linkData = parentLinks;
-      }
-    }
-
-    if (linkError || !linkData || linkData.length === 0) return [];
-
-    const productIds = Array.from(new Set(linkData.map((l: any) => l.product_id)));
-
-    let { data: dbProducts, error }: any = await (supabase.from("products") as any)
-      .select(`
-        *,
-        variants:product_variants(*)
-      `)
-      .in("id", productIds)
-      .order("created_at", { ascending: false });
-
-    if (error || !dbProducts || dbProducts.length === 0) {
-      if (error) console.error("fetchProductsByCategory dbProducts error:", error);
-      return [];
-    }
-
-    const { data: catLinks }: any = await (supabase.from("product_categories") as any)
-      .select(`product_id, categories(*)`)
-      .in("product_id", productIds);
-
-    let attrLinks: any[] = [];
-    const { data: paData }: any = await (supabase.from("product_attributes") as any)
-      .select(`product_id, attributes(*)`)
-      .in("product_id", productIds);
-
-    if (paData && paData.length > 0) {
-      attrLinks = paData;
-    } else {
-      const { data: ptData }: any = await (supabase.from("product_tags") as any)
-        .select(`product_id, tags(*)`)
-        .in("product_id", productIds);
-      if (ptData) attrLinks = ptData;
-    }
-
-    return dbProducts.map((p: any) => {
-      const pCats = catLinks?.filter((link: any) => link.product_id === p.id) || [];
-      const pAttrs =
-        attrLinks
-          ?.filter((link: any) => link.product_id === p.id)
-          .map((link: any) => link.attributes || link.tags)
-          .filter(Boolean) || [];
-
-      return {
-        ...p,
-        variants: sortVariants(p.variants?.filter((v: any) => !v.is_archived) || []),
-        attributes: pAttrs,
-        tags: pAttrs,
-        categories: pCats.map((pc: any) => pc.categories).filter(Boolean),
-      };
-    }) as Product[];
-  } catch (err) {
-    console.error("fetchProductsByCategory error:", err);
-    return [];
-  }
+  await requireAdmin();
+  return getAllProducts();
 }
 
 /**
@@ -366,7 +150,7 @@ export async function createFullProduct(payload: CreateProductPayload): Promise<
       const insertedVariants = (insertedVariantsData || []) as any[];
       // Record initial inventory logs for created variants
       if (insertedVariants && insertedVariants.length > 0) {
-        const { recordStockMovement } = await import("@/actions/inventory");
+        const { recordStockMovement } = await import("@/lib/server/inventory");
         for (const v of insertedVariants) {
           const stockQty = Number(v.stock_quantity) || 0;
           if (stockQty > 0) {

@@ -2,206 +2,107 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { requireAdmin, requireApprovedCustomer, guardOrError } from "@/lib/auth-guard";
-import { Order, OrderItem, CustomerOrderDetails, Profile } from "@/types/database.types";
+import { requireAdmin, requireApprovedCustomer, requireUser, guardOrError } from "@/lib/auth-guard";
+import { Order } from "@/types/database.types";
 import { OrderStatus, ORDER_STATUSES, ORDER_STATUS_CONFIG } from "@/lib/constants";
-import { recordStockMovement } from "@/actions/inventory";
-import { checkAndGeneratePurchaseOrder } from "@/actions/purchase-order";
+import { placeCustomerOrder } from "@/lib/server/checkout/place-order";
+import type { PriceChange } from "@/lib/server/checkout/cart";
+import { transitionOrderStatus } from "@/lib/server/rpc";
+import { createNotification, notifyAll } from "@/lib/server/notifications";
 import { createInvoiceFromOrder } from "@/actions/invoice";
-import { createNotification } from "@/actions/notification";
 import { revalidatePath } from "next/cache";
 
 export interface CreateOrderPayload {
   items: Array<{
-    variantId?: string;
-    name: string;
-    sku: string;
+    variantId: string;
     quantity: number;
+    /** The price shown to the customer; checked against the catalogue, never charged as-is. */
     unit_price: number;
-    specifications?: Record<string, any>;
+    specifications?: Record<string, unknown>;
   }>;
   shippingAddress: string;
   notes?: string;
+  /** One per checkout attempt (crypto.randomUUID()); a retried submit returns the same order. */
+  idempotencyKey: string;
+  /** Optional coupon; re-checked on the server, never trusted from the browser. */
+  couponCode?: string | null;
+}
+
+export interface CreateOrderResult {
+  success: boolean;
+  orderId?: string;
+  orderNumber?: string;
+  error?: string;
+  /** Machine-readable reason when success is false. */
+  code?: string;
+  /** When code is PRICE_CHANGED: the current prices, to refresh the cart with. */
+  priceChanges?: PriceChange[];
 }
 
 /**
  * 1. Customer Order Placement Action
  */
-export async function createCustomerOrder(
-  payload: CreateOrderPayload
-): Promise<{ success: boolean; orderId?: string; orderNumber?: string; error?: string }> {
-  const supabase = await createClient();
-
-  // 1. Authenticate and confirm the account is approved. Approval is enforced
-  // here as well as in the dashboard layout, because this action is a public
-  // endpoint that a pending account could call directly.
+export async function createCustomerOrder(payload: CreateOrderPayload): Promise<CreateOrderResult> {
+  // Approval is enforced here as well as in the dashboard layout, because this
+  // action is a public endpoint that a pending account could call directly.
   const guard = await guardOrError(requireApprovedCustomer);
   if (!guard.ctx) {
-    return { success: false, error: "Your account must be approved before placing an order." };
-  }
-  const user = { id: guard.ctx.userId, email: guard.ctx.email };
-
-  if (!payload.items || payload.items.length === 0) {
-    return { success: false, error: "Your order cart is empty." };
+    return { success: false, code: "ACCOUNT_NOT_APPROVED", error: "Your account must be approved before placing an order." };
   }
 
-  // 2. Fetch customer profile for snapshotting customer details
-  const { data: profileData } = await supabase
-    .from("profiles")
-    .select("*")
-    .eq("id", user.id)
-    .single();
-
-  const profile = profileData as Profile | null;
-
-  const customerDetails: CustomerOrderDetails = {
-    company_name: profile?.company_name || user.email?.split("@")[0] || "Registered Enterprise",
-    contact_name: profile ? `${profile.title || "Mr"} ${profile.first_name} ${profile.last_name}` : "Purchasing Agent",
-    mobile: profile?.mobile || "-",
-    email: user.email || "",
-    gstin: profile?.gstin || null,
-    city: profile?.city || "Industrial Area",
-    state: profile?.state || "Maharashtra",
-    pincode: profile?.pincode || "400001",
-  };
-
-  // 3. Compute Financials
-  let subtotal = 0;
-  const orderItems: OrderItem[] = payload.items.map((item, idx) => {
-    const itemTotal = item.quantity * item.unit_price;
-    subtotal += itemTotal;
-    return {
-      id: item.variantId || `item-${idx + 1}`,
-      name: item.name,
-      sku: item.sku,
-      quantity: item.quantity,
-      unit_price: item.unit_price,
-      total_price: itemTotal,
-      specifications: item.specifications,
-    };
-  });
-
-  const gstAmount = Math.round(subtotal * 0.18 * 100) / 100; // 18% standard GST
-  const totalAmount = Math.round((subtotal + gstAmount) * 100) / 100;
-
-  // 4. Generate unique serial Order Number
-  const year = new Date().getFullYear();
-  const randomSuffix = Math.floor(1000 + Math.random() * 9000);
-  const orderNumber = `ORD-${year}-${randomSuffix}`;
-
-  const newOrder = {
-    user_id: user.id,
-    order_number: orderNumber,
-    status: ORDER_STATUSES.PENDING,
-    subtotal,
-    gst_amount: gstAmount,
-    total_amount: totalAmount,
-    items: orderItems,
-    shipping_address: payload.shippingAddress || profile?.company_address || "Factory Delivery Address",
-    customer_details: customerDetails,
-    notes: payload.notes || null,
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-  };
-
-  const { data: insertedOrderData, error: orderError } = await (supabase
-    .from("orders") as any)
-    .insert(newOrder)
-    .select("id, order_number")
-    .single();
-
-  if (orderError) {
-    console.error("Error creating order:", orderError);
-    return { success: false, error: `Failed to create order: ${orderError.message}` };
-  }
-
-  const insertedOrder = insertedOrderData as { id: string; order_number: string };
-
-  // 5. Reserve / Deduct Stock from Inventory with Audit Movement
-  const adminClient = createAdminClient();
-  for (const item of payload.items) {
-    if (item.variantId) {
-      try {
-        const { data: currentVariantData } = await (adminClient
-          .from("product_variants") as any)
-          .select("stock_quantity")
-          .eq("id", item.variantId)
-          .single();
-
-        const currentVariant = currentVariantData as { stock_quantity: number } | null;
-
-        if (currentVariant) {
-          const oldStock = currentVariant.stock_quantity || 0;
-          const newStock = Math.max(0, oldStock - item.quantity);
-
-          await (adminClient
-            .from("product_variants") as any)
-            .update({ stock_quantity: newStock })
-            .eq("id", item.variantId);
-
-          await recordStockMovement({
-            variantId: item.variantId,
-            skuCode: item.sku,
-            productTitle: item.name,
-            movementType: "ORDER_RESERVATION",
-            quantityDelta: -item.quantity,
-            balanceBefore: oldStock,
-            balanceAfter: newStock,
-            referenceId: orderNumber,
-            notes: `Auto-reserved for ${customerDetails.company_name}`,
-          });
-
-          // Auto-generate a Purchase Order if stock fell to or below trigger_quantity
-          try {
-            await checkAndGeneratePurchaseOrder(item.variantId, newStock);
-          } catch (poErr) {
-            console.warn(`[createOrder] Notice auto PO check for ${item.variantId}:`, poErr);
-          }
-        }
-      } catch (stockErr) {
-        console.warn(`Notice updating variant ${item.variantId} stock:`, stockErr);
-      }
-    }
-  }
-
-  // Send notifications for order creation
   try {
-    // Notify Admin
-    await createNotification({
-      role: "admin",
-      title: "New Customer Order",
-      message: `Order #${orderNumber} placed by ${customerDetails.company_name} (₹${totalAmount.toLocaleString("en-IN")}).`,
-      type: "order",
-      link: "/admin/orders",
-      metadata: { order_id: insertedOrder.id, order_number: orderNumber, total: totalAmount },
+    const outcome = await placeCustomerOrder({
+      user: { id: guard.ctx.userId, email: guard.ctx.email },
+      items: (payload.items || []).map((i) => ({
+        variantId: i.variantId,
+        quantity: i.quantity,
+        unitPrice: i.unit_price,
+        specifications: i.specifications,
+      })),
+      shippingAddress: payload.shippingAddress,
+      notes: payload.notes,
+      idempotencyKey: payload.idempotencyKey,
+      couponCode: payload.couponCode ?? null,
     });
 
-    // Notify Customer
-    await createNotification({
-      userId: user.id,
-      title: "Order Placed Successfully",
-      message: `Your order #${orderNumber} for ₹${totalAmount.toLocaleString("en-IN")} has been received and is being processed.`,
-      type: "order",
-      link: "/dashboard/orders",
-      metadata: { order_id: insertedOrder.id, order_number: orderNumber },
-    });
-  } catch (notifErr) {
-    console.warn("[createCustomerOrder] Notification error:", notifErr);
+    if (!outcome.ok) {
+      return { success: false, code: outcome.code, error: outcome.message, priceChanges: outcome.priceChanges };
+    }
+
+    revalidatePath("/dashboard");
+    revalidatePath("/admin/orders");
+    revalidatePath("/admin/dashboard");
+    revalidatePath("/admin/coupons");
+    return { success: true, orderId: outcome.orderId, orderNumber: outcome.orderNumber };
+  } catch (err) {
+    console.error("[createCustomerOrder] Unexpected error:", err);
+    return { success: false, code: "UNEXPECTED", error: "We couldn't place your order. Please try again in a moment." };
   }
+}
 
-  revalidatePath("/dashboard");
-  revalidatePath("/admin/orders");
-  revalidatePath("/admin/dashboard");
+const TRANSITION_ERRORS: Record<string, string> = {
+  ORDER_NOT_FOUND: "Order not found.",
+  INVALID_STATUS: "Unknown order status.",
+};
 
-  return {
-    success: true,
-    orderId: insertedOrder.id,
-    orderNumber: insertedOrder.order_number,
-  };
+function transitionErrorMessage(code: string, detail: Record<string, unknown>): string {
+  const label = (s: unknown) => ORDER_STATUS_CONFIG[s as OrderStatus]?.label ?? String(s);
+  if (code === "ORDER_CLOSED") {
+    return `This order is already ${label(detail.status)} and can no longer change status.`;
+  }
+  if (code === "INVALID_TRANSITION") {
+    return `An order cannot move from ${label(detail.from)} to ${label(detail.to)}.`;
+  }
+  return TRANSITION_ERRORS[code] ?? "Failed to update order status.";
 }
 
 /**
  * 2. Admin Manual Order Lifecycle & Tracking Update Action
+ *
+ * The status rules, timestamps, restock and coupon release all happen in one
+ * locked database step (transition_order_status), so a double click or two
+ * admins acting at once cannot restock an order twice. On delivery the GST tax
+ * invoice is then raised from the order (one per order).
  */
 export async function updateOrderStatus(
   orderId: string,
@@ -214,203 +115,96 @@ export async function updateOrderStatus(
     return_reason?: string;
   }
 ): Promise<{ success: boolean; error?: string }> {
-  const adminClient = createAdminClient();
+  const guard = await guardOrError(requireAdmin);
+  if (!guard.ctx) return { success: false, error: guard.error };
 
-  try {
-    // 1. Fetch current order
-    const { data: existingOrderData, error: fetchError } = await (adminClient
-      .from("orders") as any)
-      .select("*")
-      .eq("id", orderId)
-      .single();
+  // Only send the fields the caller actually provided: absent keys are left unchanged.
+  const changes = Object.fromEntries(
+    Object.entries(tracking ?? {}).filter(([, v]) => v !== undefined)
+  ) as Record<string, string>;
 
-    const existingOrder = existingOrderData as Order | null;
-
-    if (fetchError || !existingOrder) {
-      return { success: false, error: "Order not found." };
-    }
-
-    const updates: any = {
-      status: newStatus,
-      updated_at: new Date().toISOString(),
-    };
-
-    if (tracking?.courier_partner !== undefined) {
-      updates.courier_partner = tracking.courier_partner || null;
-    }
-    if (tracking?.awb_number !== undefined) {
-      updates.awb_number = tracking.awb_number || null;
-    }
-    if (tracking?.tracking_url !== undefined) {
-      updates.tracking_url = tracking.tracking_url || null;
-    }
-    if (tracking?.notes !== undefined) {
-      updates.notes = tracking.notes || null;
-    }
-    if (tracking?.return_reason !== undefined) {
-      updates.return_reason = tracking.return_reason || null;
-    }
-
-    // Set timestamps on milestones & auto-generate official GST Tax Invoice on delivery
-    if (newStatus === ORDER_STATUSES.SHIPPED && !existingOrder.dispatched_at) {
-      updates.dispatched_at = new Date().toISOString();
-    }
-    if (newStatus === ORDER_STATUSES.DELIVERED) {
-      if (!existingOrder.delivered_at) {
-        updates.delivered_at = new Date().toISOString();
-      }
-      if (!existingOrder.invoice_number) {
-        // Delivery must never fail because invoicing did. On error the order keeps no
-        // invoice_number, so the next DELIVERED save (or Invoices > New) retries it.
-        const invoiceResult = await createInvoiceFromOrder(orderId);
-        if (invoiceResult.success) {
-          updates.invoice_number = invoiceResult.invoice.invoice_number;
-        } else {
-          console.error(`[updateOrderStatus] Invoice for order ${existingOrder.order_number} failed: ${invoiceResult.error}`);
-        }
-      }
-    }
-
-    // If returned, record return timestamp, reason, and restore stock into inventory
-    if (newStatus === ORDER_STATUSES.RETURNED && existingOrder.status !== ORDER_STATUSES.RETURNED) {
-      updates.returned_at = new Date().toISOString();
-      if (!updates.return_reason && tracking?.notes) {
-        updates.return_reason = tracking.notes;
-      }
-
-      const items: OrderItem[] = Array.isArray(existingOrder.items) ? existingOrder.items : [];
-      for (const item of items) {
-        if (item.id && !item.id.startsWith("item-")) {
-          try {
-            const { data: currentVariantData } = await (adminClient
-              .from("product_variants") as any)
-              .select("stock_quantity")
-              .eq("id", item.id)
-              .single();
-
-            const currentVariant = currentVariantData as { stock_quantity: number } | null;
-
-            if (currentVariant) {
-              const oldStock = currentVariant.stock_quantity || 0;
-              const newStock = oldStock + item.quantity;
-
-              await (adminClient
-                .from("product_variants") as any)
-                .update({ stock_quantity: newStock })
-                .eq("id", item.id);
-
-              await recordStockMovement({
-                variantId: item.id,
-                skuCode: item.sku || "SKU",
-                productTitle: item.name || "Tooling Item",
-                movementType: "RETURN_RESTOCK",
-                quantityDelta: item.quantity,
-                balanceBefore: oldStock,
-                balanceAfter: newStock,
-                referenceId: existingOrder.order_number,
-                notes: `Customer return restocked: ${updates.return_reason || "Goods returned to warehouse"}`,
-              });
-            }
-          } catch (returnErr) {
-            console.warn("Notice restoring stock on return:", returnErr);
-          }
-        }
-      }
-    }
-
-    // If cancelled from an active status, restore stock
-    if (newStatus === ORDER_STATUSES.CANCELLED && existingOrder.status !== ORDER_STATUSES.CANCELLED) {
-      const items: OrderItem[] = Array.isArray(existingOrder.items) ? existingOrder.items : [];
-      for (const item of items) {
-        if (item.id && !item.id.startsWith("item-")) {
-          try {
-            const { data: currentVariantData } = await (adminClient
-              .from("product_variants") as any)
-              .select("stock_quantity")
-              .eq("id", item.id)
-              .single();
-
-            const currentVariant = currentVariantData as { stock_quantity: number } | null;
-
-            if (currentVariant) {
-              const oldStock = currentVariant.stock_quantity || 0;
-              const newStock = oldStock + item.quantity;
-
-              await (adminClient
-                .from("product_variants") as any)
-                .update({ stock_quantity: newStock })
-                .eq("id", item.id);
-
-              await recordStockMovement({
-                variantId: item.id,
-                skuCode: item.sku || "SKU",
-                productTitle: item.name || "Tooling Item",
-                movementType: "RETURN_RESTOCK",
-                quantityDelta: item.quantity,
-                balanceBefore: oldStock,
-                balanceAfter: newStock,
-                referenceId: existingOrder.order_number,
-                notes: "Restocked after order cancellation",
-              });
-            }
-          } catch (restoreErr) {
-            console.warn("Notice restoring stock on cancellation:", restoreErr);
-          }
-        }
-      }
-    }
-
-    const { error: updateError } = await (adminClient
-      .from("orders") as any)
-      .update(updates)
-      .eq("id", orderId);
-
-    if (updateError) {
-      return { success: false, error: updateError.message };
-    }
-
-    // Notify customer about order status update with friendly messages
-    try {
-      if (existingOrder.user_id) {
-        let notifTitle = `Order Status: ${ORDER_STATUS_CONFIG[newStatus]?.label || newStatus}`;
-        let notifMsg = `Order #${existingOrder.order_number} status has been updated to "${ORDER_STATUS_CONFIG[newStatus]?.label || newStatus}".`;
-
-        if (newStatus === ORDER_STATUSES.SHIPPED) {
-          notifTitle = "Order Dispatched";
-          notifMsg = `Your order #${existingOrder.order_number} has been dispatched.${updates.courier_partner ? ` Transporter: ${updates.courier_partner}` : ""}`;
-        } else if (newStatus === ORDER_STATUSES.DELIVERED) {
-          notifTitle = "Order Delivered";
-          notifMsg = `Your order #${existingOrder.order_number} has been successfully delivered. Tax Invoice: ${updates.invoice_number || existingOrder.invoice_number || "Available in Dashboard"}.`;
-        } else if (newStatus === ORDER_STATUSES.RETURNED) {
-          notifTitle = "Order Return Processed";
-          notifMsg = `Return for order #${existingOrder.order_number} has been verified and restocked into warehouse inventory.`;
-        }
-
-        await createNotification({
-          userId: existingOrder.user_id,
-          title: notifTitle,
-          message: notifMsg,
-          type: "order",
-          link: "/dashboard/orders",
-          metadata: { order_id: orderId, order_number: existingOrder.order_number, status: newStatus },
-        });
-      }
-    } catch (notifErr) {
-      console.warn("[updateOrderStatus] Notification dispatch error:", notifErr);
-    }
-
-    revalidatePath("/dashboard");
-    revalidatePath("/dashboard/invoices");
-    revalidatePath("/dashboard/orders");
-    revalidatePath("/admin/orders");
-    revalidatePath("/admin/order-returns");
-    revalidatePath("/admin/dispatch");
-    revalidatePath("/admin/dashboard");
-
-    return { success: true };
-  } catch (err: any) {
-    return { success: false, error: err?.message || "Failed to update order status." };
+  const { data, error } = await transitionOrderStatus(orderId, newStatus, changes, guard.ctx.userId);
+  if (error) {
+    return { success: false, error: transitionErrorMessage(error.code, error.detail) };
   }
+
+  let invoiceNumber = data.invoice_number;
+  if (data.status === ORDER_STATUSES.DELIVERED && !invoiceNumber) {
+    invoiceNumber = await raiseOrderInvoice(orderId, data.order_number);
+  }
+
+  if (data.previous_status !== data.status || data.status === ORDER_STATUSES.SHIPPED) {
+    await notifyCustomerOfStatus({ ...data, invoice_number: invoiceNumber });
+  }
+
+  revalidatePath("/dashboard");
+  revalidatePath("/dashboard/invoices");
+  revalidatePath("/dashboard/orders");
+  revalidatePath("/admin/orders");
+  revalidatePath("/admin/order-returns");
+  revalidatePath("/admin/dispatch");
+  revalidatePath("/admin/dashboard");
+  revalidatePath("/admin/coupons");
+  revalidatePath("/admin/invoices");
+
+  return { success: true };
+}
+
+/**
+ * Raises the tax invoice for a delivered order and records its number on the
+ * order. Delivery must never fail because invoicing did: on error the order
+ * keeps no invoice number, so saving it as Delivered again (or Invoices > New)
+ * retries. createInvoiceFromOrder is idempotent (one invoice per order).
+ */
+async function raiseOrderInvoice(orderId: string, orderNumber: string): Promise<string | null> {
+  const result = await createInvoiceFromOrder(orderId);
+  if (!result.success) {
+    console.error(`[updateOrderStatus] Invoice for order ${orderNumber} failed: ${result.error}`);
+    return null;
+  }
+  const invoiceNumber = result.invoice.invoice_number;
+  const { error } = await createAdminClient()
+    .from("orders")
+    .update({ invoice_number: invoiceNumber } as never)
+    .eq("id", orderId)
+    .is("invoice_number", null);
+  if (error) console.error(`[updateOrderStatus] Could not record invoice ${invoiceNumber} on ${orderNumber}:`, error.message);
+  return invoiceNumber;
+}
+
+async function notifyCustomerOfStatus(order: {
+  order_id: string;
+  order_number: string;
+  user_id: string;
+  status: OrderStatus;
+  invoice_number: string | null;
+  courier_partner: string | null;
+}) {
+  const label = ORDER_STATUS_CONFIG[order.status]?.label || order.status;
+  let title = `Order Status: ${label}`;
+  let message = `Order #${order.order_number} status has been updated to "${label}".`;
+
+  if (order.status === ORDER_STATUSES.SHIPPED) {
+    title = "Order Dispatched";
+    message = `Your order #${order.order_number} has been dispatched.${order.courier_partner ? ` Transporter: ${order.courier_partner}` : ""}`;
+  } else if (order.status === ORDER_STATUSES.DELIVERED) {
+    title = "Order Delivered";
+    message = `Your order #${order.order_number} has been successfully delivered. Tax Invoice: ${order.invoice_number || "Available in Dashboard"}.`;
+  } else if (order.status === ORDER_STATUSES.RETURNED) {
+    title = "Order Return Processed";
+    message = `Return for order #${order.order_number} has been verified and restocked into warehouse inventory.`;
+  }
+
+  await notifyAll([
+    {
+      userId: order.user_id,
+      title,
+      message,
+      type: "order",
+      link: "/dashboard/orders",
+      metadata: { order_id: order.order_id, order_number: order.order_number, status: order.status },
+    },
+  ]);
 }
 
 /**
@@ -418,11 +212,9 @@ export async function updateOrderStatus(
  */
 export async function fetchAdminOrdersList(): Promise<Order[]> {
   await requireAdmin();
-  const adminClient = createAdminClient();
-
   try {
-    const { data: orders, error } = await (adminClient
-      .from("orders") as any)
+    const { data: orders, error } = await createAdminClient()
+      .from("orders")
       .select("*")
       .order("created_at", { ascending: false });
 
@@ -430,7 +222,6 @@ export async function fetchAdminOrdersList(): Promise<Order[]> {
       console.warn("Notice fetching admin orders:", error.message);
       return [];
     }
-
     return (orders as Order[]) || [];
   } catch (err) {
     console.error("fetchAdminOrdersList exception:", err);
@@ -448,11 +239,11 @@ export async function fetchCustomerOrdersList(): Promise<Order[]> {
     const {
       data: { user },
     } = await supabase.auth.getUser();
-
     if (!user) return [];
 
-    const { data: orders, error } = await (supabase
-      .from("orders") as any)
+    // Session client: row-level security limits this to the customer's own orders.
+    const { data: orders, error } = await supabase
+      .from("orders")
       .select("*")
       .eq("user_id", user.id)
       .order("created_at", { ascending: false });
@@ -461,7 +252,6 @@ export async function fetchCustomerOrdersList(): Promise<Order[]> {
       console.warn("Notice fetching customer orders:", error.message);
       return [];
     }
-
     return (orders as Order[]) || [];
   } catch (err) {
     console.error("fetchCustomerOrdersList exception:", err);
@@ -476,88 +266,80 @@ export async function requestCustomerOrderReturn(
   orderId: string,
   reason: string
 ): Promise<{ success: boolean; error?: string }> {
-  const supabase = await createClient();
+  const guard = await guardOrError(requireUser);
+  if (!guard.ctx) return { success: false, error: "Please log in to submit a return request." };
+  const userId = guard.ctx.userId;
+
+  const trimmedReason = reason?.trim() ?? "";
+  if (!trimmedReason) {
+    return { success: false, error: "Please provide a reason for the return request." };
+  }
+  if (trimmedReason.length > 1000) {
+    return { success: false, error: "Please keep the reason under 1000 characters." };
+  }
 
   try {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    if (!user) {
-      return { success: false, error: "Please log in to submit a return request." };
-    }
-
-    if (!reason || !reason.trim()) {
-      return { success: false, error: "Please provide a reason for the return request." };
-    }
-
     const adminClient = createAdminClient();
-    const { data: orderData, error: fetchErr } = await (adminClient
-      .from("orders") as any)
+    const { data: orderData, error: fetchErr } = await adminClient
+      .from("orders")
       .select("*")
       .eq("id", orderId)
       .single();
 
     const order = orderData as Order | null;
-    if (fetchErr || !order) {
+    // Same message for "not yours" and "does not exist": no probing other orders.
+    if (fetchErr || !order || order.user_id !== userId) {
       return { success: false, error: "Order not found." };
-    }
-
-    if (order.user_id !== user.id) {
-      return { success: false, error: "Unauthorized." };
     }
 
     if (order.status !== ORDER_STATUSES.DELIVERED && order.status !== ORDER_STATUSES.SHIPPED) {
       return { success: false, error: "Only dispatched or delivered orders can be requested for return." };
     }
+    if (order.return_reason) {
+      return { success: false, error: "A return has already been requested for this order." };
+    }
 
-    // Record return request in return_reason & notes
-    const formattedReason = `Return Requested: ${reason.trim()} (Submitted on ${new Date().toLocaleDateString("en-IN")})`;
+    const formattedReason = `Return Requested: ${trimmedReason} (Submitted on ${new Date().toLocaleDateString("en-IN")})`;
     const updatedNotes = order.notes ? `${order.notes}\n${formattedReason}` : formattedReason;
 
-    const { error: updateErr } = await (adminClient
-      .from("orders") as any)
+    const { error: updateErr } = await adminClient
+      .from("orders")
       .update({
-        return_reason: reason.trim(),
+        return_reason: trimmedReason,
         notes: updatedNotes,
         updated_at: new Date().toISOString(),
-      })
-      .eq("id", orderId);
+      } as never)
+      .eq("id", orderId)
+      .eq("user_id", userId);
 
     if (updateErr) {
-      return { success: false, error: updateErr.message };
+      return { success: false, error: "Could not submit the return request. Please try again." };
     }
 
-    // Notify Admin
-    try {
-      await createNotification({
+    await notifyAll([
+      {
         role: "admin",
         title: "Order Return Requested",
-        message: `Return requested for Order #${order.order_number} by ${order.customer_details?.company_name || "Customer"}: "${reason.trim()}"`,
+        message: `Return requested for Order #${order.order_number} by ${order.customer_details?.company_name || "Customer"}: "${trimmedReason}"`,
         type: "order",
         link: "/admin/orders",
-        metadata: { order_id: orderId, order_number: order.order_number, reason: reason.trim() },
-      });
-
-      // Confirm to customer
-      await createNotification({
-        userId: user.id,
-        title: "Return Request Received",
-        message: `Your return request for Order #${order.order_number} has been logged. Our logistics team will review it shortly.`,
-        type: "order",
-        link: "/dashboard/orders",
-        metadata: { order_id: orderId, order_number: order.order_number },
-      });
-    } catch (notifErr) {
-      console.warn("Notification error during return request:", notifErr);
-    }
+        metadata: { order_id: orderId, order_number: order.order_number, reason: trimmedReason },
+      },
+    ]);
+    await createNotification({
+      userId,
+      title: "Return Request Received",
+      message: `Your return request for Order #${order.order_number} has been logged. Our logistics team will review it shortly.`,
+      type: "order",
+      link: "/dashboard/orders",
+      metadata: { order_id: orderId, order_number: order.order_number },
+    });
 
     revalidatePath("/dashboard/orders");
     revalidatePath("/admin/orders");
-
     return { success: true };
-  } catch (err: any) {
+  } catch (err) {
     console.error("requestCustomerOrderReturn exception:", err);
-    return { success: false, error: err.message || "Failed to process return request." };
+    return { success: false, error: "Failed to process return request." };
   }
 }

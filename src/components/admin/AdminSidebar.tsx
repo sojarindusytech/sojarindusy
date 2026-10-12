@@ -20,6 +20,7 @@ import {
   Layers,
   X,
   LogOut,
+  TicketPercent,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
@@ -76,6 +77,12 @@ const navItems: NavSectionItem[] = [
       { title: "Order Returns", href: "/admin/order-returns" },
       { title: "Dispatch / Delivery", href: "/admin/dispatch" },
     ],
+  },
+  {
+    id: "coupons",
+    title: "Coupons",
+    href: "/admin/coupons",
+    icon: TicketPercent,
   },
   {
     id: "sales",
