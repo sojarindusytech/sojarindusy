@@ -81,6 +81,13 @@ export function CustomerSidebar({
       matchExact: false,
     },
     {
+      id: "credit-notes",
+      title: "Credit Notes",
+      href: "/dashboard/credit-notes",
+      icon: Receipt,
+      matchExact: false,
+    },
+    {
       id: "company",
       title: "Delivery & Profile",
       href: "/dashboard/profile",

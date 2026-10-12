@@ -20,5 +20,5 @@ export default async function SalesSettingsPage() {
     );
   }
 
-  return <SalesSettingsClient initial={settings} />;
+  return <SalesSettingsClient key={settings.updated_at} initial={settings} />;
 }

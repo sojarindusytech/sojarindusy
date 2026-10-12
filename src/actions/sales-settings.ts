@@ -18,7 +18,8 @@ export async function getSalesSettings(): Promise<SalesSettings | null> {
 }
 
 export async function updateSalesSettings(
-  input: SalesSettingsInput
+  input: SalesSettingsInput,
+  originalCreditCounter?: number
 ): Promise<{ success: boolean; error?: string; fieldErrors?: Record<string, string> }> {
   try {
     await requireAdmin();
@@ -37,29 +38,47 @@ export async function updateSalesSettings(
     // next_invoice_number() doesn't see a stale FY and reset it to 1. An
     // unchanged counter is left alone so an untouched new year still starts at 1.
     const current = await loadSalesSettings();
+    if (!current) return { success: false, error: "Sales settings are not configured." };
     const counterEdited = current?.invoice_next_number !== parsed.data.invoice_next_number;
     const rfqCounterEdited = current?.rfq_next_number !== parsed.data.rfq_next_number;
     const quoteCounterEdited = current?.quote_next_number !== parsed.data.quote_next_number;
+    const creditCounterEdited = originalCreditCounter === undefined
+      ? current?.credit_note_next_number !== parsed.data.credit_note_next_number
+      : originalCreditCounter !== parsed.data.credit_note_next_number;
+    if (creditCounterEdited && originalCreditCounter !== undefined && current?.credit_note_next_number !== originalCreditCounter) {
+      return { success: false, error: "The credit note counter changed. Reload Sales Settings before editing it." };
+    }
+    const { credit_note_next_number, ...values } = parsed.data;
     const poCounterEdited = current?.po_next_number !== parsed.data.po_next_number;
 
-    const { error } = await (createAdminClient().from("sales_settings") as any)
+    let update = createAdminClient().from("sales_settings")
       .update({
-        ...parsed.data,
+        ...values,
+        ...(creditCounterEdited ? { credit_note_next_number, credit_note_fy: financialYear() } : {}),
         ...(counterEdited ? { invoice_fy: financialYear() } : {}),
         ...(poCounterEdited ? { po_fy: financialYear() } : {}),
         ...(quoteCounterEdited ? { quote_fy: financialYear() } : {}),
         ...(rfqCounterEdited ? { rfq_fy: financialYear() } : {}),
         updated_at: new Date().toISOString(),
-      })
+      } as never)
       .eq("id", true);
+    if (creditCounterEdited) {
+      // Check again inside UPDATE so issuance between the read and write cannot rewind the counter.
+      update = update.eq("credit_note_next_number", current.credit_note_next_number);
+      update = current.credit_note_fy === null ? update.is("credit_note_fy", null) : update.eq("credit_note_fy", current.credit_note_fy);
+    }
+    const { data: saved, error } = await update.select("id").maybeSingle();
 
     if (error) {
       console.error("[updateSalesSettings] Update error:", error);
       return { success: false, error: error.message };
     }
 
+    if (!saved) return { success: false, error: "Sales settings changed while saving. Reload and try again." };
+
     revalidatePath("/admin/settings/sales");
     revalidatePath("/admin/invoices");
+    revalidatePath("/admin/credit-notes");
     return { success: true };
   } catch (err) {
     console.error("[updateSalesSettings] Exception:", err);

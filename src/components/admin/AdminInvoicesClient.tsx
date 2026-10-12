@@ -254,6 +254,7 @@ export function AdminInvoicesClient({ initialInvoices }: { initialInvoices: Invo
                       <Button variant="ghost" size="sm" className="h-8 px-2" title="View PDF" onClick={() => setViewing(inv)}>
                         <Eye className="h-4 w-4" />
                       </Button>
+                      {inv.status === "issued" && <Button asChild variant="ghost" size="sm" className="h-8 px-2" title="Create credit note"><Link href={`/admin/credit-notes?invoice=${inv.id}`}><FilePlus2 className="h-4 w-4" /></Link></Button>}
                       <Button asChild variant="ghost" size="sm" className="h-8 px-2" title="Download PDF">
                         <a href={`/api/invoices/${inv.id}/pdf?download=1`}>
                           <Download className="h-4 w-4" />

@@ -26,7 +26,7 @@ type Form = Record<string, string | boolean>;
 const TEXT_FIELDS = [
   "company_name", "address", "gstin", "state_code", "state_name", "msme", "website", "phone", "email",
   "logo_url", "signature_url", "bank_name", "bank_address", "account_no", "ifsc", "account_holder",
-  "terms", "invoice_prefix", "po_prefix", "rfq_prefix", "quote_prefix", "quote_payment_terms", "quote_delivery_terms",
+  "terms", "invoice_prefix", "po_prefix", "rfq_prefix", "quote_prefix", "credit_note_prefix", "quote_payment_terms", "quote_delivery_terms",
 ] as const;
 
 function toForm(s: SalesSettings): Form {
@@ -41,11 +41,14 @@ function toForm(s: SalesSettings): Form {
     rfq_pad: String(s.rfq_pad ?? 2),
     quote_next_number: String(s.quote_next_number ?? 1),
     quote_pad: String(s.quote_pad ?? 2),
+    credit_note_next_number: String(s.credit_note_next_number ?? 1),
+    credit_note_pad: String(s.credit_note_pad ?? 2),
     quote_validity_days: String(s.quote_validity_days ?? 30),
   };
   for (const k of TEXT_FIELDS) form[k] = (s[k] as string | null) ?? "";
   form.po_prefix = s.po_prefix ?? "SI/PO";
   form.rfq_prefix = s.rfq_prefix ?? "SI/RFQ";
+  form.credit_note_prefix = s.credit_note_prefix ?? "SI/CN";
   form.quote_prefix = s.quote_prefix ?? "SI/QT";
   return form;
 }
@@ -101,6 +104,10 @@ export function SalesSettingsClient({ initial }: { initial: SalesSettings }) {
   const quoteNextSeq = initial.quote_fy === fy || quoteCounterEdited ? quoteCounter : 1;
   const quotePreview = formatInvoiceNumber(text("quote_prefix") || "QT", fy, quoteNextSeq, Number(form.quote_pad) || 2);
 
+  const creditCounter = Math.max(1, Number(form.credit_note_next_number) || 1);
+  const creditNext = initial.credit_note_fy === fy || creditCounter !== initial.credit_note_next_number ? creditCounter : 1;
+  const creditPreview = formatInvoiceNumber(text("credit_note_prefix") || "SI/CN", fy, creditNext, Number(form.credit_note_pad) || 2);
+
   const upload = async (kind: "logo" | "signature", file: File | undefined) => {
     if (!file) return;
     setUploading(kind);
@@ -154,7 +161,7 @@ export function SalesSettingsClient({ initial }: { initial: SalesSettings }) {
         ...form,
         gst_billing_enabled: Boolean(form.gst_billing_enabled),
         invoice_copies: copies,
-      } as never);
+      } as never, initial.credit_note_next_number);
       if (res.success) {
         setErrors({});
         toast.success("Sales settings saved.");
@@ -274,6 +281,17 @@ export function SalesSettingsClient({ initial }: { initial: SalesSettings }) {
           {field("quote_delivery_terms", "Default delivery terms")}
         </div>
         <p className="text-[11px] text-slate-500">These prefill every new quotation and can be changed on each one.</p>
+      </Card>
+
+      <Card className="p-5 space-y-4 shadow-none border-slate-200 rounded-xl">
+        <h2 className="text-sm font-bold text-slate-900">Credit Note Numbering</h2>
+        <div className="grid sm:grid-cols-3 gap-4">
+          {field("credit_note_prefix", "Prefix", { maxLength: 7 })}
+          {field("credit_note_next_number", "Next number", { type: "number", min: 1, max: 99999999, step: 1 })}
+          {field("credit_note_pad", "Digits", { type: "number", min: 1, max: 8, step: 1 })}
+        </div>
+        <p className="text-xs text-slate-600">Next credit note: <span className="font-mono font-bold text-slate-900">{creditPreview}</span> · Restarts at 1 each April.</p>
+        <p className="text-[11px] text-slate-500">Choose Auto or Manual on each credit note. A manual number does not move this counter. Numbers use letters, numbers, / and - and must fit within 16 characters. Auto numbering skips numbers already used manually.</p>
       </Card>
 
       <Card className="p-5 space-y-3 shadow-none border-slate-200 rounded-xl">
