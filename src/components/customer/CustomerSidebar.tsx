@@ -9,6 +9,7 @@ import {
   Boxes,
   FileText,
   Receipt,
+  Wallet,
   Building2,
   Headphones,
   ShoppingBag,
@@ -78,6 +79,13 @@ export function CustomerSidebar({
       title: "Invoices & Statements",
       href: "/dashboard/invoices",
       icon: Receipt,
+      matchExact: false,
+    },
+    {
+      id: "payments",
+      title: "Payments & Receipts",
+      href: "/dashboard/payments",
+      icon: Wallet,
       matchExact: false,
     },
     {
