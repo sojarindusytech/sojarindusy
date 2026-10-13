@@ -120,7 +120,7 @@ export function DispatchManagementClient({
         toast.error(res.error);
       } else {
         toast.success(
-          `Order #${deliveringOrder.order_number} marked Delivered. GST Tax Invoice generated!`
+          `Order #${deliveringOrder.order_number} marked Delivered. The customer can now view the GST Tax Invoice.`
         );
         setOrders((prev) =>
           prev.map((ord) =>
@@ -594,7 +594,7 @@ export function DispatchManagementClient({
               </div>
 
               <div className="bg-emerald-50 border border-emerald-200 p-2.5 rounded-lg text-emerald-900 text-xs">
-                An official GST Tax Invoice will be generated automatically and made available to the client immediately.
+                The GST Tax Invoice was raised when this order shipped; the client can view it as soon as it is marked Delivered.
               </div>
 
               <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">

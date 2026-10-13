@@ -4,6 +4,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { requireAdmin } from "@/lib/auth-guard";
 import { adjustVariantStock as adjustVariantStockRpc } from "@/lib/server/rpc";
 import { checkAndGeneratePurchaseOrder } from "@/lib/server/purchase-orders";
+import { stockErrorMessage } from "@/lib/server/stock-errors";
 import { InventoryLog } from "@/types/database.types";
 import { revalidatePath } from "next/cache";
 
@@ -99,6 +100,8 @@ export async function adjustVariantStock(
 
   if (error) {
     if (error.code === "VARIANT_NOT_FOUND") return { error: "SKU variant not found." };
+    const stockMsg = stockErrorMessage(error);
+    if (stockMsg) return { error: stockMsg };
     return { error: "Failed to update stock. Please try again." };
   }
 

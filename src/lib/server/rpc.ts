@@ -156,6 +156,41 @@ export const receivePurchaseOrder = (poId: string, notes: string | null, actorId
     p_actor: actorId,
   });
 
+// ---- Invoice stock (20261017_stock_ledger) ---------------------------------------------
+
+export interface StockLine {
+  sku: string;
+  quantity: number;
+}
+
+/** [{ sku, required, available }] for every line that cannot be covered. Read-only. */
+export const checkInvoiceStock = (items: StockLine[]) =>
+  callRpc<{ sku: string; required: number; available: number }[]>("check_invoice_stock", { p_items: items });
+
+/** Takes the invoice's SKU units off the shelf, exactly once. */
+export const postInvoiceStock = (invoiceId: string, actorId: string) =>
+  callRpc<{ posted: boolean; invoice_number: string }>("post_invoice_stock", { p_invoice_id: invoiceId, p_actor: actorId });
+
+/** Gives the units back (invoice cancelled), exactly once. */
+export const reverseInvoiceStock = (invoiceId: string, actorId: string, reason: string | null = null) =>
+  callRpc<{ reversed: boolean; invoice_number: string }>("reverse_invoice_stock", {
+    p_invoice_id: invoiceId,
+    p_actor: actorId,
+    p_reason: reason,
+  });
+
+/**
+ * An edited invoice changes stock by the difference between its old and new lines. Call it
+ * BEFORE saving the new lines; to undo, call again with the two lists swapped.
+ */
+export const repostInvoiceStock = (invoiceId: string, actorId: string, oldItems: StockLine[], newItems: StockLine[]) =>
+  callRpc<{ adjusted: boolean; invoice_number: string }>("repost_invoice_stock", {
+    p_invoice_id: invoiceId,
+    p_actor: actorId,
+    p_old_items: oldItems,
+    p_new_items: newItems,
+  });
+
 export type DocumentType = "ORD" | "PO";
 
 /** Collision-free fallback numbering (20261015_02); orders use it as their primary. */

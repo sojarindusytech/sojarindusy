@@ -581,7 +581,7 @@ export function CustomerOrdersView({ orders }: CustomerOrdersViewProps) {
                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-2.5 text-xs text-blue-900 flex items-center gap-2">
                   <Clock className="h-4 w-4 text-[#024AE5] shrink-0" />
                   <span>
-                    Official GST Tax Invoice will be generated automatically once this order is marked as <strong>Delivered</strong>.
+                    Your official GST Tax Invoice will appear here once this order is <strong>Delivered</strong>.
                   </span>
                 </div>
               )}

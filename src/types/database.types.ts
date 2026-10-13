@@ -243,6 +243,8 @@ export interface Order {
   returned_at?: string | null;
   return_reason?: string | null;
   invoice_number?: string | null;
+  /** When the goods left stock (first move to shipped/delivered). null = still only reserved. */
+  stock_fulfilled_at?: string | null;
   customer_details?: CustomerOrderDetails | null;
   notes?: string | null;
   /** Coupon discount, taken off the subtotal before GST. 0 when none. */
@@ -282,6 +284,8 @@ export interface SalesSettings {
   invoice_fy: string | null;
   invoice_next_number: number;
   invoice_pad: number;
+  /** Hand-made invoices reduce SKU stock when issued (order invoices are unaffected). */
+  invoice_reduces_stock: boolean;
   po_prefix: string;
   po_fy: string | null;
   po_next_number: number;
@@ -331,6 +335,10 @@ export interface Invoice {
   total_amount: number;
   amount_in_words: string | null;
   status: InvoiceStatus;
+  /** order = the linked order moved the stock; invoice = this invoice did; legacy/none = no stock effect. */
+  stock_owner?: "order" | "invoice" | "legacy" | "none";
+  stock_posted_at?: string | null;
+  stock_reversed_at?: string | null;
   created_by: string | null;
   created_at: string;
   updated_at: string;
@@ -390,7 +398,10 @@ export interface ProductVariant {
   overall_length?: number | null;
   shank_diameter?: number | null;
   list_price: number;
+  /** Physical units on hand. What customers can buy is stock_quantity - reserved_quantity. */
   stock_quantity: number;
+  /** Units promised to open (not yet shipped) orders. */
+  reserved_quantity?: number;
   /** Target stock level the auto purchase order restocks up to. Not customer-facing. */
   min_quantity?: number;
   /** Reorder threshold: auto PO fires when stock <= this. 0 disables auto-ordering. */
@@ -414,6 +425,9 @@ export type InventoryMovementType =
   | 'BULK_UPDATE'
   | 'ORDER_RESERVATION'
   | 'ORDER_FULFILLED'
+  | 'INVOICE_ISSUED'
+  | 'INVOICE_EDITED'
+  | 'INVOICE_CANCELLED'
   | 'ORDER_CANCELLED'
   | 'RETURN_RESTOCK'
   | 'RESTOCK'
@@ -426,7 +440,10 @@ export interface InventoryLog {
   sku_code: string;
   product_title: string;
   movement_type: InventoryMovementType | string;
+  /** Change to units on hand. */
   quantity_delta: number;
+  /** Change to reserved units (orders placed / cancelled / shipped). */
+  reserved_delta?: number;
   balance_before: number;
   balance_after: number;
   reference_id?: string | null;

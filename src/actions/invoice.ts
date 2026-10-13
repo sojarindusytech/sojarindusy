@@ -7,6 +7,15 @@ import { amountInWords, computeInvoice, stateCodeOf, type InvoiceLineInput } fro
 import { placeOfSupplyFor } from "@/lib/indian-states";
 import type { Invoice, InvoiceBillTo, Order, OrderItem, SalesSettings } from "@/types/database.types";
 import { revalidatePath } from "next/cache";
+import {
+  checkInvoiceStock,
+  postInvoiceStock,
+  reverseInvoiceStock,
+  repostInvoiceStock,
+  type StockLine,
+} from "@/lib/server/rpc";
+import { shortageMessage, stockErrorMessage } from "@/lib/server/stock-errors";
+import { filterCustomerVisibleInvoices } from "@/lib/server/invoice-access";
 
 type Result<T> = ({ success: true } & T) | { success: false; error: string };
 
@@ -32,8 +41,26 @@ export interface ManualInvoicePayload {
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const todayIso = () => new Date().toISOString().slice(0, 10);
 
-/** Shared by manual and order-based creation. Always recomputes totals server-side. */
+/** Catalogue lines only: custom lines (no SKU) never move stock. */
+const stockLines = (lines: { sku?: string | null; quantity: number }[]): StockLine[] =>
+  lines.filter((l) => l.sku).map((l) => ({ sku: l.sku as string, quantity: Number(l.quantity) }));
+
+const qtyBySku = (lines: StockLine[]) => {
+  const m = new Map<string, number>();
+  for (const l of lines) m.set(l.sku, (m.get(l.sku) ?? 0) + l.quantity);
+  return m;
+};
+
+/**
+ * Shared by manual and order-based creation. Always recomputes totals server-side.
+ *
+ * stockOwner decides who moves the SKU units:
+ *   "order"   the linked order did (at shipment); the invoice must not touch stock again
+ *   "invoice" a hand-made invoice: issuing it takes the units off the shelf
+ *   "none"    no stock effect (the Sales Settings switch is off)
+ */
 async function insertInvoice(args: {
+  stockOwner: "order" | "invoice" | "none";
   settings: SalesSettings;
   billTo: InvoiceBillTo;
   userId: string | null;
@@ -48,6 +75,16 @@ async function insertInvoice(args: {
 }): Promise<Result<{ invoice: Invoice }>> {
   const { settings } = args;
   const db = createAdminClient();
+
+  // Refuse before an invoice number is used up: a shortage never leaves a gap in the series.
+  if (args.stockOwner === "invoice") {
+    const lines = stockLines(args.lines);
+    if (lines.length > 0) {
+      const check = await checkInvoiceStock(lines);
+      if (check.error) return { success: false, error: "Could not check stock for this invoice. Please try again." };
+      if (check.data.length > 0) return { success: false, error: shortageMessage(check.data) };
+    }
+  }
 
   const placeOfSupply = args.placeOfSupply || `${settings.state_code}-${settings.state_name}`;
   const computed = computeInvoice({
@@ -99,6 +136,7 @@ async function insertInvoice(args: {
     total_amount: computed.totals.total,
     amount_in_words: amountInWords(computed.totals.total),
     status: "issued",
+    stock_owner: args.stockOwner,
     created_by: args.createdBy,
   };
 
@@ -116,9 +154,27 @@ async function insertInvoice(args: {
     return { success: false, error: error.message };
   }
 
+  // A hand-made invoice takes its units off the shelf now. The pre-check above makes a failure
+  // here a race (someone else took the stock a moment ago): do not leave an issued invoice
+  // that never moved its stock; cancel it, the number stays in the books.
+  if (args.stockOwner === "invoice" && args.createdBy) {
+    const posted = await postInvoiceStock((data as Invoice).id, args.createdBy);
+    if (posted.error) {
+      await (db.from("invoices") as any)
+        .update({ status: "cancelled", stock_owner: "none", updated_at: new Date().toISOString() })
+        .eq("id", (data as Invoice).id);
+      revalidatePath("/admin/invoices");
+      return {
+        success: false,
+        error: stockErrorMessage(posted.error) ?? "Could not reduce stock for this invoice, so it was not issued. Please try again.",
+      };
+    }
+  }
+
   revalidatePath("/admin/invoices");
   revalidatePath("/admin/settings/sales");
   revalidatePath("/dashboard/invoices");
+  revalidatePath("/admin/products");
   return { success: true, invoice: data as Invoice };
 }
 
@@ -146,7 +202,8 @@ export async function fetchCustomerInvoices(): Promise<InvoiceListRow[]> {
     console.error("[fetchCustomerInvoices] Query error:", error);
     return [];
   }
-  return (data as InvoiceListRow[]) ?? [];
+  // An order's invoice is raised at shipment but only shown once the order is delivered.
+  return filterCustomerVisibleInvoices((data as InvoiceListRow[]) ?? []);
 }
 
 export interface InvoiceFormCustomer {
@@ -163,7 +220,7 @@ export interface InvoiceFormCustomer {
 
 /** Everything the "New Invoice" form needs besides SKU search. */
 export async function getInvoiceFormData(): Promise<{
-  settings: Pick<SalesSettings, "gst_billing_enabled" | "default_gst_rate" | "state_code" | "state_name" | "invoice_prefix" | "invoice_fy" | "invoice_next_number" | "invoice_pad"> | null;
+  settings: Pick<SalesSettings, "gst_billing_enabled" | "default_gst_rate" | "state_code" | "state_name" | "invoice_prefix" | "invoice_fy" | "invoice_next_number" | "invoice_pad" | "invoice_reduces_stock"> | null;
   customers: InvoiceFormCustomer[];
 }> {
   await requireAdmin();
@@ -195,6 +252,8 @@ export interface InvoiceSkuHit {
   list_price: number;
   gst_rate: number | null;
   hsn_code: string | null;
+  /** Units that can still be sold: on hand minus reserved by open orders. */
+  available: number;
 }
 
 export async function searchInvoiceSkus(query: string): Promise<InvoiceSkuHit[]> {
@@ -202,7 +261,7 @@ export async function searchInvoiceSkus(query: string): Promise<InvoiceSkuHit[]>
   const q = query.trim().replace(/[%_\\]/g, "\\$&");
   if (q.length < 2) return [];
   const { data, error } = await (createAdminClient().from("product_variants") as any)
-    .select("id, sku, list_price, gst_rate, hsn_code, products(title)")
+    .select("id, sku, list_price, gst_rate, hsn_code, stock_quantity, reserved_quantity, products(title)")
     .eq("is_archived", false)
     .ilike("sku", `%${q}%`)
     .order("sku", { ascending: true })
@@ -218,6 +277,7 @@ export async function searchInvoiceSkus(query: string): Promise<InvoiceSkuHit[]>
     list_price: Number(v.list_price) || 0,
     gst_rate: v.gst_rate === null || v.gst_rate === undefined ? null : Number(v.gst_rate),
     hsn_code: v.hsn_code ?? null,
+    available: Math.max(0, (Number(v.stock_quantity) || 0) - (Number(v.reserved_quantity) || 0)),
   }));
 }
 
@@ -260,6 +320,7 @@ export async function createManualInvoice(payload: ManualInvoicePayload): Promis
     if ("error" in parsed) return { success: false, error: parsed.error };
 
     return await insertInvoice({
+      stockOwner: settings.invoice_reduces_stock === false ? "none" : "invoice",
       settings,
       billTo: parsed.billTo,
       userId: payload.customerId || null,
@@ -296,7 +357,7 @@ export async function updateInvoice(
   payload: ManualInvoicePayload
 ): Promise<Result<{ invoice: Invoice }>> {
   try {
-    await requireAdmin();
+    const ctx = await requireAdmin();
     const db = createAdminClient();
     const settings = await loadSalesSettings();
     if (!settings) return { success: false, error: "Sales settings are not configured." };
@@ -329,6 +390,30 @@ export async function updateInvoice(
       placeOfSupplyStateCode: stateCodeOf(placeOfSupply),
     });
 
+    // Stock: a hand-made invoice changes stock by the difference; an order's invoice cannot
+    // change quantities at all (the order owns that stock: use a return or a credit note).
+    const oldStock = stockLines(existing.items);
+    const newStock = stockLines(computed.lines);
+    if (existing.stock_owner === "order") {
+      const a = qtyBySku(oldStock);
+      const b = qtyBySku(newStock);
+      const same = a.size === b.size && [...a].every(([sku, q]) => b.get(sku) === q);
+      if (!same) {
+        return {
+          success: false,
+          error: "This invoice belongs to an order, so item quantities can't be changed here. Use an order return or a credit note.",
+        };
+      }
+    }
+    let stockAdjusted = false;
+    if (existing.stock_owner === "invoice" && existing.stock_posted_at && !existing.stock_reversed_at) {
+      const adj = await repostInvoiceStock(invoiceId, ctx.userId, oldStock, newStock);
+      if (adj.error) {
+        return { success: false, error: stockErrorMessage(adj.error) ?? "Could not update stock for this edit. Please try again." };
+      }
+      stockAdjusted = true;
+    }
+
     const update = {
       invoice_number: number,
       // A hand-typed number no longer belongs to the auto sequence.
@@ -350,6 +435,8 @@ export async function updateInvoice(
 
     const { data, error } = await (db.from("invoices") as any).update(update).eq("id", invoiceId).select("*").single();
     if (error) {
+      // The edit was not saved: put the stock back the way the saved invoice has it.
+      if (stockAdjusted) await repostInvoiceStock(invoiceId, ctx.userId, newStock, oldStock);
       if (error.code === "23505") return { success: false, error: `Invoice number "${number}" already exists.` };
       console.error("[updateInvoice] update failed:", error);
       return { success: false, error: error.message };
@@ -363,6 +450,7 @@ export async function updateInvoice(
 
     revalidatePath("/admin/invoices");
     revalidatePath("/dashboard/invoices");
+    revalidatePath("/admin/products");
     return { success: true, invoice: data as Invoice };
   } catch (err) {
     console.error("[updateInvoice] Exception:", err);
@@ -432,6 +520,8 @@ export async function createInvoiceFromOrder(orderId: string): Promise<Result<{ 
     });
 
     const result = await insertInvoice({
+      // The order moved the stock when it shipped; this invoice must not do it again.
+      stockOwner: "order",
       settings,
       billTo: {
         name: cd?.company_name || profile?.company_name || "Customer",
@@ -463,13 +553,35 @@ export async function createInvoiceFromOrder(orderId: string): Promise<Result<{ 
 /** Cancel, never delete: the number stays in the books. */
 export async function cancelInvoice(invoiceId: string): Promise<{ success: boolean; error?: string }> {
   try {
-    await requireAdmin();
-    const { error } = await (createAdminClient().from("invoices") as any)
+    const ctx = await requireAdmin();
+    const db = createAdminClient();
+
+    const { data: inv } = await (db.from("invoices") as any).select("id, status, stock_owner").eq("id", invoiceId).maybeSingle();
+    if (!inv) return { success: false, error: "Invoice not found." };
+    if (inv.status === "cancelled") return { success: true };
+    if (inv.stock_owner === "order") {
+      // The order shipped these goods; cancelling the invoice would not bring them back.
+      return { success: false, error: "This invoice belongs to a shipped order. Process an order return or issue a credit note instead." };
+    }
+
+    const { error } = await (db.from("invoices") as any)
       .update({ status: "cancelled", updated_at: new Date().toISOString() })
       .eq("id", invoiceId);
     if (error) return { success: false, error: error.message };
+
+    // A hand-made invoice gives its units back (at most once, enforced in the database).
+    if (inv.stock_owner === "invoice") {
+      const back = await reverseInvoiceStock(invoiceId, ctx.userId, "invoice cancelled");
+      if (back.error) {
+        // Do not leave a cancelled invoice whose stock is still taken.
+        await (db.from("invoices") as any).update({ status: "issued", updated_at: new Date().toISOString() }).eq("id", invoiceId);
+        return { success: false, error: "Could not return the invoice's stock, so it was not cancelled. Please try again." };
+      }
+    }
+
     revalidatePath("/admin/invoices");
     revalidatePath("/dashboard/invoices");
+    revalidatePath("/admin/products");
     return { success: true };
   } catch (err) {
     return { success: false, error: err instanceof Error ? err.message : "Failed to cancel invoice." };
