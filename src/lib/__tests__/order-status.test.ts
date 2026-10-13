@@ -21,12 +21,18 @@ describe("order status rules", () => {
     expect(canTransition("delivered", "returned")).toBe(true);
   });
 
-  it("lets active orders move freely, deliver or cancel", () => {
+  it("lets orders that have not shipped move freely, ship, deliver or cancel", () => {
     expect(canTransition("pending", "shipped")).toBe(true);
-    expect(canTransition("shipped", "processing")).toBe(true);
+    expect(canTransition("processing", "pending")).toBe(true);
     expect(canTransition("confirmed", "delivered")).toBe(true);
-    expect(canTransition("shipped", "cancelled")).toBe(true);
+    expect(canTransition("pending", "cancelled")).toBe(true);
     expect(canTransition("delivered", "cancelled")).toBe(false);
+  });
+
+  it("lets a shipped order only be delivered or returned (stock is out, invoice raised)", () => {
+    expect(allowedStatuses("shipped").sort()).toEqual(["delivered", "returned", "shipped"]);
+    expect(canTransition("shipped", "processing")).toBe(false);
+    expect(canTransition("shipped", "cancelled")).toBe(false);
   });
 
   it("always allows a same-status details update", () => {

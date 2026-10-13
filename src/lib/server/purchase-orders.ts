@@ -26,6 +26,8 @@ interface VariantForReorder {
   product_id: string;
   min_quantity: number | null;
   trigger_quantity: number | null;
+  stock_quantity: number | null;
+  reserved_quantity: number | null;
   specifications: Record<string, unknown> | null;
   products: { id: string; title: string } | null;
 }
@@ -50,7 +52,7 @@ export async function checkAndGeneratePurchaseOrder(
 
     const { data: variantData, error: variantErr } = await adminDb
       .from("product_variants")
-      .select("id, sku, min_quantity, trigger_quantity, specifications, product_id, products(id, title)")
+      .select("id, sku, min_quantity, trigger_quantity, stock_quantity, reserved_quantity, specifications, product_id, products(id, title)")
       .eq("id", variantId)
       .single();
 
@@ -61,7 +63,13 @@ export async function checkAndGeneratePurchaseOrder(
 
     const targetQty = Number(variant.min_quantity) || 0;
     const triggerQty = Number(variant.trigger_quantity) || 0;
-    const decision = evaluateReorder({ currentStock, minQuantity: targetQty, triggerQuantity: triggerQty });
+    // What can still be sold: on hand minus units reserved by open orders. Read from the
+    // database so every caller (orders, invoices, edits, imports) is judged the same way.
+    const available =
+      variant.stock_quantity === null || variant.stock_quantity === undefined
+        ? currentStock
+        : Math.max(0, Number(variant.stock_quantity) - (Number(variant.reserved_quantity) || 0));
+    const decision = evaluateReorder({ currentStock: available, minQuantity: targetQty, triggerQuantity: triggerQty });
 
     if (!decision.shouldOrder) {
       if (decision.misconfigured) {
@@ -84,7 +92,7 @@ export async function checkAndGeneratePurchaseOrder(
         product_title: productTitle,
         min_quantity: targetQty,
         trigger_quantity: triggerQty,
-        actual_quantity: currentStock,
+        actual_quantity: available,
         order_quantity: decision.orderQuantity,
         specifications: variant.specifications || {},
         status: "Placed",

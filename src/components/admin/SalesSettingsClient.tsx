@@ -32,6 +32,7 @@ const TEXT_FIELDS = [
 function toForm(s: SalesSettings): Form {
   const form: Form = {
     gst_billing_enabled: s.gst_billing_enabled,
+    invoice_reduces_stock: s.invoice_reduces_stock !== false,
     default_gst_rate: String(s.default_gst_rate),
     invoice_next_number: String(s.invoice_next_number),
     invoice_pad: String(s.invoice_pad),
@@ -160,6 +161,7 @@ export function SalesSettingsClient({ initial }: { initial: SalesSettings }) {
       const res = await updateSalesSettings({
         ...form,
         gst_billing_enabled: Boolean(form.gst_billing_enabled),
+        invoice_reduces_stock: Boolean(form.invoice_reduces_stock),
         invoice_copies: copies,
       } as never, initial.credit_note_next_number);
       if (res.success) {
@@ -198,6 +200,22 @@ export function SalesSettingsClient({ initial }: { initial: SalesSettings }) {
             <span className="block text-sm font-semibold text-slate-900">Bill with GST</span>
             <span className="block text-xs text-slate-500">
               Default for new invoices. Turn off for non-GST billing (plain invoice, no tax). Each invoice can still override this when created.
+            </span>
+          </span>
+        </label>
+        <label className="flex items-start gap-3 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={Boolean(form.invoice_reduces_stock)}
+            onChange={(e) => set("invoice_reduces_stock", e.target.checked)}
+            className="mt-0.5 h-4 w-4 accent-[#024AE5]"
+          />
+          <span>
+            <span className="block text-sm font-semibold text-slate-900">Reduce stock when an invoice is issued</span>
+            <span className="block text-xs text-slate-500">
+              Hand-made invoices take their SKU units off the shelf (and give them back if cancelled); an invoice that would
+              take more than is available is refused. Invoices raised from orders are not affected: an order takes its stock
+              out when you set it to Shipped.
             </span>
           </span>
         </label>

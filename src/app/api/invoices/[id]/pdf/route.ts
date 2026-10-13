@@ -3,6 +3,7 @@ import { renderToBuffer } from "@react-pdf/renderer";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getAuthContext, isAdminRole } from "@/lib/auth-guard";
 import { loadSalesSettings } from "@/lib/sales-settings";
+import { isInvoiceVisibleToCustomer } from "@/lib/server/invoice-access";
 import { InvoicePdf } from "@/components/invoice/InvoicePdf";
 import type { Invoice } from "@/types/database.types";
 
@@ -26,8 +27,11 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
   const { data } = await (createAdminClient().from("invoices") as any).select("*").eq("id", id).maybeSingle();
   const invoice = data as Invoice | null;
 
+  // Customers: their own issued invoices, and an order's invoice only once the order is delivered.
   const allowed =
-    !!invoice && (isAdminRole(auth.role) || (invoice.user_id === auth.userId && invoice.status === "issued"));
+    !!invoice &&
+    (isAdminRole(auth.role) ||
+      (invoice.user_id === auth.userId && invoice.status === "issued" && (await isInvoiceVisibleToCustomer(invoice))));
   if (!invoice || !allowed) return new Response("Not found", { status: 404 });
 
   const settings = await loadSalesSettings();

@@ -193,7 +193,7 @@ export function CustomerProfileView({ initialProfile }: CustomerProfileViewProps
               <span className="text-slate-400 block text-[10px] font-bold uppercase">Payment Terms</span>
               <div className="font-bold text-slate-900 text-xs">Direct / Commercial Order Billing</div>
               <p className="text-[11px] text-slate-500">
-                Official GST Tax Invoices generated upon dispatch.
+                Official GST Tax Invoices are available once your order is delivered.
               </p>
             </div>
 

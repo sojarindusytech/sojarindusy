@@ -242,7 +242,7 @@ export function UpdateOrderTrackingModal({
             <div className="p-2.5 bg-indigo-50 border border-indigo-200 rounded-xl flex items-center gap-2 text-[11px] text-indigo-800">
               <Truck className="h-4 w-4 text-indigo-600 shrink-0" />
               <span>
-                Dispatched timestamp will be recorded. Courier and tracking fields below are optional for local/manual transport.
+                Shipping takes the goods out of stock and raises the GST Tax Invoice (the customer sees it once the order is delivered). Shipping is refused if the units are not on the shelf. Courier and tracking fields below are optional.
               </span>
             </div>
           )}
@@ -251,7 +251,7 @@ export function UpdateOrderTrackingModal({
             <div className="p-2.5 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center gap-2 text-[11px] text-emerald-800">
               <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
               <span>
-                Marking as Delivered completes the order and automatically finalizes the official GST Tax Invoice.
+                Marking as Delivered completes the order and makes the GST Tax Invoice visible to the customer. (If the order skipped Shipped, stock is taken out and the invoice raised now.)
               </span>
             </div>
           )}

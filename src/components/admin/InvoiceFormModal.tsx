@@ -34,6 +34,8 @@ interface Row {
   discountPct: string;
   /** "" = use the default rate */
   gstRate: string;
+  /** Units that can still be sold (catalogue lines picked in this session); undefined = unknown. */
+  available?: number;
 }
 
 const CUSTOM = "__custom__";
@@ -130,6 +132,7 @@ export function InvoiceFormModal({ onOpenChange, onSaved, invoice }: Props) {
       const row = blankRow({
         name: hit.sku, sku: hit.sku, description: hit.title, hsn: hit.hsn_code ?? "",
         unitPrice: String(hit.list_price), gstRate: hit.gst_rate === null ? "" : String(hit.gst_rate),
+        available: hit.available,
       });
       // Replace a still-empty first row instead of leaving it dangling.
       return rs.length === 1 && !rs[0].name && !rs[0].unitPrice ? [row] : [...rs, row];
@@ -284,6 +287,7 @@ export function InvoiceFormModal({ onOpenChange, onSaved, invoice }: Props) {
                     <button key={h.sku} type="button" onClick={() => addSku(h)} className="w-full text-left px-3 py-2 hover:bg-blue-50 text-xs">
                       <span className="font-bold text-slate-900">{h.sku}</span>
                       <span className="text-slate-500"> · {h.title} · {inr(h.list_price)}</span>
+                      <span className={h.available > 0 ? "text-emerald-700" : "text-rose-600"}> · {h.available} available</span>
                     </button>
                   ))}
                 </div>
@@ -313,7 +317,12 @@ export function InvoiceFormModal({ onOpenChange, onSaved, invoice }: Props) {
                         <Input placeholder="Item name / SKU" value={r.name} onChange={(e) => patchRow(r.key, { name: e.target.value })} className="h-8 text-xs" />
                         <Input placeholder="Description (optional)" value={r.description} onChange={(e) => patchRow(r.key, { description: e.target.value })} className="h-7 text-[11px] mt-1 text-slate-500" />
                       </td>
-                      <td className="p-1.5"><Input type="number" min={0} value={r.quantity} onChange={(e) => patchRow(r.key, { quantity: e.target.value })} className="h-8 text-xs" /></td>
+                      <td className="p-1.5">
+                        <Input type="number" min={0} value={r.quantity} onChange={(e) => patchRow(r.key, { quantity: e.target.value })} className="h-8 text-xs" />
+                        {settings?.invoice_reduces_stock !== false && r.sku && r.available !== undefined && Number(r.quantity) > r.available ? (
+                          <p className="text-[10px] text-rose-600 mt-0.5 leading-tight">Only {r.available} available</p>
+                        ) : null}
+                      </td>
                       <td className="p-1.5"><Input type="number" min={0} step="0.01" value={r.unitPrice} onChange={(e) => patchRow(r.key, { unitPrice: e.target.value })} className="h-8 text-xs" /></td>
                       <td className="p-1.5"><Input type="number" min={0} max={100} step="0.01" value={r.discountPct} onChange={(e) => patchRow(r.key, { discountPct: e.target.value })} className="h-8 text-xs" /></td>
                       <td className="p-1.5"><Input type="number" min={0} max={100} step="0.01" placeholder={String(defaultRate)} disabled={!gstEnabled} value={r.gstRate} onChange={(e) => patchRow(r.key, { gstRate: e.target.value })} className="h-8 text-xs" /></td>
