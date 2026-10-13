@@ -264,6 +264,10 @@ CREATE TABLE public.sales_settings (
   quote_validity_days integer NOT NULL DEFAULT 30 CHECK (quote_validity_days >= 1 AND quote_validity_days <= 365),
   quote_payment_terms text,
   quote_delivery_terms text,
+  receipt_prefix text NOT NULL DEFAULT 'SI/RCPT'::text,
+  receipt_fy text,
+  receipt_next_number integer NOT NULL DEFAULT 1 CHECK (receipt_next_number >= 1),
+  receipt_pad integer NOT NULL DEFAULT 2 CHECK (receipt_pad >= 1 AND receipt_pad <= 8),
   invoice_copies text[] NOT NULL DEFAULT ARRAY['original'::text] CHECK (invoice_copies <@ ARRAY['original'::text, 'duplicate'::text, 'triplicate'::text] AND cardinality(invoice_copies) >= 1),
   updated_at timestamp with time zone NOT NULL DEFAULT now(),
   CONSTRAINT sales_settings_pkey PRIMARY KEY (id)
@@ -343,3 +347,42 @@ CREATE TABLE public.quote_status_history (
   CONSTRAINT quote_status_history_quote_id_fkey FOREIGN KEY (quote_id) REFERENCES public.quotes(id),
   CONSTRAINT quote_status_history_changed_by_fkey FOREIGN KEY (changed_by) REFERENCES public.profiles(id)
 );
+CREATE TABLE public.payments (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  request_id uuid NOT NULL UNIQUE,
+  receipt_number text NOT NULL UNIQUE,
+  receipt_fy text,
+  seq integer,
+  numbering_mode text NOT NULL CHECK (numbering_mode = ANY (ARRAY['auto'::text, 'manual'::text])),
+  payment_date date NOT NULL,
+  amount numeric NOT NULL CHECK (amount > 0::numeric),
+  mode text NOT NULL CHECK (mode = ANY (ARRAY['cash'::text, 'cheque'::text, 'bank_transfer'::text, 'upi'::text, 'card'::text, 'net_banking'::text, 'demand_draft'::text, 'wallet'::text, 'payment_gateway'::text, 'other'::text])),
+  reference text,
+  deposit_account text,
+  channel text NOT NULL CHECK (channel = ANY (ARRAY['ecom'::text, 'offline'::text])),
+  source text NOT NULL DEFAULT 'manual'::text CHECK (source = ANY (ARRAY['manual'::text, 'gateway'::text])),
+  user_id uuid,
+  payer_name text NOT NULL,
+  remarks text,
+  status text NOT NULL DEFAULT 'received'::text CHECK (status = ANY (ARRAY['received'::text, 'cancelled'::text])),
+  cancelled_at timestamp with time zone,
+  cancel_reason text,
+  created_by uuid,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT payments_pkey PRIMARY KEY (id),
+  CONSTRAINT payments_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.profiles(id),
+  CONSTRAINT payments_created_by_fkey FOREIGN KEY (created_by) REFERENCES auth.users(id)
+);
+CREATE TABLE public.payment_allocations (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  payment_id uuid NOT NULL,
+  kind text NOT NULL CHECK (kind = ANY (ARRAY['invoice'::text, 'advance'::text, 'other'::text])),
+  invoice_id uuid,
+  invoice_number text,
+  amount numeric NOT NULL CHECK (amount > 0::numeric),
+  note text,
+  CONSTRAINT payment_allocations_pkey PRIMARY KEY (id),
+  CONSTRAINT payment_allocations_payment_id_fkey FOREIGN KEY (payment_id) REFERENCES public.payments(id),
+  CONSTRAINT payment_allocations_invoice_id_fkey FOREIGN KEY (invoice_id) REFERENCES public.invoices(id)
+);
+-- View (security_invoker): public.invoice_payment_summary(invoice_id, total, paid, balance, payment_status)

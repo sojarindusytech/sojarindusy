@@ -40,6 +40,7 @@ export async function updateSalesSettings(
     const counterEdited = current?.invoice_next_number !== parsed.data.invoice_next_number;
     const rfqCounterEdited = current?.rfq_next_number !== parsed.data.rfq_next_number;
     const quoteCounterEdited = current?.quote_next_number !== parsed.data.quote_next_number;
+    const receiptCounterEdited = current?.receipt_next_number !== parsed.data.receipt_next_number;
     const poCounterEdited = current?.po_next_number !== parsed.data.po_next_number;
 
     const { error } = await (createAdminClient().from("sales_settings") as any)
@@ -47,6 +48,7 @@ export async function updateSalesSettings(
         ...parsed.data,
         ...(counterEdited ? { invoice_fy: financialYear() } : {}),
         ...(poCounterEdited ? { po_fy: financialYear() } : {}),
+        ...(receiptCounterEdited ? { receipt_fy: financialYear() } : {}),
         ...(quoteCounterEdited ? { quote_fy: financialYear() } : {}),
         ...(rfqCounterEdited ? { rfq_fy: financialYear() } : {}),
         updated_at: new Date().toISOString(),

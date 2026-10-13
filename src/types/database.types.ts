@@ -298,6 +298,10 @@ export interface SalesSettings {
   quote_fy: string | null;
   quote_next_number: number;
   quote_pad: number;
+  receipt_prefix: string;
+  receipt_fy: string | null;
+  receipt_next_number: number;
+  receipt_pad: number;
   quote_validity_days: number;
   quote_payment_terms: string | null;
   quote_delivery_terms: string | null;
@@ -342,6 +346,55 @@ export interface Invoice {
   created_by: string | null;
   created_at: string;
   updated_at: string;
+}
+
+export type PaymentMode =
+  | "cash" | "cheque" | "bank_transfer" | "upi" | "card" | "net_banking"
+  | "demand_draft" | "wallet" | "payment_gateway" | "other";
+
+export interface PaymentAllocation {
+  id: string;
+  payment_id: string;
+  kind: "invoice" | "advance" | "other";
+  invoice_id: string | null;
+  /** Snapshot of the invoice number at the time of payment. */
+  invoice_number: string | null;
+  amount: number;
+  note: string | null;
+}
+
+/** A receipt: money received, split over invoices / advance / other. Immutable except cancel. */
+export interface Payment {
+  id: string;
+  receipt_number: string;
+  receipt_fy: string | null;
+  seq: number | null;
+  numbering_mode: "auto" | "manual";
+  payment_date: string;
+  amount: number;
+  mode: PaymentMode;
+  reference: string | null;
+  deposit_account: string | null;
+  channel: "ecom" | "offline";
+  source: "manual" | "gateway";
+  user_id: string | null;
+  payer_name: string;
+  remarks: string | null;
+  status: "received" | "cancelled";
+  cancelled_at: string | null;
+  cancel_reason: string | null;
+  created_by: string | null;
+  created_at: string;
+  allocations?: PaymentAllocation[];
+}
+
+/** Row of the invoice_payment_summary view. */
+export interface InvoicePaymentSummary {
+  invoice_id: string;
+  total: number;
+  paid: number;
+  balance: number;
+  payment_status: "unpaid" | "partial" | "paid" | "cancelled";
 }
 
 export interface Category {
@@ -484,6 +537,7 @@ export interface PurchaseOrder {
 
 export type NotificationType =
   | "order"
+  | "payment"
   | "purchase_order"
   | "inventory"
   | "account"

@@ -5,6 +5,7 @@ const nextConfig: NextConfig = {
   outputFileTracingIncludes: {
     "/api/invoices/[id]/pdf": ["./src/assets/fonts/**"],
     "/api/quotes/[id]/pdf": ["./src/assets/fonts/**"],
+    "/api/payments/[id]/pdf": ["./src/assets/fonts/**"],
   },
   images: {
     remotePatterns: [

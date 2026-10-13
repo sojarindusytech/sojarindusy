@@ -26,7 +26,7 @@ type Form = Record<string, string | boolean>;
 const TEXT_FIELDS = [
   "company_name", "address", "gstin", "state_code", "state_name", "msme", "website", "phone", "email",
   "logo_url", "signature_url", "bank_name", "bank_address", "account_no", "ifsc", "account_holder",
-  "terms", "invoice_prefix", "po_prefix", "rfq_prefix", "quote_prefix", "quote_payment_terms", "quote_delivery_terms",
+  "terms", "invoice_prefix", "po_prefix", "rfq_prefix", "quote_prefix", "quote_payment_terms", "quote_delivery_terms", "receipt_prefix",
 ] as const;
 
 function toForm(s: SalesSettings): Form {
@@ -43,11 +43,14 @@ function toForm(s: SalesSettings): Form {
     quote_next_number: String(s.quote_next_number ?? 1),
     quote_pad: String(s.quote_pad ?? 2),
     quote_validity_days: String(s.quote_validity_days ?? 30),
+    receipt_next_number: String(s.receipt_next_number ?? 1),
+    receipt_pad: String(s.receipt_pad ?? 2),
   };
   for (const k of TEXT_FIELDS) form[k] = (s[k] as string | null) ?? "";
   form.po_prefix = s.po_prefix ?? "SI/PO";
   form.rfq_prefix = s.rfq_prefix ?? "SI/RFQ";
   form.quote_prefix = s.quote_prefix ?? "SI/QT";
+  form.receipt_prefix = s.receipt_prefix ?? "SI/RCPT";
   return form;
 }
 
@@ -101,6 +104,11 @@ export function SalesSettingsClient({ initial }: { initial: SalesSettings }) {
   const quoteCounterEdited = quoteCounter !== (initial.quote_next_number ?? 1);
   const quoteNextSeq = initial.quote_fy === fy || quoteCounterEdited ? quoteCounter : 1;
   const quotePreview = formatInvoiceNumber(text("quote_prefix") || "QT", fy, quoteNextSeq, Number(form.quote_pad) || 2);
+
+  const receiptCounter = Math.max(1, Number(form.receipt_next_number) || 1);
+  const receiptCounterEdited = receiptCounter !== (initial.receipt_next_number ?? 1);
+  const receiptNextSeq = initial.receipt_fy === fy || receiptCounterEdited ? receiptCounter : 1;
+  const receiptPreview = formatInvoiceNumber(text("receipt_prefix") || "RCPT", fy, receiptNextSeq, Number(form.receipt_pad) || 2);
 
   const upload = async (kind: "logo" | "signature", file: File | undefined) => {
     if (!file) return;
@@ -292,6 +300,19 @@ export function SalesSettingsClient({ initial }: { initial: SalesSettings }) {
           {field("quote_delivery_terms", "Default delivery terms")}
         </div>
         <p className="text-[11px] text-slate-500">These prefill every new quotation and can be changed on each one.</p>
+      </Card>
+
+      <Card className="p-5 space-y-4 shadow-none border-slate-200 rounded-xl">
+        <h2 className="text-sm font-bold text-slate-900">Payment Receipts</h2>
+        <div className="grid sm:grid-cols-3 gap-4">
+          {field("receipt_prefix", "Prefix")}
+          {field("receipt_next_number", "Next number", { type: "number", min: 1, step: 1 })}
+          {field("receipt_pad", "Digits", { type: "number", min: 1, max: 8, step: 1 })}
+        </div>
+        <p className="text-xs text-slate-600">
+          Next receipt: <span className="font-mono font-bold text-slate-900">{receiptPreview}</span>
+          <span className="text-slate-400"> · Restarts at 1 each April. A number typed on a single receipt doesn&apos;t move this counter.</span>
+        </p>
       </Card>
 
       <Card className="p-5 space-y-3 shadow-none border-slate-200 rounded-xl">
