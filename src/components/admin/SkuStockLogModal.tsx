@@ -105,12 +105,20 @@ export function SkuStockLogModal({
         return <Badge className="bg-purple-50 text-purple-700 border-purple-200 text-[10px] font-semibold">Manual Edit</Badge>;
       case "BULK_UPDATE":
         return <Badge className="bg-amber-50 text-amber-700 border-amber-200 text-[10px] font-semibold">Bulk Update</Badge>;
-      case "ORDER_FULFILLED":
       case "ORDER_RESERVATION":
-        return <Badge className="bg-emerald-50 text-emerald-700 border-emerald-200 text-[10px] font-semibold">Order Placed</Badge>;
+        return <Badge className="bg-amber-50 text-amber-700 border-amber-200 text-[10px] font-semibold">Order Reserved</Badge>;
+      case "ORDER_FULFILLED":
+        return <Badge className="bg-emerald-50 text-emerald-700 border-emerald-200 text-[10px] font-semibold">Order Shipped</Badge>;
       case "ORDER_CANCELLED":
+        return <Badge className="bg-slate-100 text-slate-700 border-slate-200 text-[10px] font-semibold">Reservation Released</Badge>;
       case "RETURN_RESTOCK":
         return <Badge className="bg-teal-50 text-teal-700 border-teal-200 text-[10px] font-semibold">Order Restock</Badge>;
+      case "INVOICE_ISSUED":
+        return <Badge className="bg-indigo-50 text-indigo-700 border-indigo-200 text-[10px] font-semibold">Invoice Issued</Badge>;
+      case "INVOICE_EDITED":
+        return <Badge className="bg-indigo-50 text-indigo-700 border-indigo-200 text-[10px] font-semibold">Invoice Edited</Badge>;
+      case "INVOICE_CANCELLED":
+        return <Badge className="bg-teal-50 text-teal-700 border-teal-200 text-[10px] font-semibold">Invoice Cancelled</Badge>;
       case "ARCHIVED":
         return <Badge className="bg-rose-50 text-rose-700 border-rose-200 text-[10px] font-semibold">Archived</Badge>;
       default:
@@ -193,7 +201,16 @@ export function SkuStockLogModal({
                           </TableCell>
                           <TableCell className="text-center py-3">
                             {isZero ? (
-                              <span className="font-mono text-slate-400 font-bold text-xs">0</span>
+                              log.reserved_delta ? (
+                                <span
+                                  className="inline-flex items-center font-bold font-mono text-amber-700 bg-amber-50 px-2 py-0.5 rounded text-xs"
+                                  title="Reserved for open orders; units on hand are unchanged"
+                                >
+                                  {log.reserved_delta > 0 ? "+" : ""}{log.reserved_delta} reserved
+                                </span>
+                              ) : (
+                                <span className="font-mono text-slate-400 font-bold text-xs">0</span>
+                              )
                             ) : isPositive ? (
                               <span className="inline-flex items-center gap-0.5 font-bold font-mono text-[#3C8B4F] bg-emerald-50 px-2 py-0.5 rounded text-xs">
                                 <TrendingUp className="h-3 w-3" />

@@ -139,6 +139,8 @@ const place = async (o: OrderInput) =>
   (await t.service<{ r: OrderResult }>(`SELECT public.place_order($1::jsonb) AS r`, [JSON.stringify(o)])).r;
 const stockOf = async (variantId: string) =>
   (await t.one<{ s: number }>(`SELECT stock_quantity AS s FROM public.product_variants WHERE id = $1`, [variantId])).s;
+const reservedOf = async (variantId: string) =>
+  (await t.one<{ s: number }>(`SELECT reserved_quantity AS s FROM public.product_variants WHERE id = $1`, [variantId])).s;
 const save = async (coupon: Record<string, unknown>, products: string[] = [], cats: string[] = [], custs: string[] = []) =>
   (await t.service<{ r: Coupon }>(
     `SELECT public.save_coupon($1::jsonb, $2::uuid[], $3::uuid[], $4::uuid[], $5) AS r`,
@@ -169,7 +171,7 @@ const storedOrder = async (orderId: string) =>
 beforeAll(async () => {
   t = await createTestDb({ applyNew: true });
   // Apply the new migrations a second time: they must be idempotent.
-  for (const f of migrationFiles((name) => name.startsWith("20261015_"))) {
+  for (const f of migrationFiles((name) => name.startsWith("20261015_") || name.startsWith("20261017_"))) {
     await t.db.exec(readMigration(f));
   }
   await seed(t);
@@ -265,17 +267,19 @@ describe("place_order", () => {
     expect(Number(first.result.subtotal)).toBe(2000);
     expect(Number(first.result.gst_amount)).toBe(360);
     expect(Number(first.result.total_amount)).toBe(2360);
-    expect(await stockOf(ids.v1)).toBe(8);
-    const [log] = await rows(`SELECT quantity_delta, balance_after FROM public.inventory_logs WHERE reference_id = $1`,
+    // Placing an order reserves units; the warehouse count only drops when it ships.
+    expect(await stockOf(ids.v1)).toBe(10);
+    expect(await reservedOf(ids.v1)).toBe(2);
+    const [log] = await rows(`SELECT quantity_delta, balance_after, reserved_delta FROM public.inventory_logs WHERE reference_id = $1`,
       [first.result.order_number]);
-    expect(log).toMatchObject({ quantity_delta: -2, balance_after: 8 });
+    expect(log).toMatchObject({ quantity_delta: 0, balance_after: 10, reserved_delta: 2 });
   });
 
   it("returns the same order for a repeated checkout attempt", async () => {
     const again = await place(first.input);
     expect(again.replayed).toBe(true);
     expect(again.order_id).toBe(first.result.order_id);
-    expect(await stockOf(ids.v1)).toBe(8);
+    expect(await reservedOf(ids.v1)).toBe(2);
   });
 
   it("refuses a price the server did not quote", async () => {
@@ -288,18 +292,20 @@ describe("place_order", () => {
       { variant_id: ids.v1, quantity: 1, unit_price: 1000 },
       { variant_id: ids.v2, quantity: 2, unit_price: 1 },
     ] })), "PRICE_CHANGED");
-    expect(await stockOf(ids.v1)).toBe(8);
+    expect(await reservedOf(ids.v1)).toBe(2);
   });
 
   it("allows backorders: reserves what is on hand, records the rest", async () => {
     const r = await place(order({ user_id: ids.custB, items: [{ variant_id: ids.v2, quantity: 7, unit_price: 500 }] }));
-    expect(await stockOf(ids.v2)).toBe(0);
-    expect(r.stock[0]).toMatchObject({ stock_after: 0, backordered: 2 });
+    expect(await stockOf(ids.v2)).toBe(5);
+    expect(await reservedOf(ids.v2)).toBe(5);
+    expect(r.stock[0]).toMatchObject({ stock_after: 0, backordered: 2 }); // stock_after = still available
     const [o] = await rows(`SELECT items FROM public.orders WHERE id = $1`, [r.order_id]);
     expect((o as { items: Row[] }).items[0]).toMatchObject({ quantity: 7, reserved_quantity: 5, backordered_quantity: 2 });
 
     await transition(r.order_id, "cancelled");
-    expect(await stockOf(ids.v2)).toBe(5); // only the 5 reserved units come back
+    expect(await reservedOf(ids.v2)).toBe(0); // only the 5 reserved units are released
+    expect(await stockOf(ids.v2)).toBe(5);     // on hand never changed
   });
 
   it("stores each line's GST and the tax basis (IGST, per-SKU rate)", async () => {
@@ -362,7 +368,7 @@ describe("place_order", () => {
 
   it("never lets stock go below zero at the table level", async () => {
     await expect(t.db.query(`UPDATE public.product_variants SET stock_quantity = -1 WHERE id = $1`, [ids.v1]))
-      .rejects.toThrow(/stock_non_negative/);
+      .rejects.toThrow(/stock_non_negative|stock_covers_reserved/);
   });
 });
 
@@ -540,6 +546,9 @@ describe("transition_order_status", () => {
   let orderNumber: string;
 
   beforeAll(async () => {
+    // Earlier tests left open orders holding reservations; make sure this one is fully stocked
+    // so it can ship (shipping is refused when the units are promised to other orders).
+    await t.db.query(`UPDATE public.product_variants SET stock_quantity = stock_quantity + 50 WHERE id = $1`, [ids.v1]);
     const r = await place(order({ user_id: ids.custA }));
     orderId = r.order_id;
     orderNumber = r.order_number;
@@ -586,7 +595,11 @@ describe("transition_order_status", () => {
     for (const from of statuses) {
       for (const to of statuses) {
         const dbAllows = await t.db.transaction(async (tx) => {
-          await tx.query(`UPDATE public.orders SET status = $1 WHERE id = $2`, [from, row.id]);
+          // Goods that already shipped are out of stock: the order can only go forward or come back.
+          await tx.query(
+            `UPDATE public.orders SET status = $1,
+                    stock_fulfilled_at = CASE WHEN $1 IN ('shipped', 'delivered', 'returned') THEN now() END
+              WHERE id = $2`, [from, row.id]);
           await tx.exec("SET LOCAL ROLE service_role");
           let ok = true;
           try {
@@ -618,6 +631,8 @@ describe("stock adjustments and purchase orders", () => {
       (await t.service<{ r: { balance_after: number } }>(
         `SELECT public.adjust_variant_stock($1, $2, $3, 'MANUAL_ADJUSTMENT', 'REF', 'note', $4) AS r`,
         [ids.v2, mode, q, ids.admin])).r.balance_after;
+    // Reservations from earlier tests would (rightly) block SUBTRACT; start this one clean.
+    await t.db.query(`UPDATE public.product_variants SET reserved_quantity = 0 WHERE id = $1`, [ids.v2]);
     expect(await adj("SET", 7)).toBe(7);
     expect(await adj("ADD", 3)).toBe(10);
     expect(await adj("SUBTRACT", 99)).toBe(0);

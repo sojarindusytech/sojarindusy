@@ -36,15 +36,15 @@ export function readMigration(name: string): string {
   return fs.readFileSync(path.join(MIGRATIONS, name), "utf8");
 }
 
-export async function createTestDb(options: { applyNew: boolean }): Promise<TestDb> {
+export async function createTestDb(options: { applyNew: boolean; skipFrom?: string }): Promise<TestDb> {
   const db = new PGlite();
   await db.exec(fs.readFileSync(path.join(__dirname, "supabase-baseline.sql"), "utf8"));
 
   const applied: string[] = [];
   const skipped: string[] = [];
-  const isNew = (f: string) => f.startsWith("20261015_");
+  const isNew = (f: string) => f.startsWith("20261015_") || f.startsWith("20261017_");
 
-  for (const file of migrationFiles((f) => !isNew(f) || options.applyNew)) {
+  for (const file of migrationFiles((f) => (!isNew(f) || options.applyNew) && (!options.skipFrom || f < options.skipFrom))) {
     try {
       await db.exec(readMigration(file));
       applied.push(file);

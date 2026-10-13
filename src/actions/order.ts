@@ -10,6 +10,7 @@ import type { PriceChange } from "@/lib/server/checkout/cart";
 import { transitionOrderStatus } from "@/lib/server/rpc";
 import { createNotification, notifyAll } from "@/lib/server/notifications";
 import { createInvoiceFromOrder } from "@/actions/invoice";
+import { stockErrorMessage } from "@/lib/server/stock-errors";
 import { revalidatePath } from "next/cache";
 
 export interface CreateOrderPayload {
@@ -93,16 +94,25 @@ function transitionErrorMessage(code: string, detail: Record<string, unknown>): 
   if (code === "INVALID_TRANSITION") {
     return `An order cannot move from ${label(detail.from)} to ${label(detail.to)}.`;
   }
+  if (code === "INSUFFICIENT_STOCK") {
+    // Shipping takes the goods out of stock; refused when they are not on the shelf.
+    const msg = stockErrorMessage({ code, detail, raw: code });
+    return msg ? `Cannot ship this order. ${msg}` : "Cannot ship this order: not enough stock.";
+  }
   return TRANSITION_ERRORS[code] ?? "Failed to update order status.";
 }
 
 /**
  * 2. Admin Manual Order Lifecycle & Tracking Update Action
  *
- * The status rules, timestamps, restock and coupon release all happen in one
+ * The status rules, timestamps, stock movement and coupon release all happen in one
  * locked database step (transition_order_status), so a double click or two
- * admins acting at once cannot restock an order twice. On delivery the GST tax
- * invoice is then raised from the order (one per order).
+ * admins acting at once cannot move stock twice:
+ *   shipped (or delivered, if shipping was skipped)  the goods leave stock; refused with
+ *       INSUFFICIENT_STOCK when they are not on the shelf
+ *   cancelled   the reservation is released     returned   the units come back on hand
+ * The GST tax invoice is then raised from the order at the same moment it ships (one per
+ * order). The customer is shown it once the order is delivered.
  */
 export async function updateOrderStatus(
   orderId: string,
@@ -129,8 +139,10 @@ export async function updateOrderStatus(
   }
 
   let invoiceNumber = data.invoice_number;
-  if (data.status === ORDER_STATUSES.DELIVERED && !invoiceNumber) {
+  const justRaised = !invoiceNumber && (data.status === ORDER_STATUSES.SHIPPED || data.status === ORDER_STATUSES.DELIVERED);
+  if (justRaised) {
     invoiceNumber = await raiseOrderInvoice(orderId, data.order_number);
+    if (invoiceNumber) await notifyAdminInvoiceRaised(data.order_number, invoiceNumber);
   }
 
   if (data.previous_status !== data.status || data.status === ORDER_STATUSES.SHIPPED) {
@@ -151,10 +163,10 @@ export async function updateOrderStatus(
 }
 
 /**
- * Raises the tax invoice for a delivered order and records its number on the
- * order. Delivery must never fail because invoicing did: on error the order
- * keeps no invoice number, so saving it as Delivered again (or Invoices > New)
- * retries. createInvoiceFromOrder is idempotent (one invoice per order).
+ * Raises the tax invoice for an order that has shipped and records its number on the
+ * order. Shipping must never fail because invoicing did (the goods have already left
+ * stock): on error the order keeps no invoice number, so saving it as Shipped or
+ * Delivered again retries. createInvoiceFromOrder is idempotent (one invoice per order).
  */
 async function raiseOrderInvoice(orderId: string, orderNumber: string): Promise<string | null> {
   const result = await createInvoiceFromOrder(orderId);
@@ -172,6 +184,19 @@ async function raiseOrderInvoice(orderId: string, orderNumber: string): Promise<
   return invoiceNumber;
 }
 
+async function notifyAdminInvoiceRaised(orderNumber: string, invoiceNumber: string) {
+  await notifyAll([
+    {
+      role: "admin",
+      title: "Invoice generated",
+      message: `Invoice ${invoiceNumber} was raised for order #${orderNumber}. The customer sees it once the order is delivered.`,
+      type: "order",
+      link: "/admin/invoices",
+      metadata: { order_number: orderNumber, invoice_number: invoiceNumber },
+    },
+  ]);
+}
+
 async function notifyCustomerOfStatus(order: {
   order_id: string;
   order_number: string;
@@ -186,7 +211,7 @@ async function notifyCustomerOfStatus(order: {
 
   if (order.status === ORDER_STATUSES.SHIPPED) {
     title = "Order Dispatched";
-    message = `Your order #${order.order_number} has been dispatched.${order.courier_partner ? ` Transporter: ${order.courier_partner}` : ""}`;
+    message = `Your order #${order.order_number} has been dispatched.${order.courier_partner ? ` Transporter: ${order.courier_partner}` : ""} Your tax invoice will be available here once it is delivered.`;
   } else if (order.status === ORDER_STATUSES.DELIVERED) {
     title = "Order Delivered";
     message = `Your order #${order.order_number} has been successfully delivered. Tax Invoice: ${order.invoice_number || "Available in Dashboard"}.`;

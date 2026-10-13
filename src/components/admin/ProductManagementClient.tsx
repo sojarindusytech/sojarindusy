@@ -423,8 +423,10 @@ export function ProductManagementClient({
                         }
 
                         // Stock filter
-                        if (stockFilter === "in_stock" && (v.stock_quantity || 0) <= 0) return false;
-                        if (stockFilter === "out_of_stock" && (v.stock_quantity || 0) > 0) return false;
+                        // In stock = something can still be sold (on hand minus reserved).
+                        const sellable = (v.stock_quantity || 0) - (v.reserved_quantity || 0);
+                        if (stockFilter === "in_stock" && sellable <= 0) return false;
+                        if (stockFilter === "out_of_stock" && sellable > 0) return false;
 
                         // SKU & Dimension Search Query
                         if (skuSearch) {
@@ -602,13 +604,21 @@ export function ProductManagementClient({
                                         <TableCell className="text-center font-mono font-semibold py-2.5 text-slate-900">₹{v.list_price.toFixed(2)}</TableCell>
                                         <TableCell className="text-center py-2.5">
                                           {v.stock_quantity > 0 ? (
-                                            <span className="inline-flex items-center text-[#3C8B4F] font-bold text-[11px] bg-emerald-50 px-2 py-0.5 rounded border border-emerald-100">
+                                            <span
+                                              className="inline-flex items-center text-[#3C8B4F] font-bold text-[11px] bg-emerald-50 px-2 py-0.5 rounded border border-emerald-100"
+                                              title={`On hand: ${v.stock_quantity} | Reserved for open orders: ${v.reserved_quantity ?? 0} | Available to sell: ${Math.max(0, v.stock_quantity - (v.reserved_quantity ?? 0))}`}
+                                            >
                                               {v.stock_quantity} Units
                                             </span>
                                           ) : (
                                             <span className="inline-flex items-center text-rose-600 font-bold text-[11px] bg-rose-50 px-2 py-0.5 rounded border border-rose-100">
                                               Out of Stock
                                             </span>
+                                          )}
+                                          {(v.reserved_quantity ?? 0) > 0 && (
+                                            <div className="text-[10px] text-amber-700 font-medium mt-0.5 whitespace-nowrap">
+                                              {v.reserved_quantity} reserved · {Math.max(0, v.stock_quantity - (v.reserved_quantity ?? 0))} available
+                                            </div>
                                           )}
                                         </TableCell>
                                         <TableCell className="text-center py-2.5">

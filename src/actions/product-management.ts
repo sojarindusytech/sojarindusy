@@ -19,6 +19,15 @@ function validateTaxFields(f: { gst_rate?: number | null; hsn_code?: string | nu
   return null;
 }
 
+/** Turns database constraint errors into something an admin can act on. */
+function dbMessage(message: string | undefined): string {
+  const m = message ?? "";
+  if (/stock_covers_reserved/.test(m)) {
+    return "Stock cannot be set below the units reserved for open orders. Ship or cancel those orders first, or enter a higher number.";
+  }
+  return m;
+}
+
 /** Only call after validateTaxFields: blank/invalid collapse to null. */
 function cleanHsn(v: string | null | undefined): string | null {
   const r = normalizeHsn(v);
@@ -165,7 +174,7 @@ export async function updateFullProduct(
     revalidatePath("/products");
     return { success: true };
   } catch (err: any) {
-    return { error: err.message || "Failed to update product." };
+    return { error: dbMessage(err.message) || "Failed to update product." };
   }
 }
 
@@ -199,13 +208,13 @@ export async function updateProductMetadata(
       if (error.code === "23505") {
         return { error: "Product with this title already exists." };
       }
-      return { error: error.message };
+      return { error: dbMessage(error.message) };
     }
 
     revalidatePath("/admin/products");
     return { success: true };
   } catch (err: any) {
-    return { error: err.message };
+    return { error: dbMessage(err.message) };
   }
 }
 
@@ -265,7 +274,7 @@ export async function addSingleSku(
       if (error.code === "23505") {
         return { error: "This SKU already exists." };
       }
-      return { error: error.message };
+      return { error: dbMessage(error.message) };
     }
 
     const inserted = insertedData as any;
@@ -299,7 +308,7 @@ export async function addSingleSku(
     revalidatePath("/admin/products");
     return { success: true };
   } catch (err: any) {
-    return { error: err.message };
+    return { error: dbMessage(err.message) };
   }
 }
 
@@ -352,7 +361,7 @@ export async function bulkAppendSkus(
       if (error.code === "23505") {
         return { error: "One or more SKUs in your upload already exist in the database (or there are duplicates within the CSV). Please ensure all SKUs are unique." };
       }
-      return { error: error.message };
+      return { error: dbMessage(error.message) };
     }
 
     const insertedVariants = (insertedVariantsData || []) as any[];
@@ -412,7 +421,7 @@ export async function bulkAppendSkus(
     revalidatePath("/admin/products");
     return { success: true };
   } catch (err: any) {
-    return { error: err.message };
+    return { error: dbMessage(err.message) };
   }
 }
 
@@ -498,13 +507,13 @@ export async function deleteSku(
         revalidatePath("/admin/products");
         return { success: true, archived: true };
       }
-      return { error: error.message };
+      return { error: dbMessage(error.message) };
     }
 
     revalidatePath("/admin/products");
     return { success: true };
   } catch (err: any) {
-    return { error: err.message };
+    return { error: dbMessage(err.message) };
   }
 }
 
@@ -613,7 +622,7 @@ export async function bulkUpdateSkus(
         .in("id", variantIds);
 
       if (error) {
-        return { error: error.message };
+        return { error: dbMessage(error.message) };
       }
 
       // If stock quantity was updated in bulk, log movement for each variant
@@ -665,7 +674,7 @@ export async function bulkUpdateSkus(
     revalidatePath("/admin/products");
     return { success: true };
   } catch (err: any) {
-    return { error: err.message };
+    return { error: dbMessage(err.message) };
   }
 }
 
@@ -736,7 +745,7 @@ export async function updateSingleSku(
       if (error.code === "23505") {
         return { error: "This SKU already exists." };
       }
-      return { error: error.message };
+      return { error: dbMessage(error.message) };
     }
 
     // 2. If stock changed, record stock movement log
@@ -768,6 +777,6 @@ export async function updateSingleSku(
     revalidatePath("/admin/products");
     return { success: true };
   } catch (err: any) {
-    return { error: err.message };
+    return { error: dbMessage(err.message) };
   }
 }

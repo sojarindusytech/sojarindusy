@@ -60,7 +60,8 @@ function toStorefrontVariant(v: ProductVariant, viewer: StorefrontViewer): Produ
     created_at: v.created_at,
     // Hidden values are sent as 0 and the UI does not render them.
     list_price: viewer.canViewPrices ? Number(v.list_price) : 0,
-    stock_quantity: viewer.canViewPrices ? Number(v.stock_quantity) : 0,
+    // Customers see what they can actually buy: on hand minus units reserved by open orders.
+    stock_quantity: viewer.canViewPrices ? Math.max(0, Number(v.stock_quantity) - (Number(v.reserved_quantity) || 0)) : 0,
   };
 }
 

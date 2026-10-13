@@ -43,6 +43,7 @@ export const salesSettingsSchema = z.object({
   terms: optionalText,
 
   gst_billing_enabled: z.boolean(),
+  invoice_reduces_stock: z.boolean(),
   default_gst_rate: z.coerce.number().min(0, "GST % cannot be negative.").max(100, "GST % cannot exceed 100."),
 
   invoice_prefix: z
