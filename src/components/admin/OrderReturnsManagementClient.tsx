@@ -468,7 +468,7 @@ export function OrderReturnsManagementClient({
                 </DialogTitle>
               </div>
               <DialogDescription className="text-xs text-slate-500">
-                Processing this return will automatically add the items back into active product inventory and log an audit entry in the inventory ledger.
+                Processing this return restores the remaining units and records the stock change. Units already restored by credit notes are not added again.
               </DialogDescription>
             </DialogHeader>
 
@@ -487,7 +487,7 @@ export function OrderReturnsManagementClient({
                   </span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-slate-500">Items to Restock:</span>
+                  <span className="text-slate-500">Total Order Units:</span>
                   <span className="font-semibold text-slate-800">
                     {Array.isArray(processReturnOrder.items)
                       ? processReturnOrder.items.reduce((s, i: any) => s + (Number(i.quantity) || 0), 0)

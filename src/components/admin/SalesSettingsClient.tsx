@@ -33,6 +33,7 @@ function toForm(s: SalesSettings): Form {
   const form: Form = {
     gst_billing_enabled: s.gst_billing_enabled,
     invoice_reduces_stock: s.invoice_reduces_stock !== false,
+    credit_note_restores_stock: s.credit_note_restores_stock !== false,
     default_gst_rate: String(s.default_gst_rate),
     invoice_next_number: String(s.invoice_next_number),
     invoice_pad: String(s.invoice_pad),
@@ -162,6 +163,7 @@ export function SalesSettingsClient({ initial }: { initial: SalesSettings }) {
         ...form,
         gst_billing_enabled: Boolean(form.gst_billing_enabled),
         invoice_reduces_stock: Boolean(form.invoice_reduces_stock),
+        credit_note_restores_stock: Boolean(form.credit_note_restores_stock),
         invoice_copies: copies,
       } as never, initial.credit_note_next_number);
       if (res.success) {
@@ -216,6 +218,19 @@ export function SalesSettingsClient({ initial }: { initial: SalesSettings }) {
               Hand-made invoices take their SKU units off the shelf (and give them back if cancelled); an invoice that would
               take more than is available is refused. Invoices raised from orders are not affected: an order takes its stock
               out when you set it to Shipped.
+            </span>
+          </span>
+        </label>
+        <label className="flex items-start gap-3 cursor-pointer">
+          <input type="checkbox" checked={Boolean(form.credit_note_restores_stock)}
+            onChange={(e) => set("credit_note_restores_stock", e.target.checked)}
+            className="mt-0.5 h-4 w-4 accent-[#024AE5]" />
+          <span>
+            <span className="block text-sm font-semibold text-slate-900">Restore stock when a credit note is issued</span>
+            <span className="block text-xs text-slate-500">
+              New credit notes return credited SKU units to stock only when the invoice or linked order previously
+              deducted them. Units already returned are skipped. Turn off for financial-only credits or goods that
+              cannot be put back in stock. Existing credit notes are unchanged.
             </span>
           </span>
         </label>

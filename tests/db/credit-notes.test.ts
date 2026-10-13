@@ -124,3 +124,117 @@ describe("credit note issuance and numbering", () => {
     await expect(issue(input(inv))).rejects.toThrow("Only issued invoices");
   });
 });
+
+// Exercise the same transaction used by the server, against real PostgreSQL.
+describe("credit note stock restoration", () => {
+  async function fixture(owner = "invoice", quantities = [3]) {
+    await db.db.exec("UPDATE sales_settings SET credit_note_restores_stock=true, credit_note_prefix='CN', credit_note_pad=2");
+    const product = randomUUID(), variant = randomUUID(), sku = `CN-${randomUUID()}`;
+    await db.db.query("INSERT INTO products(id,title,slug) VALUES ($1,'Credit test',$2)", [product, sku]);
+    await db.db.query("INSERT INTO product_variants(id,product_id,sku,list_price,stock_quantity) VALUES ($1,$2,$3,100,10)", [variant, product, sku]);
+    const computed = computeInvoice({ items: quantities.map(quantity => ({ name: "Item", sku, quantity, unitPrice: 100, gstRate: 18 })), gstEnabled: true, defaultGstRate: 18, sellerStateCode: "24", placeOfSupplyStateCode: "24" });
+    const inv = await db.one(`INSERT INTO invoices(invoice_number,invoice_date,user_id,bill_to,items,totals,total_amount,stock_owner) VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
+      [`INV-${randomUUID()}`, day, customer, JSON.stringify({ name: "Customer", address: "Vapi" }), JSON.stringify(computed.lines), JSON.stringify(computed.totals), computed.totals.total, owner]) as unknown as Invoice;
+    let orderId: string | null = null;
+    if (owner === "invoice") await db.service("SELECT post_invoice_stock($1,$2)", [inv.id, admin]);
+    if (owner === "order") {
+      const order = await db.one(`INSERT INTO orders(user_id,order_number,total_amount,shipping_address,items) VALUES ($1,$2,354,'Vapi',$3) RETURNING id`,
+        [customer, `ORD-${randomUUID()}`, JSON.stringify(quantities.map(quantity => ({ id: variant, sku, quantity, name: "Item", reserved_quantity: 0 })))]);
+      orderId = order.id as string;
+      await db.db.query("UPDATE invoices SET order_id=$1 WHERE id=$2", [orderId, inv.id]);
+      await db.service("SELECT transition_order_status($1,'shipped','{}',$2)", [orderId, admin]);
+    }
+    return { inv, variant, orderId, stock: async () => (await db.one("SELECT stock_quantity FROM product_variants WHERE id=$1", [variant])).stock_quantity };
+  }
+  it("restores partial manual-invoice credits once, logs them, and leaves reservations alone", async () => {
+    const f = await fixture();
+    await db.db.query("UPDATE product_variants SET reserved_quantity=2 WHERE id=$1", [f.variant]);
+    expect(await f.stock()).toBe(7);
+    const payload = input(f.inv, 1);
+    const note = await issue(payload);
+    expect(await f.stock()).toBe(8);
+    expect(note.stock_returns).toMatchObject([{ variantId: f.variant, quantity: 1 }]);
+    await issue(payload);
+    expect(await f.stock()).toBe(8);
+    await issue(input(f.inv, 2));
+    expect(await f.stock()).toBe(10);
+    expect((await db.one("SELECT reserved_quantity FROM product_variants WHERE id=$1", [f.variant])).reserved_quantity).toBe(2);
+    expect((await db.one("SELECT count(*)::int AS n FROM inventory_logs WHERE reference_id=$1 AND movement_type='CREDIT_NOTE_RESTOCK'", [note.credit_note_number])).n).toBe(1);
+  });
+  it("honours the setting at issuance without retroactively restocking old notes", async () => {
+    const f = await fixture();
+    await db.db.exec("UPDATE sales_settings SET credit_note_restores_stock=false");
+    const payload = input(f.inv);
+    expect((await issue(payload)).stock_returns).toEqual([]);
+    expect(await f.stock()).toBe(7);
+    await db.db.exec("UPDATE sales_settings SET credit_note_restores_stock=true");
+    await issue(payload);
+    expect(await f.stock()).toBe(7);
+    await issue(input(f.inv));
+    expect(await f.stock()).toBe(8);
+  });
+  it("skips invoices that never deducted stock, including legacy and custom lines", async () => {
+    for (const owner of ["none", "legacy"]) {
+      const f = await fixture(owner);
+      expect((await issue(input(f.inv))).stock_returns).toEqual([]);
+      expect(await f.stock()).toBe(10);
+    }
+    expect((await issue(input(await invoice()))).stock_returns).toEqual([]);
+  });
+  it("rolls back stock and numbering if the note cannot be inserted", async () => {
+    const f = await fixture();
+    const before = await db.one("SELECT credit_note_next_number FROM sales_settings");
+    await expect(issue({ ...input(f.inv), reason: "" })).rejects.toThrow();
+    expect(await f.stock()).toBe(7);
+    expect(await db.one("SELECT credit_note_next_number FROM sales_settings")).toEqual(before);
+    expect((await db.one("SELECT count(*)::int AS n FROM inventory_logs WHERE variant_id=$1 AND movement_type='CREDIT_NOTE_RESTOCK'", [f.variant])).n).toBe(0);
+  });
+  it("restores only the outstanding units when a credited order is later returned", async () => {
+    const f = await fixture("order");
+    await issue(input(f.inv, 1));
+    expect(await f.stock()).toBe(8);
+    await db.service("SELECT transition_order_status($1,'returned','{}',$2)", [f.orderId, admin]);
+    expect(await f.stock()).toBe(10);
+    await issue(input(f.inv, 2));
+    expect(await f.stock()).toBe(10);
+    await db.service("SELECT transition_order_status($1,'returned','{}',$2)", [f.orderId, admin]);
+    expect(await f.stock()).toBe(10);
+  });
+  it("does not restock an order already returned before any credit", async () => {
+    const f = await fixture("order");
+    await db.service("SELECT transition_order_status($1,'returned','{}',$2)", [f.orderId, admin]);
+    expect((await issue(input(f.inv, 3))).stock_returns).toEqual([]);
+    expect(await f.stock()).toBe(10);
+  });
+  it("handles duplicate SKU lines without subtracting the credited balance twice", async () => {
+    const f = await fixture("order", [2, 3]);
+    expect(await f.stock()).toBe(5);
+    await issue(input(f.inv, 2));
+    expect(await f.stock()).toBe(7);
+    await db.service("SELECT transition_order_status($1,'returned','{}',$2)", [f.orderId, admin]);
+    expect(await f.stock()).toBe(10);
+  });
+  it("reconciles fractional partial credits to the original integer stock deduction", async () => {
+    const f = await fixture("invoice", [1.5]);
+    expect(await f.stock()).toBe(8);
+    for (let i = 0; i < 6; i++) await issue(input(f.inv, 0.25));
+    expect(await f.stock()).toBe(10);
+  });
+  it("keeps the stock deduction linked when the invoice number changes", async () => {
+    const f = await fixture();
+    await db.db.query("UPDATE invoices SET invoice_number=$1 WHERE id=$2", [`RENAMED-${randomUUID()}`, f.inv.id]);
+    await issue(input(f.inv, 3));
+    expect(await f.stock()).toBe(10);
+  });
+  it("never creates stock for a catalogue SKU added after the invoice was posted", async () => {
+    const f = await fixture("none");
+    await db.db.query("UPDATE invoices SET stock_owner='invoice', stock_posted_at=now() WHERE id=$1", [f.inv.id]);
+    await issue(input(f.inv, 3));
+    expect(await f.stock()).toBe(10);
+  });
+  it("cannot restore more than the recorded deduction for duplicate manual SKU lines", async () => {
+    const f = await fixture("invoice", [2, 3]);
+    await issue({ ...input(f.inv), lines: [{ index: 0, quantity: 2 }, { index: 1, quantity: 3 }] });
+    expect(await f.stock()).toBe(10);
+  });
+});

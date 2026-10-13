@@ -286,6 +286,7 @@ export interface SalesSettings {
   invoice_pad: number;
   /** Hand-made invoices reduce SKU stock when issued (order invoices are unaffected). */
   invoice_reduces_stock: boolean;
+  credit_note_restores_stock: boolean;
   po_prefix: string;
   po_fy: string | null;
   po_next_number: number;
@@ -429,6 +430,7 @@ export type InventoryMovementType =
   | 'BULK_UPDATE'
   | 'ORDER_RESERVATION'
   | 'ORDER_FULFILLED'
+  | 'CREDIT_NOTE_RESTOCK'
   | 'INVOICE_ISSUED'
   | 'INVOICE_EDITED'
   | 'INVOICE_CANCELLED'

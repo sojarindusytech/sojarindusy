@@ -35,6 +35,7 @@ export interface CreditNote {
   totals: InvoiceTotals;
   total_amount: number;
   seller_snapshot: SalesSettings;
+  stock_returns?: { variantId: string; sourceIndex: number; creditedQuantity: number; quantity: number }[];
   status: "issued";
   created_at: string;
 }

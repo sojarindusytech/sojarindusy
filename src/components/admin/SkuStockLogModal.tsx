@@ -113,6 +113,8 @@ export function SkuStockLogModal({
         return <Badge className="bg-slate-100 text-slate-700 border-slate-200 text-[10px] font-semibold">Reservation Released</Badge>;
       case "RETURN_RESTOCK":
         return <Badge className="bg-teal-50 text-teal-700 border-teal-200 text-[10px] font-semibold">Order Restock</Badge>;
+      case "CREDIT_NOTE_RESTOCK":
+        return <Badge className="bg-teal-50 text-teal-700 border-teal-200 text-[10px] font-semibold">Credit Note Restock</Badge>;
       case "INVOICE_ISSUED":
         return <Badge className="bg-indigo-50 text-indigo-700 border-indigo-200 text-[10px] font-semibold">Invoice Issued</Badge>;
       case "INVOICE_EDITED":

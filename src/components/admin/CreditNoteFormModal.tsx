@@ -52,8 +52,13 @@ export function CreditNoteFormModal({ data, notes, initialInvoiceId, onClose, on
 
   return <Dialog open onOpenChange={(open) => { if (!open && !pending) onClose(); }}>
     <DialogContent className="max-w-4xl">
-      <DialogHeader><DialogTitle>New Credit Note</DialogTitle><DialogDescription>Select invoice quantities to credit. Issued notes are permanent; inventory and payments are managed separately.</DialogDescription></DialogHeader>
+      <DialogHeader><DialogTitle>New Credit Note</DialogTitle><DialogDescription>Select invoice quantities to credit. Issued notes are permanent; payments are managed separately.</DialogDescription></DialogHeader>
       <div className="space-y-5">
+        <p className="rounded-lg bg-slate-50 p-3 text-sm text-slate-600">
+          {data.settings.credit_note_restores_stock !== false
+            ? "Stock restoration is on. Credited SKU units are returned to stock if previously deducted by this invoice or its order. Units already returned and custom items are skipped. For financial-only credits or damaged goods, turn this off in Sales Settings before issuing."
+            : "Stock restoration is off in Sales Settings. This credit note will not change SKU stock."}
+        </p>
         <div className="space-y-2"><Label>Source invoice</Label>
           <Select value={invoiceId} disabled={pending} onValueChange={(id) => { setInvoiceId(id); setQuantities({}); setTreatment("commercial"); setConfirmedTax(false); }}>
             <SelectTrigger aria-label="Source invoice"><SelectValue placeholder="Select an issued invoice" /></SelectTrigger>

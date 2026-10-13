@@ -9,6 +9,7 @@ import { salesSettingsSchema, type SalesSettingsInput } from "@/lib/validations/
 import { financialYear } from "@/lib/invoice";
 const valid: SalesSettingsInput = {
   company_name: "Sojar", address: "Vapi, Gujarat", gstin: null, state_code: "24", state_name: "Gujarat", email: null,
+  invoice_reduces_stock: true, credit_note_restores_stock: true,
   gst_billing_enabled: true, default_gst_rate: 18,
   invoice_prefix: "SI/INV", invoice_next_number: 1, invoice_pad: 2,
   po_prefix: "SI/PO", po_next_number: 1, po_pad: 2,
@@ -24,6 +25,10 @@ beforeEach(() => {
   mocks.current.mockResolvedValue({ ...valid, credit_note_next_number: 2, credit_note_fy: financialYear() });
 });
 describe("credit note Sales Settings", () => {
+  it("saves the stock restoration preference independently from invoice deduction", async () => {
+    expect((await updateSalesSettings({ ...valid, credit_note_restores_stock: false }, 1)).success).toBe(true);
+    expect(mocks.update.mock.calls[0][0]).toMatchObject({ credit_note_restores_stock: false, invoice_reduces_stock: true });
+  });
   it("keeps a counter advanced by issuance when the admin did not edit it", async () => {
     expect((await updateSalesSettings(valid, 1)).success).toBe(true);
     expect(mocks.update.mock.calls[0][0]).not.toHaveProperty("credit_note_next_number");

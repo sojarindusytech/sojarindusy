@@ -24,7 +24,8 @@ export async function getCreditNoteFormData() {
   ]);
   if (result.error) throw new Error("Invoices could not be loaded.");
   if (!settings?.credit_note_prefix) throw new Error("Apply the credit note migration before issuing notes.");
-  return { settings: { credit_note_prefix: settings.credit_note_prefix, credit_note_fy: settings.credit_note_fy, credit_note_next_number: settings.credit_note_next_number, credit_note_pad: settings.credit_note_pad }, invoices: (result.data ?? []) as Invoice[] };
+  if (typeof settings.credit_note_restores_stock !== "boolean") throw new Error("Apply the credit note stock migration before issuing notes.");
+  return { settings: { credit_note_restores_stock: settings.credit_note_restores_stock, credit_note_prefix: settings.credit_note_prefix, credit_note_fy: settings.credit_note_fy, credit_note_next_number: settings.credit_note_next_number, credit_note_pad: settings.credit_note_pad }, invoices: (result.data ?? []) as Invoice[] };
 }
 export type CreditNoteFormData = Awaited<ReturnType<typeof getCreditNoteFormData>>;
 
@@ -45,7 +46,7 @@ export async function issueCreditNote(input: CreditNoteInput): Promise<{ success
       return { success: false, error: error.code === "23505" ? "That credit note number or submission has already been used." : error.code === "P0001" ? error.message : "Credit note could not be issued. Check the migration and submitted details." };
     }
     if (!data) return { success: false, error: "The credit note response was empty. Retry the same submission." };
-    for (const path of ["/admin/credit-notes", "/admin/invoices", "/admin/settings/sales", "/dashboard/credit-notes"]) revalidatePath(path);
+    for (const path of ["/admin/credit-notes", "/admin/invoices", "/admin/settings/sales", "/dashboard/credit-notes", "/admin/products", "/", "/products"]) revalidatePath(path);
     return { success: true, note: data as CreditNote };
   } catch (error) {
     return { success: false, error: error instanceof Error ? error.message : "Credit note could not be issued." };
