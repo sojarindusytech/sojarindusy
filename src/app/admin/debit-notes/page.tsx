@@ -1,25 +1,22 @@
-import { AdminComingSoon } from "@/components/admin/AdminComingSoon";
-import { FileMinus } from "lucide-react";
+import { AdminDebitNotesClient } from "@/components/admin/AdminDebitNotesClient";
+import { listDebitNotes, type DebitNoteListRow } from "@/actions/debit-note";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
   title: "Debit Notes | Sojar Solutions Admin",
-  description: "Debit Note registry and vendor adjustments.",
+  description: "GST debit notes issued to customers against tax invoices.",
 };
 
-export default function DebitNotesAdminPage() {
-  return (
-    <AdminComingSoon
-      section="Sales"
-      title="Debit Note"
-      description="Issue debit notes for purchase price adjustments, goods returned to suppliers, or additional freight charges."
-      icon={FileMinus}
-      features={[
-        "Linkage with original Purchase Order and GRN entries",
-        "GST-compliant Debit Note sequencing and format",
-        "Automated vendor balance adjustment in Party Ledger",
-        "Exportable reports for accounting audits",
-      ]}
-    />
-  );
+export const dynamic = "force-dynamic";
+
+export default async function DebitNotesAdminPage() {
+  let debitNotes: DebitNoteListRow[] = [];
+  let loadError: string | null = null;
+  try {
+    debitNotes = await listDebitNotes();
+  } catch (err) {
+    // e.g. the migration hasn't been applied: say so on the page instead of a generic error.
+    loadError = err instanceof Error ? err.message : "Could not load debit notes.";
+  }
+  return <AdminDebitNotesClient initialDebitNotes={debitNotes} loadError={loadError} />;
 }

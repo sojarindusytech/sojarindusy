@@ -7,6 +7,7 @@ import { Save, Upload } from "lucide-react";
 import type { SalesSettings } from "@/types/database.types";
 import { updateSalesSettings, uploadInvoiceAsset } from "@/actions/sales-settings";
 import { financialYear, formatInvoiceNumber, GST_RATE_OPTIONS, INVOICE_COPIES, normalizeCopies, type InvoiceCopy } from "@/lib/invoice";
+import { MAX_DEBIT_NOTE_NUMBER_LENGTH } from "@/lib/debit-notes";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -27,6 +28,7 @@ const TEXT_FIELDS = [
   "company_name", "address", "gstin", "state_code", "state_name", "msme", "website", "phone", "email",
   "logo_url", "signature_url", "bank_name", "bank_address", "account_no", "ifsc", "account_holder",
   "terms", "invoice_prefix", "po_prefix", "rfq_prefix", "quote_prefix", "quote_payment_terms", "quote_delivery_terms", "receipt_prefix",
+  "debit_note_prefix",
 ] as const;
 
 function toForm(s: SalesSettings): Form {
@@ -45,12 +47,15 @@ function toForm(s: SalesSettings): Form {
     quote_validity_days: String(s.quote_validity_days ?? 30),
     receipt_next_number: String(s.receipt_next_number ?? 1),
     receipt_pad: String(s.receipt_pad ?? 2),
+    debit_note_next_number: String(s.debit_note_next_number ?? 1),
+    debit_note_pad: String(s.debit_note_pad ?? 2),
   };
   for (const k of TEXT_FIELDS) form[k] = (s[k] as string | null) ?? "";
   form.po_prefix = s.po_prefix ?? "SI/PO";
   form.rfq_prefix = s.rfq_prefix ?? "SI/RFQ";
   form.quote_prefix = s.quote_prefix ?? "SI/QT";
   form.receipt_prefix = s.receipt_prefix ?? "SI/RCPT";
+  form.debit_note_prefix = s.debit_note_prefix ?? "SI/DN";
   return form;
 }
 
@@ -109,6 +114,12 @@ export function SalesSettingsClient({ initial }: { initial: SalesSettings }) {
   const receiptCounterEdited = receiptCounter !== (initial.receipt_next_number ?? 1);
   const receiptNextSeq = initial.receipt_fy === fy || receiptCounterEdited ? receiptCounter : 1;
   const receiptPreview = formatInvoiceNumber(text("receipt_prefix") || "RCPT", fy, receiptNextSeq, Number(form.receipt_pad) || 2);
+
+  const debitNoteCounter = Math.max(1, Number(form.debit_note_next_number) || 1);
+  const debitNoteCounterEdited = debitNoteCounter !== (initial.debit_note_next_number ?? 1);
+  const debitNoteNextSeq = initial.debit_note_fy === fy || debitNoteCounterEdited ? debitNoteCounter : 1;
+  const debitNotePreview = formatInvoiceNumber(text("debit_note_prefix") || "DN", fy, debitNoteNextSeq, Number(form.debit_note_pad) || 2);
+  const debitNoteTooLong = debitNotePreview.length > MAX_DEBIT_NOTE_NUMBER_LENGTH;
 
   const upload = async (kind: "logo" | "signature", file: File | undefined) => {
     if (!file) return;
@@ -312,6 +323,23 @@ export function SalesSettingsClient({ initial }: { initial: SalesSettings }) {
         <p className="text-xs text-slate-600">
           Next receipt: <span className="font-mono font-bold text-slate-900">{receiptPreview}</span>
           <span className="text-slate-400"> · Restarts at 1 each April. A number typed on a single receipt doesn&apos;t move this counter.</span>
+        </p>
+      </Card>
+
+      <Card className="p-5 space-y-4 shadow-none border-slate-200 rounded-xl">
+        <h2 className="text-sm font-bold text-slate-900">Debit Notes</h2>
+        <div className="grid sm:grid-cols-3 gap-4">
+          {field("debit_note_prefix", "Prefix")}
+          {field("debit_note_next_number", "Next number", { type: "number", min: 1, step: 1 })}
+          {field("debit_note_pad", "Digits", { type: "number", min: 1, max: 8, step: 1 })}
+        </div>
+        <p className="text-xs text-slate-600">
+          Next debit note: <span className={`font-mono font-bold ${debitNoteTooLong ? "text-red-600" : "text-slate-900"}`}>{debitNotePreview}</span>
+          <span className="text-slate-400"> · Restarts at 1 each April. A number typed on a single debit note doesn&apos;t move this counter.</span>
+        </p>
+        <p className={`text-[11px] ${debitNoteTooLong ? "text-red-600" : "text-slate-500"}`}>
+          GST allows at most {MAX_DEBIT_NOTE_NUMBER_LENGTH} characters (letters, digits, / and -) in a debit note number
+          {debitNoteTooLong ? `; this one has ${debitNotePreview.length}. Shorten the prefix or use fewer digits.` : "."}
         </p>
       </Card>
 

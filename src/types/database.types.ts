@@ -302,6 +302,10 @@ export interface SalesSettings {
   receipt_fy: string | null;
   receipt_next_number: number;
   receipt_pad: number;
+  debit_note_prefix: string;
+  debit_note_fy: string | null;
+  debit_note_next_number: number;
+  debit_note_pad: number;
   quote_validity_days: number;
   quote_payment_terms: string | null;
   quote_delivery_terms: string | null;
@@ -343,6 +347,48 @@ export interface Invoice {
   stock_owner?: "order" | "invoice" | "legacy" | "none";
   stock_posted_at?: string | null;
   stock_reversed_at?: string | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+/** Why an invoice under-charged (CGST Act s.34(3)). Labels live in src/lib/debit-notes.ts. */
+export type DebitNoteReason =
+  | "price_increase"
+  | "quantity_short_billed"
+  | "additional_charges"
+  | "tax_rate_correction"
+  | "other";
+
+/**
+ * A GST debit note issued to a customer against one of our invoices. Immutable once
+ * issued (cancel with a reason). items / totals have the invoice's shape; bill_to,
+ * place_of_supply, gst_enabled and the invoice number/date are copied from the invoice.
+ */
+export interface DebitNote {
+  id: string;
+  request_id: string;
+  debit_note_number: string;
+  debit_note_fy: string | null;
+  seq: number | null;
+  numbering_mode: "auto" | "manual";
+  debit_note_date: string;
+  invoice_id: string;
+  invoice_number: string;
+  invoice_date: string;
+  user_id: string | null;
+  reason: DebitNoteReason;
+  reason_note: string | null;
+  bill_to: InvoiceBillTo;
+  place_of_supply: string | null;
+  gst_enabled: boolean;
+  items: import("@/lib/invoice").InvoiceLine[];
+  totals: import("@/lib/invoice").InvoiceTotals;
+  total_amount: number;
+  amount_in_words: string | null;
+  status: "issued" | "cancelled";
+  cancelled_at: string | null;
+  cancel_reason: string | null;
   created_by: string | null;
   created_at: string;
   updated_at: string;
