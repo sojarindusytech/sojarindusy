@@ -1,5 +1,6 @@
 "use client";
 
+import { PageTitle } from "@/components/common/PageTitle";
 import React, { useState, useTransition } from "react";
 import Image from "next/image";
 import { ContactSubmission, ContactSubmissionStatus } from "@/types/database.types";
@@ -9,6 +10,7 @@ import {
   fetchContactSubmissions,
 } from "@/actions/contact";
 import { Card } from "@/components/ui/card";
+import { IconAction } from "@/components/common/IconAction";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -78,28 +80,31 @@ export function InquiriesManagementClient({
   // Deletion confirm state
   const [inquiryToDelete, setInquiryToDelete] = useState<ContactSubmission | null>(null);
 
-  // Filtered list
-  const filteredSubmissions = submissions.filter((item) => {
-    const matchesStatus = statusFilter === "all" || item.status === statusFilter;
-    const q = searchTerm.toLowerCase().trim();
-    if (!q) return matchesStatus;
+  // Search narrows both the list and the tab counts; the status tab narrows the list and the cards.
+  const searchTermLower = searchTerm.toLowerCase().trim();
+  const searchedSubmissions = submissions.filter(
+    (item) =>
+      !searchTermLower ||
+      item.full_name?.toLowerCase().includes(searchTermLower) ||
+      item.email?.toLowerCase().includes(searchTermLower) ||
+      item.mobile?.toLowerCase().includes(searchTermLower) ||
+      item.message?.toLowerCase().includes(searchTermLower) ||
+      item.admin_notes?.toLowerCase().includes(searchTermLower)
+  );
+  const filteredSubmissions = searchedSubmissions.filter((item) => statusFilter === "all" || item.status === statusFilter);
 
-    const matchesSearch =
-      item.full_name?.toLowerCase().includes(q) ||
-      item.email?.toLowerCase().includes(q) ||
-      item.mobile?.toLowerCase().includes(q) ||
-      item.message?.toLowerCase().includes(q) ||
-      item.admin_notes?.toLowerCase().includes(q);
+  // Tab counts
+  const countTotal = searchedSubmissions.length;
+  const countUnread = searchedSubmissions.filter((s) => s.status === "unread").length;
+  const countRead = searchedSubmissions.filter((s) => s.status === "read").length;
+  const countReplied = searchedSubmissions.filter((s) => s.status === "replied").length;
+  const countArchived = searchedSubmissions.filter((s) => s.status === "archived").length;
 
-    return matchesStatus && matchesSearch;
-  });
-
-  // Metric counts
-  const countTotal = submissions.length;
-  const countUnread = submissions.filter((s) => s.status === "unread").length;
-  const countRead = submissions.filter((s) => s.status === "read").length;
-  const countReplied = submissions.filter((s) => s.status === "replied").length;
-  const countArchived = submissions.filter((s) => s.status === "archived").length;
+  // Card counts (follow every filter)
+  const cardTotal = filteredSubmissions.length;
+  const cardUnread = filteredSubmissions.filter((s) => s.status === "unread").length;
+  const cardReplied = filteredSubmissions.filter((s) => s.status === "replied").length;
+  const cardArchived = filteredSubmissions.filter((s) => s.status === "archived").length;
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
@@ -271,13 +276,7 @@ export function InquiriesManagementClient({
       {/* Top Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900 tracking-tight flex items-center gap-2.5">
-            <MessageSquare className="w-6 h-6 text-[#024AE5]" />
-            <span>Customer Inquiries</span>
-          </h1>
-          <p className="text-sm text-slate-500 mt-1">
-            Review, reply, and track messages received from your storefront contact form.
-          </p>
+          <PageTitle icon={MessageSquare}>Inquiries</PageTitle>
         </div>
 
         <Button
@@ -304,7 +303,7 @@ export function InquiriesManagementClient({
               <MessageSquare className="w-4 h-4" />
             </div>
           </div>
-          <div className="text-2xl font-extrabold text-slate-900 mt-2">{countTotal}</div>
+          <div className="text-2xl font-extrabold text-slate-900 mt-2">{cardTotal}</div>
           <p className="text-xs text-slate-400 mt-1">All submissions received</p>
         </Card>
 
@@ -318,7 +317,7 @@ export function InquiriesManagementClient({
               <Clock className="w-4 h-4" />
             </div>
           </div>
-          <div className="text-2xl font-extrabold text-amber-700 mt-2">{countUnread}</div>
+          <div className="text-2xl font-extrabold text-amber-700 mt-2">{cardUnread}</div>
           <p className="text-xs text-amber-600 mt-1">Needs attention</p>
         </Card>
 
@@ -332,7 +331,7 @@ export function InquiriesManagementClient({
               <CheckCircle2 className="w-4 h-4" />
             </div>
           </div>
-          <div className="text-2xl font-extrabold text-emerald-700 mt-2">{countReplied}</div>
+          <div className="text-2xl font-extrabold text-emerald-700 mt-2">{cardReplied}</div>
           <p className="text-xs text-emerald-600 mt-1">Resolved inquiries</p>
         </Card>
 
@@ -346,7 +345,7 @@ export function InquiriesManagementClient({
               <Archive className="w-4 h-4" />
             </div>
           </div>
-          <div className="text-2xl font-extrabold text-slate-700 mt-2">{countArchived}</div>
+          <div className="text-2xl font-extrabold text-slate-700 mt-2">{cardArchived}</div>
           <p className="text-xs text-slate-400 mt-1">Closed records</p>
         </Card>
       </div>
@@ -529,26 +528,8 @@ export function InquiriesManagementClient({
                     {/* Actions */}
                     <TableCell className="py-3.5 text-right">
                       <div className="flex items-center justify-end gap-1.5">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleOpenDetail(inquiry)}
-                          className="h-8 px-2.5 text-xs text-slate-700 hover:text-[#024AE5] hover:bg-blue-50 border-slate-200 cursor-pointer"
-                          title="View Inquiry Details"
-                        >
-                          <Eye className="w-3.5 h-3.5 mr-1" />
-                          View
-                        </Button>
-
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => setInquiryToDelete(inquiry)}
-                          className="h-8 w-8 p-0 text-slate-400 hover:text-red-600 hover:bg-red-50 cursor-pointer"
-                          title="Delete"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </Button>
+                        <IconAction label="View inquiry" onClick={() => handleOpenDetail(inquiry)}><Eye /></IconAction>
+                        <IconAction label="Delete inquiry" tone="danger" onClick={() => setInquiryToDelete(inquiry)}><Trash2 /></IconAction>
                       </div>
                     </TableCell>
                   </TableRow>

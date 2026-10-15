@@ -219,6 +219,14 @@ export const cancelPayment = (paymentId: string, reason: string, actorId: string
     p_actor: actorId,
   });
 
+/** An admin gives an order a typed number (20261019_order_numbering). The counter is not touched. */
+export const renameOrder = (orderId: string, newNumber: string, actorId: string) =>
+  callRpc<{ changed: boolean; order_number: string; previous: string; user_id?: string }>("rename_order", {
+    p_order_id: orderId,
+    p_new_number: newNumber,
+    p_actor: actorId,
+  });
+
 export type DocumentType = "ORD" | "PO";
 
 /** Collision-free fallback numbering (20261015_02); orders use it as their primary. */

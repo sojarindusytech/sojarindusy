@@ -1,5 +1,6 @@
 "use client";
 
+import { PageTitle } from "@/components/common/PageTitle";
 import { useState, useTransition, useMemo, useRef } from "react";
 import { Category, CategoryNode } from "@/types/database.types";
 import {
@@ -11,6 +12,7 @@ import {
   uploadCategoryImage,
 } from "@/actions/category";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { IconAction } from "@/components/common/IconAction";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -46,29 +48,7 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
-import {
-  Folder,
-  FolderPlus,
-  Tag,
-  Plus,
-  Edit2,
-  Trash2,
-  Search,
-  CheckCircle2,
-  AlertCircle,
-  ChevronRight,
-  ChevronDown,
-  Layers,
-  Sparkles,
-  RefreshCw,
-  X,
-  AlertTriangle,
-  ArrowUpDown,
-  Check,
-  Image as ImageIcon,
-  Upload,
-  Loader2,
-} from "lucide-react";
+import { Folder, FolderPlus, Tag, Plus, Edit2, Trash2, Search, CheckCircle2, AlertCircle, ChevronRight, ChevronDown, Layers, Sparkles, RefreshCw, X, AlertTriangle, ArrowUpDown, Check, Image as ImageIcon, Upload, Loader2, FolderTree } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface CategoryManagementClientProps {
@@ -117,11 +97,22 @@ export function CategoryManagementClient({
   const [deleteConfirmCategory, setDeleteConfirmCategory] = useState<Category | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
-  // Statistics Calculations
-  const totalCount = flatCategories.length;
-  const rootCount = flatCategories.filter((c) => !c.parent_id).length;
-  const subCount = flatCategories.filter((c) => Boolean(c.parent_id)).length;
-  const activeCount = flatCategories.filter((c) => c.is_active).length;
+  // Statistics follow the search and status filters (not which rows happen to be expanded).
+  const matchedCategories = flatCategories.filter((c) => {
+    const query = searchQuery.toLowerCase().trim();
+    const matchesSearch =
+      !query ||
+      c.name.toLowerCase().includes(query) ||
+      c.slug.toLowerCase().includes(query) ||
+      c.description?.toLowerCase().includes(query);
+    const matchesStatus =
+      statusFilter === "all" || (statusFilter === "active" && c.is_active) || (statusFilter === "inactive" && !c.is_active);
+    return matchesSearch && matchesStatus;
+  });
+  const totalCount = matchedCategories.length;
+  const rootCount = matchedCategories.filter((c) => !c.parent_id).length;
+  const subCount = matchedCategories.filter((c) => Boolean(c.parent_id)).length;
+  const activeCount = matchedCategories.filter((c) => c.is_active).length;
 
   // Re-build tree & flat helper when updating local state
   const refreshLocalState = (newList: Category[]) => {
@@ -387,9 +378,7 @@ export function CategoryManagementClient({
       {/* Page Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-slate-200 pb-5">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900">
-            Categories
-          </h1>
+          <PageTitle icon={FolderTree}>Categories</PageTitle>
         </div>
 
         <Button
@@ -942,43 +931,22 @@ export function CategoryManagementClient({
                       <TableCell className="py-2.5 px-3.5 text-right whitespace-nowrap">
                         <div className="flex items-center justify-end gap-1">
                           {/* Add Subcategory Preset */}
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            title={`Add Subcategory under ${node.name}`}
-                            onClick={() => handleAddSubcategoryPreset(node)}
-                            className="h-7 w-7 text-slate-600 hover:bg-slate-100 hover:text-slate-900 cursor-pointer rounded-md p-1"
-                          >
-                            <Plus className="h-3.5 w-3.5" />
-                          </Button>
+                          <IconAction label={`Add subcategory under ${node.name}`} onClick={() => handleAddSubcategoryPreset(node)}><Plus /></IconAction>
 
                           {/* Edit */}
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            title="Edit Category"
-                            onClick={() => handleStartEdit(node)}
-                            className="h-7 w-7 text-slate-600 hover:bg-slate-100 hover:text-slate-900 cursor-pointer rounded-md p-1"
-                          >
-                            <Edit2 className="h-3.5 w-3.5" />
-                          </Button>
+                          <IconAction label="Edit category" tone="primary" onClick={() => handleStartEdit(node)}><Edit2 /></IconAction>
 
                           {/* Delete (Strict check: Prevents deletion if subcategories exist) */}
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            title="Delete Category"
+                          <IconAction
+                            label="Delete category"
+                            tone="danger"
                             onClick={() => {
                               setDeleteError(null);
                               setDeleteConfirmCategory(node);
                             }}
-                            className="h-7 w-7 text-slate-500 hover:bg-rose-50 hover:text-rose-600 cursor-pointer rounded-md p-1"
                           >
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </Button>
+                            <Trash2 />
+                          </IconAction>
                         </div>
                       </TableCell>
                     </TableRow>

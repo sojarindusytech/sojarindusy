@@ -1,5 +1,6 @@
 "use client";
 
+import { PageTitle } from "@/components/common/PageTitle";
 import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { PurchaseOrder, PurchaseOrderStatus } from "@/types/database.types";
@@ -103,9 +104,9 @@ export function AdminPurchaseOrdersClient({
   const currentList = activeTab === "active" ? activeOrders : pastOrders;
 
   // Filtered by search query and the placed-date range
-  const filteredOrders = useMemo(() => {
+  const matchesFilters = useMemo(() => {
     const q = searchQuery.toLowerCase().trim();
-    return currentList.filter((o) => {
+    return (o: PurchaseOrder) => {
       const matchesSearch =
         !q ||
         o.order_number?.toLowerCase().includes(q) ||
@@ -121,17 +122,22 @@ export function AdminPurchaseOrdersClient({
       );
 
       return matchesSearch && matchesDate;
-    });
-  }, [currentList, searchQuery, dateRange, customFrom, customTo]);
+    };
+  }, [searchQuery, dateRange, customFrom, customTo]);
+
+  const filteredOrders = useMemo(() => currentList.filter(matchesFilters), [currentList, matchesFilters]);
+  // The cards follow the search and date filters (each card keeps its own Active / Past scope).
+  const shownActive = useMemo(() => activeOrders.filter(matchesFilters), [activeOrders, matchesFilters]);
+  const shownPast = useMemo(() => pastOrders.filter(matchesFilters), [pastOrders, matchesFilters]);
 
   const pager = usePagination(filteredOrders, `${activeTab}|${searchQuery}|${dateRange}|${customFrom}|${customTo}`);
 
   // Aggregate Metrics
-  const totalActiveUnits = activeOrders.reduce(
+  const totalActiveUnits = shownActive.reduce(
     (acc, curr) => acc + (curr.order_quantity || 0),
     0
   );
-  const totalPastUnits = pastOrders.reduce(
+  const totalPastUnits = shownPast.reduce(
     (acc, curr) => acc + (curr.order_quantity || 0),
     0
   );
@@ -231,13 +237,7 @@ export function AdminPurchaseOrdersClient({
       {/* Title & Description */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-slate-200 pb-5">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900 flex items-center gap-2.5">
-            <Truck className="h-6 w-6 text-[#024AE5]" />
-            <span>Manufacturer Purchase Orders</span>
-          </h1>
-          <p className="text-xs text-slate-500 mt-0.5">
-            Automated replenishment orders generated when SKU stock falls below the configured Minimum SKU threshold, plus orders you place by hand.
-          </p>
+          <PageTitle icon={Truck}>Purchase Orders</PageTitle>
         </div>
         <Button onClick={() => setCreating(true)} className="gap-1.5 shrink-0">
           <FilePlus2 className="h-4 w-4" />
@@ -252,7 +252,7 @@ export function AdminPurchaseOrdersClient({
             <div>
               <p className="text-xs font-semibold text-slate-500">Active Production POs</p>
               <h3 className="text-2xl font-bold text-slate-900 mt-0.5">
-                {activeOrders.length}
+                {shownActive.length}
               </h3>
               <p className="text-[11px] text-amber-600 font-medium mt-0.5">
                 Awaiting factory delivery
@@ -286,7 +286,7 @@ export function AdminPurchaseOrdersClient({
             <div>
               <p className="text-xs font-semibold text-slate-500">Past Received Orders</p>
               <h3 className="text-2xl font-bold text-emerald-700 mt-0.5">
-                {pastOrders.length}
+                {shownPast.length}
               </h3>
               <p className="text-[11px] text-emerald-600 font-medium mt-0.5">
                 {totalPastUnits} units credited into stock
@@ -316,7 +316,7 @@ export function AdminPurchaseOrdersClient({
               <Clock className="h-3.5 w-3.5 text-amber-500" />
               <span>Active Orders</span>
               <span className="ml-0.5 px-1.5 py-0.2 rounded-full text-[10px] font-mono bg-amber-50 text-amber-700 border border-amber-200">
-                {activeOrders.length}
+                {shownActive.length}
               </span>
             </button>
 
@@ -332,7 +332,7 @@ export function AdminPurchaseOrdersClient({
               <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
               <span>Past Orders</span>
               <span className="ml-0.5 px-1.5 py-0.2 rounded-full text-[10px] font-mono bg-emerald-50 text-emerald-700 border border-emerald-200">
-                {pastOrders.length}
+                {shownPast.length}
               </span>
             </button>
           </div>
@@ -402,6 +402,7 @@ export function AdminPurchaseOrdersClient({
               <TableRow className="border-b border-slate-200">
                 <TableHead className="font-bold whitespace-nowrap">PO NUMBER</TableHead>
                 <TableHead className="font-bold whitespace-nowrap">PRODUCT / SKU</TableHead>
+                <TableHead className="font-bold whitespace-nowrap">MANUFACTURER</TableHead>
                 <TableHead className="font-bold whitespace-nowrap">SPECIFICATIONS</TableHead>
                 <TableHead className="font-bold text-center whitespace-nowrap">TARGET QTY</TableHead>
                 <TableHead className="font-bold text-center whitespace-nowrap">TRIGGER QTY</TableHead>
@@ -418,7 +419,7 @@ export function AdminPurchaseOrdersClient({
               {filteredOrders.length === 0 ? (
                 <TableRow>
                   <TableCell
-                    colSpan={10}
+                    colSpan={11}
                     className="py-12 text-center text-slate-500"
                   >
                     <div className="flex flex-col items-center justify-center gap-2">
@@ -464,6 +465,17 @@ export function AdminPurchaseOrdersClient({
                         <div className="font-mono text-[11px] text-[#024AE5] font-bold">
                           {po.sku_code}
                         </div>
+                      </TableCell>
+
+                      {/* Manufacturer */}
+                      <TableCell className="whitespace-nowrap text-slate-700">
+                        {po.manufacturer ? (
+                          <span className="font-semibold">
+                            {po.manufacturer.company_name || `${po.manufacturer.first_name ?? ""} ${po.manufacturer.last_name ?? ""}`.trim() || po.manufacturer.email || "Manufacturer"}
+                          </span>
+                        ) : (
+                          <span className="text-slate-400" title="Not sent to one manufacturer: every manufacturer account can see it">Not assigned</span>
+                        )}
                       </TableCell>
 
                       {/* Specs */}

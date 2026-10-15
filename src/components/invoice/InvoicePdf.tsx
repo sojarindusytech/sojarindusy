@@ -1,6 +1,7 @@
 import { Document, Image, Page, Text, View } from "@react-pdf/renderer";
 import type { Invoice, SalesSettings } from "@/types/database.types";
 import { normalizeCopies } from "@/lib/invoice";
+import { documentTerms, termsParagraphs as splitTerms } from "@/lib/document-terms";
 import { Money, SellerHeader, fmtDate, fmtPct, s } from "@/components/invoice/pdf-shared";
 
 /**
@@ -139,7 +140,7 @@ export function InvoicePdf({
     ...(quote?.paymentTerms ? [`Payment Terms: ${quote.paymentTerms}`] : []),
     ...(quote?.deliveryTerms ? [`Delivery Terms: ${quote.deliveryTerms}`] : []),
     ...(quote ? [`This quotation is valid until ${fmtDate(quote.validUntil)}.`] : []),
-    ...(settings.terms ?? "").split(/\n{2,}/).filter(Boolean),
+    ...splitTerms(documentTerms(settings, isQuote ? "quote" : "invoice")),
   ];
 
   return (
@@ -233,14 +234,16 @@ export function InvoicePdf({
               {settings.account_holder ? <Text>Account Holder&apos;s Name: {settings.account_holder}</Text> : null}
             </View>
           </View>
-          <View style={[s.half, { borderRightWidth: 0 }]}>
-            <Text style={s.bar}>Terms and conditions</Text>
-            <View style={s.halfPad}>
-              {termsParagraphs.map((p, i) => (
-                <Text key={i} style={{ marginBottom: 6 }}>{p}</Text>
-              ))}
+          {termsParagraphs.length > 0 ? (
+            <View style={[s.half, { borderRightWidth: 0 }]}>
+              <Text style={s.bar}>Terms and conditions</Text>
+              <View style={s.halfPad}>
+                {termsParagraphs.map((p, i) => (
+                  <Text key={i} style={{ marginBottom: 6 }}>{p}</Text>
+                ))}
+              </View>
             </View>
-          </View>
+          ) : null}
           <View style={[s.half, { alignItems: "center", padding: 4 }]}>
             <Text>For: {settings.company_name}</Text>
             {/* eslint-disable-next-line jsx-a11y/alt-text */}

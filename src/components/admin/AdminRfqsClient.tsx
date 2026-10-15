@@ -1,9 +1,12 @@
 "use client";
 
+import { PageTitle } from "@/components/common/PageTitle";
+import Image from "next/image";
 import React, { useState } from "react";
 import { RFQ, RFQStatus } from "@/types/database.types";
 import { updateRfqQuotation, fetchAllRfqsList } from "@/actions/rfq";
 import { Card } from "@/components/ui/card";
+import { IconAction } from "@/components/common/IconAction";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -42,7 +45,6 @@ import {
   Phone,
   Mail,
   RefreshCw,
-  MessageCircle,
   Paperclip,
   Calendar,
   Layers,
@@ -72,12 +74,6 @@ export function AdminRfqsClient({ initialRfqs }: AdminRfqsClientProps) {
   const [adminNotes, setAdminNotes] = useState<string>("");
   const [isSaving, setIsSaving] = useState(false);
 
-  // Metrics
-  const totalCount = rfqs.length;
-  const pendingCount = rfqs.filter((r) => r.status === "pending").length;
-  const reviewingCount = rfqs.filter((r) => r.status === "reviewing").length;
-  const quotedCount = rfqs.filter((r) => r.status === "quoted" || r.status === "accepted").length;
-
   const filteredRfqs = rfqs.filter((r) => {
     if (statusFilter !== "ALL" && r.status !== statusFilter) {
       return false;
@@ -95,6 +91,12 @@ export function AdminRfqsClient({ initialRfqs }: AdminRfqsClientProps) {
     }
     return true;
   });
+
+  // Metrics: the cards follow the filters
+  const totalCount = filteredRfqs.length;
+  const pendingCount = filteredRfqs.filter((r) => r.status === "pending").length;
+  const reviewingCount = filteredRfqs.filter((r) => r.status === "reviewing").length;
+  const quotedCount = filteredRfqs.filter((r) => r.status === "quoted" || r.status === "accepted").length;
 
   const pager = usePagination(filteredRfqs, `${searchQuery}|${statusFilter}`);
 
@@ -200,13 +202,7 @@ export function AdminRfqsClient({ initialRfqs }: AdminRfqsClientProps) {
       {/* Top Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900 tracking-tight flex items-center gap-2.5">
-            <Layers className="w-6 h-6 text-[#024AE5]" />
-            <span>Customer Requests for Quotation (RFQs)</span>
-          </h1>
-          <p className="text-sm text-slate-500 mt-1">
-            Review incoming custom tooling and fastener inquiries, inspect CAD drawings, and prepare estimates.
-          </p>
+          <PageTitle icon={Layers}>RFQs</PageTitle>
         </div>
 
         <div className="flex items-center gap-2 w-full sm:w-auto">
@@ -353,8 +349,8 @@ export function AdminRfqsClient({ initialRfqs }: AdminRfqsClientProps) {
               <TableHead className="min-w-[240px] font-bold text-slate-700">Tooling & Specifications</TableHead>
               <TableHead className="w-[100px] text-center font-bold text-slate-700">Batch Qty</TableHead>
               <TableHead className="w-[120px] font-bold text-slate-700">Submitted</TableHead>
-              <TableHead className="w-[140px] font-bold text-slate-700">Status</TableHead>
-              <TableHead className="w-[130px] font-bold text-slate-700 text-right pr-4">Action</TableHead>
+              <TableHead className="w-[170px] font-bold text-slate-700">Status</TableHead>
+              <TableHead className="w-[80px] font-bold text-slate-700 text-right pr-4">Action</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -422,10 +418,10 @@ export function AdminRfqsClient({ initialRfqs }: AdminRfqsClientProps) {
                                   href={`https://wa.me/${rfq.mobile.replace(/[^0-9]/g, "")}`}
                                   target="_blank"
                                   rel="noopener noreferrer"
-                                  className="text-emerald-600 hover:text-emerald-700"
+                                  className="inline-flex items-center hover:opacity-80 transition-opacity"
                                   title="Chat on WhatsApp"
                                 >
-                                  <MessageCircle className="w-3 h-3" />
+                                  <Image src="/assets/icons/whatsapp.svg" alt="WhatsApp" width={14} height={14} className="w-3.5 h-3.5 shrink-0" />
                                 </a>
                               </>
                             )}
@@ -475,20 +471,13 @@ export function AdminRfqsClient({ initialRfqs }: AdminRfqsClientProps) {
                     </TableCell>
 
                     {/* Status */}
-                    <TableCell className="py-3.5 align-middle">
+                    <TableCell className="py-3.5 align-middle whitespace-nowrap">
                       {getStatusBadge(rfq.status)}
                     </TableCell>
 
                     {/* Actions */}
                     <TableCell className="py-3.5 align-middle text-right pr-4">
-                      <Button
-                        size="sm"
-                        onClick={() => handleOpenEditor(rfq)}
-                        className="h-8 text-xs bg-[#024AE5] hover:bg-[#013BB8] text-white gap-1.5 shadow-none cursor-pointer"
-                      >
-                        <Edit className="w-3.5 h-3.5" />
-                        <span>Review & Quote</span>
-                      </Button>
+                      <IconAction label="Review & quote" tone="primary" onClick={() => handleOpenEditor(rfq)}><Edit /></IconAction>
                     </TableCell>
                   </TableRow>
                 );
@@ -561,7 +550,7 @@ export function AdminRfqsClient({ initialRfqs }: AdminRfqsClientProps) {
                     rel="noopener noreferrer"
                     className="inline-flex items-center justify-center gap-2 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-colors w-full sm:w-auto"
                   >
-                    <MessageCircle className="w-3.5 h-3.5" />
+                    <Image src="/assets/icons/whatsapp.svg" alt="" width={16} height={16} className="w-4 h-4 shrink-0 brightness-0 invert" />
                     <span>Chat on WhatsApp</span>
                     <ExternalLink className="w-3 h-3 opacity-70" />
                   </a>

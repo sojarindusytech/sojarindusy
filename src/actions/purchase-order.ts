@@ -3,7 +3,14 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { guardOrError, requireAdmin, requireAdminOrManufacturer } from "@/lib/auth-guard";
 import { receivePurchaseOrder } from "@/lib/server/rpc";
-import { allocatePoNumber } from "@/lib/server/purchase-orders";
+import {
+  allocatePoNumber,
+  defaultPoManufacturerId,
+  isManufacturer,
+  listManufacturers,
+  manufacturerTarget,
+  type PoManufacturer,
+} from "@/lib/server/purchase-orders";
 import { notifyAll } from "@/lib/server/notifications";
 import { PurchaseOrder, PurchaseOrderStatus } from "@/types/database.types";
 import { revalidatePath } from "next/cache";
@@ -11,6 +18,13 @@ import { revalidatePath } from "next/cache";
 // Auto-generating purchase orders is server-only: see src/lib/server/purchase-orders.ts.
 
 const OPEN_STATUSES: PurchaseOrderStatus[] = ["Placed", "Dispatched / In Transit"];
+
+/** Manufacturer accounts and the one Sales Settings sends POs to by default. */
+export async function getPoManufacturerOptions(): Promise<{ manufacturers: PoManufacturer[]; defaultId: string | null }> {
+  await requireAdmin();
+  const [manufacturers, defaultId] = await Promise.all([listManufacturers(), defaultPoManufacturerId()]);
+  return { manufacturers, defaultId };
+}
 
 /**
  * Place a purchase order by hand (not triggered by low stock). The PO number is
@@ -22,6 +36,8 @@ export async function createManualPurchaseOrder(payload: {
   quantity: number;
   notes?: string | null;
   manualNumber?: string | null;
+  /** Who receives it. Omitted = the Sales Settings default; null = no one in particular. */
+  manufacturerId?: string | null;
 }): Promise<{ success: boolean; error?: string; order?: PurchaseOrder }> {
   const guard = await guardOrError(requireAdmin);
   if (!guard.ctx) return { success: false, error: guard.error };
@@ -54,6 +70,17 @@ export async function createManualPurchaseOrder(payload: {
       products: { id: string; title: string } | null;
     };
 
+    let manufacturerId: string | null;
+    if (payload.manufacturerId === undefined) {
+      manufacturerId = await defaultPoManufacturerId();
+    } else if (payload.manufacturerId === null || payload.manufacturerId === "") {
+      manufacturerId = null;
+    } else if (await isManufacturer(payload.manufacturerId)) {
+      manufacturerId = payload.manufacturerId;
+    } else {
+      return { success: false, error: "Select a valid manufacturer." };
+    }
+
     let orderNumber: string;
     if (manualNumber) {
       const { data: dup } = await adminDb
@@ -85,6 +112,7 @@ export async function createManualPurchaseOrder(payload: {
         specifications: variant.specifications || {},
         notes: payload.notes?.trim() || null,
         status: "Placed",
+        manufacturer_id: manufacturerId,
         is_auto: false,
       } as never)
       .select("*")
@@ -98,7 +126,7 @@ export async function createManualPurchaseOrder(payload: {
 
     await notifyAll([
       {
-        role: "manufacturer",
+        ...manufacturerTarget(manufacturerId),
         title: "New Production Order",
         message: `New PO #${orderNumber} placed: ${quantity} units of ${productTitle} (${variant.sku}).`,
         type: "purchase_order",
@@ -133,10 +161,17 @@ export async function getPurchaseOrders(params?: {
       .from("purchase_orders" as never)
       .select(`
         *,
+        manufacturer:profiles!manufacturer_id(id, company_name, first_name, last_name, email),
         product:products(id, title, slug),
         variant:product_variants(id, sku, diameter, flute_length, overall_length, shank_diameter, stock_quantity, min_quantity, trigger_quantity, min_order_quantity)
       `)
       .order("created_at", { ascending: false });
+
+    // A manufacturer sees the POs sent to them, plus unassigned ones. The service client skips
+    // row security, so the scope has to be applied here.
+    if (guard.ctx.role === "manufacturer") {
+      query = query.or(`manufacturer_id.is.null,manufacturer_id.eq.${guard.ctx.userId}`);
+    }
 
     if (params?.isPast === true) {
       query = query.eq("status", "Received");
@@ -199,6 +234,13 @@ export async function updatePurchaseOrderStatus(
         return { success: false, error: `PO ${data.order_number} was already received.` };
       }
 
+      const { data: assigned } = await createAdminClient()
+        .from("purchase_orders" as never)
+        .select("manufacturer_id")
+        .eq("id", orderId)
+        .maybeSingle();
+      const manufacturerId = (assigned as { manufacturer_id: string | null } | null)?.manufacturer_id ?? null;
+
       await notifyAll([
         {
           role: "admin",
@@ -209,7 +251,7 @@ export async function updatePurchaseOrderStatus(
           metadata: { order_number: data.order_number, quantity: data.quantity },
         },
         {
-          role: "manufacturer",
+          ...manufacturerTarget(manufacturerId),
           title: "PO Received by Sojar",
           message: `Sojar Indusy has verified and received delivery of PO #${data.order_number}.`,
           type: "purchase_order",

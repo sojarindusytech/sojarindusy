@@ -7,10 +7,11 @@ import { Order } from "@/types/database.types";
 import { OrderStatus, ORDER_STATUSES, ORDER_STATUS_CONFIG } from "@/lib/constants";
 import { placeCustomerOrder } from "@/lib/server/checkout/place-order";
 import type { PriceChange } from "@/lib/server/checkout/cart";
-import { transitionOrderStatus } from "@/lib/server/rpc";
+import { transitionOrderStatus, renameOrder } from "@/lib/server/rpc";
 import { createNotification, notifyAll } from "@/lib/server/notifications";
 import { createInvoiceFromOrder } from "@/actions/invoice";
 import { stockErrorMessage } from "@/lib/server/stock-errors";
+import { needsEwayBill, EWAY_BILL_THRESHOLD } from "@/lib/invoice";
 import { revalidatePath } from "next/cache";
 
 export interface CreateOrderPayload {
@@ -141,8 +142,9 @@ export async function updateOrderStatus(
   let invoiceNumber = data.invoice_number;
   const justRaised = !invoiceNumber && (data.status === ORDER_STATUSES.SHIPPED || data.status === ORDER_STATUSES.DELIVERED);
   if (justRaised) {
-    invoiceNumber = await raiseOrderInvoice(orderId, data.order_number);
-    if (invoiceNumber) await notifyAdminInvoiceRaised(data.order_number, invoiceNumber);
+    const raised = await raiseOrderInvoice(orderId, data.order_number);
+    invoiceNumber = raised?.number ?? null;
+    if (raised) await notifyAdminInvoiceRaised(data.order_number, raised.number, raised.total);
   }
 
   if (data.previous_status !== data.status || data.status === ORDER_STATUSES.SHIPPED) {
@@ -154,12 +156,51 @@ export async function updateOrderStatus(
   revalidatePath("/dashboard/orders");
   revalidatePath("/admin/orders");
   revalidatePath("/admin/order-returns");
-  revalidatePath("/admin/dispatch");
   revalidatePath("/admin/dashboard");
   revalidatePath("/admin/coupons");
   revalidatePath("/admin/invoices");
 
   return { success: true };
+}
+
+const RENAME_ERRORS: Record<string, string> = {
+  DUPLICATE_ORDER_NUMBER: "That order number is already used by another order.",
+  INVALID_ORDER_NUMBER: "Use letters, numbers and / - _ . only (up to 50 characters).",
+  ORDER_NOT_FOUND: "Order not found.",
+  ADMIN_REQUIRED: "Administrator access required.",
+};
+
+/**
+ * Gives an order a typed number (new orders are numbered automatically from Sales Settings).
+ * The counter is untouched. The invoice raised for the order carries the order number as its
+ * "PO number", so that snapshot is kept in step when it still matches; failing to do so (for
+ * example the invoice has a credit note) never undoes the rename.
+ */
+export async function renameOrderNumber(
+  orderId: string,
+  newNumber: string
+): Promise<{ success: true; orderNumber: string } | { success: false; error: string }> {
+  const guard = await guardOrError(requireAdmin);
+  if (!guard.ctx) return { success: false, error: guard.error };
+
+  const { data, error } = await renameOrder(orderId, newNumber, guard.ctx.userId);
+  if (error) {
+    return { success: false, error: RENAME_ERRORS[error.code] ?? "Could not change the order number. Please try again." };
+  }
+
+  if (data.changed) {
+    const { error: invErr } = await createAdminClient()
+      .from("invoices" as never)
+      .update({ po_number: data.order_number } as never)
+      .eq("order_id", orderId)
+      .eq("po_number", data.previous);
+    if (invErr) console.warn(`[renameOrderNumber] Invoice PO number not updated for ${data.previous}:`, invErr.message);
+  }
+
+  for (const path of ["/admin/orders", "/admin/order-returns", "/admin/invoices", "/dashboard", "/dashboard/orders"]) {
+    revalidatePath(path);
+  }
+  return { success: true, orderNumber: data.order_number };
 }
 
 /**
@@ -168,7 +209,7 @@ export async function updateOrderStatus(
  * stock): on error the order keeps no invoice number, so saving it as Shipped or
  * Delivered again retries. createInvoiceFromOrder is idempotent (one invoice per order).
  */
-async function raiseOrderInvoice(orderId: string, orderNumber: string): Promise<string | null> {
+async function raiseOrderInvoice(orderId: string, orderNumber: string): Promise<{ number: string; total: number } | null> {
   const result = await createInvoiceFromOrder(orderId);
   if (!result.success) {
     console.error(`[updateOrderStatus] Invoice for order ${orderNumber} failed: ${result.error}`);
@@ -181,15 +222,17 @@ async function raiseOrderInvoice(orderId: string, orderNumber: string): Promise<
     .eq("id", orderId)
     .is("invoice_number", null);
   if (error) console.error(`[updateOrderStatus] Could not record invoice ${invoiceNumber} on ${orderNumber}:`, error.message);
-  return invoiceNumber;
+  return { number: invoiceNumber, total: Number(result.invoice.total_amount) };
 }
 
-async function notifyAdminInvoiceRaised(orderNumber: string, invoiceNumber: string) {
+async function notifyAdminInvoiceRaised(orderNumber: string, invoiceNumber: string, total: number) {
   await notifyAll([
     {
       role: "admin",
       title: "Invoice generated",
-      message: `Invoice ${invoiceNumber} was raised for order #${orderNumber}. The customer sees it once the order is delivered.`,
+      message:
+        `Invoice ${invoiceNumber} was raised for order #${orderNumber}. The customer sees it once the order is delivered.` +
+        (needsEwayBill(total) ? ` It is above ₹${EWAY_BILL_THRESHOLD.toLocaleString("en-IN")}: create an E-Way Bill for this consignment on the government portal.` : ""),
       type: "order",
       link: "/admin/invoices",
       metadata: { order_number: orderNumber, invoice_number: invoiceNumber },

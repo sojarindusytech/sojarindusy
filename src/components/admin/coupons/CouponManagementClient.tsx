@@ -1,5 +1,6 @@
 "use client";
 
+import { PageTitle } from "@/components/common/PageTitle";
 import { useMemo, useState, useTransition } from "react";
 import { History, Pencil, Plus, Power, Search, TicketPercent, Trash2 } from "lucide-react";
 import toast from "react-hot-toast";
@@ -11,6 +12,7 @@ import {
   setCouponActiveAction,
 } from "@/actions/coupon";
 import { Badge } from "@/components/ui/badge";
+import { IconAction } from "@/components/common/IconAction";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -72,16 +74,6 @@ export function CouponManagementClient({ initialCoupons, options }: CouponManage
       setCoupons(await fetchCouponsList());
     });
 
-  const stats = useMemo(() => {
-    const current = coupons.filter((c) => !c.isArchived);
-    return {
-      active: current.filter((c) => c.status === "active").length,
-      scheduled: current.filter((c) => c.status === "scheduled").length,
-      uses: coupons.reduce((sum, c) => sum + c.activeUses, 0),
-      discount: coupons.reduce((sum, c) => sum + c.totalDiscount, 0),
-    };
-  }, [coupons]);
-
   const visible = useMemo(() => {
     const q = query.trim().toLowerCase();
     return coupons.filter((c) => {
@@ -90,6 +82,17 @@ export function CouponManagementClient({ initialCoupons, options }: CouponManage
       return statusOk && queryOk;
     });
   }, [coupons, query, statusFilter]);
+
+  // Cards follow the search and status filters.
+  const stats = useMemo(() => {
+    const current = visible.filter((c) => !c.isArchived);
+    return {
+      active: current.filter((c) => c.status === "active").length,
+      scheduled: current.filter((c) => c.status === "scheduled").length,
+      uses: visible.reduce((sum, c) => sum + c.activeUses, 0),
+      discount: visible.reduce((sum, c) => sum + c.totalDiscount, 0),
+    };
+  }, [visible]);
 
   const openCreate = () => {
     setFormHasUses(false);
@@ -151,10 +154,7 @@ export function CouponManagementClient({ initialCoupons, options }: CouponManage
     <div className="w-full max-w-full space-y-6">
       <div className="flex flex-col gap-4 border-b border-slate-200 pb-5 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900">Coupons</h1>
-          <p className="mt-1 text-xs text-slate-500">
-            Discount codes customers can apply at checkout. Every use is checked again when the order is placed.
-          </p>
+          <PageTitle icon={TicketPercent}>Coupons</PageTitle>
         </div>
         <Button size="sm" onClick={openCreate} className="h-9 gap-2 px-4 text-xs font-bold">
           <Plus className="h-4 w-4 stroke-[2.5]" /> Create coupon
@@ -265,7 +265,7 @@ export function CouponManagementClient({ initialCoupons, options }: CouponManage
                                 onClick={() => setDeleting(c)}
                                 icon={Trash2}
                                 disabled={isPending}
-                                className="text-rose-500 hover:bg-rose-50"
+                                className="text-rose-500 hover:text-rose-700"
                               />
                             </>
                           )}
@@ -340,17 +340,8 @@ function IconButton({
   className?: string;
 }) {
   return (
-    <Button
-      type="button"
-      variant="ghost"
-      size="icon"
-      onClick={onClick}
-      disabled={disabled}
-      title={label}
-      aria-label={label}
-      className={`h-7 w-7 rounded ${className ?? ""}`}
-    >
-      <Icon className="h-3.5 w-3.5" />
-    </Button>
+    <IconAction label={label} onClick={onClick} disabled={disabled} className={className}>
+      <Icon />
+    </IconAction>
   );
 }

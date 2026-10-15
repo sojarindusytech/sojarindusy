@@ -1,11 +1,13 @@
 "use client";
 
+import { pdfViewerSrc } from "@/lib/pdf-viewer";
 import { useState } from "react";
 import { Download, Eye, Wallet } from "lucide-react";
 import type { Payment } from "@/types/database.types";
 import { modeLabel } from "@/lib/payments";
-import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { IconAction } from "@/components/common/IconAction";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
@@ -73,12 +75,8 @@ export function CustomerPaymentsView({ payments }: { payments: Payment[] }) {
                     <TableCell className="text-slate-600 max-w-[220px] truncate" title={appliedTo(p)}>{appliedTo(p)}</TableCell>
                     <TableCell className="font-mono font-bold text-slate-900 text-right">{inr(p.amount)}</TableCell>
                     <TableCell className="text-right pr-4">
-                      <Button size="sm" variant="outline" onClick={() => setViewing(p)} className="h-7 text-[11px] border-slate-200 gap-1 text-slate-700 shadow-none hover:text-[#024AE5]">
-                        <Eye className="h-3 w-3" /><span>View</span>
-                      </Button>
-                      <Button asChild size="sm" variant="outline" className="h-7 text-[11px] border-slate-200 gap-1 text-slate-700 shadow-none hover:text-[#024AE5] ml-1.5">
-                        <a href={`/api/payments/${p.id}/pdf?download=1`}><Download className="h-3 w-3" /><span>Download</span></a>
-                      </Button>
+                      <IconAction label="View receipt" onClick={() => setViewing(p)}><Eye /></IconAction>
+                      <IconAction label="Download receipt" href={`/api/payments/${p.id}/pdf?download=1`}><Download /></IconAction>
                     </TableCell>
                   </TableRow>
                 ))
@@ -90,10 +88,18 @@ export function CustomerPaymentsView({ payments }: { payments: Payment[] }) {
 
       <Dialog open={!!viewing} onOpenChange={(o) => !o && setViewing(null)}>
         <DialogContent className="max-w-4xl h-[90vh] flex flex-col">
-          <DialogHeader>
-            <DialogTitle className="font-mono">{viewing?.receipt_number}</DialogTitle>
-            <DialogDescription>{viewing && fmtDate(viewing.payment_date)}</DialogDescription>
-          </DialogHeader>
+          <div className="flex items-start justify-between gap-3 pr-8">
+            <DialogHeader className="min-w-0">
+              <DialogTitle className="font-mono">{viewing?.receipt_number}</DialogTitle>
+              <DialogDescription>{viewing && fmtDate(viewing.payment_date)}</DialogDescription>
+            </DialogHeader>
+            <Button asChild size="sm" variant="outline" className="gap-1.5 shrink-0">
+              <a href={`/api/payments/${viewing?.id}/pdf?download=1`}>
+                <Download className="h-4 w-4" />
+                Download
+              </a>
+            </Button>
+          </div>
           {viewing && (
             <div className="relative flex-1 min-h-0">
               {loadedId !== viewing.id && (
@@ -106,7 +112,7 @@ export function CustomerPaymentsView({ payments }: { payments: Payment[] }) {
               <iframe
                 key={viewing.id}
                 title={`Receipt ${viewing.receipt_number}`}
-                src={`/api/payments/${viewing.id}/pdf`}
+                src={pdfViewerSrc(`/api/payments/${viewing.id}/pdf`)}
                 onLoad={() => setLoadedId(viewing.id)}
                 className="h-full w-full rounded-lg border border-slate-200 bg-slate-50"
               />

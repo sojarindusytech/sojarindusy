@@ -34,7 +34,7 @@ export const BORDER = "#8A8A8A";
 export const s = StyleSheet.create({
   page: { paddingTop: 28, paddingBottom: 28, paddingHorizontal: 28, fontFamily: "Roboto", fontSize: 8, color: "#111" },
   topRow: { flexDirection: "row", justifyContent: "space-between", marginBottom: 6 },
-  topTitle: { flex: 1, textAlign: "center", fontSize: 11, fontWeight: 700, marginLeft: 50 },
+  topTitle: { flex: 1, textAlign: "center", fontSize: 11, fontWeight: 700 },
   topTag: { width: 50, textAlign: "right", fontSize: 8, color: "#6B7280" },
   box: { borderWidth: 1, borderColor: BORDER },
   header: { flexDirection: "row", padding: 6, borderWidth: 1, borderColor: BORDER },

@@ -307,7 +307,8 @@ export async function createCartQuote(
       placeOfSupply: placeOfSupplyFor(profile?.state),
       quoteDate: today,
       validUntil: valid,
-      gstEnabled: settings.gst_billing_enabled,
+      // Customer-initiated (online): always GST, like online orders.
+      gstEnabled: true,
       paymentTerms: settings.quote_payment_terms,
       deliveryTerms: settings.quote_delivery_terms,
       adminNotes: CART_QUOTE_NOTE,

@@ -4,10 +4,12 @@ import { useEffect, useMemo, useState, useTransition } from "react";
 import toast from "react-hot-toast";
 import { Plus, Trash2, Search } from "lucide-react";
 import { createCommercialQuote, type QuoteFormData } from "@/actions/quote";
-import { searchInvoiceSkus, type InvoiceSkuHit } from "@/actions/invoice";
+import { type InvoiceSkuHit } from "@/actions/invoice";
 import { computeInvoice, financialYear, formatInvoiceNumber, stateCodeOf } from "@/lib/invoice";
 import { INDIAN_STATES } from "@/lib/indian-states";
 import type { CommercialQuote } from "@/types/database.types";
+import { useSkuSearch } from "@/components/admin/useSkuSearch";
+import { SkuSearchStatus } from "@/components/admin/SkuSearchStatus";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -71,7 +73,6 @@ export function QuoteFormModal({
   const [rows, setRows] = useState<Row[]>([blankRow()]);
 
   const [skuQuery, setSkuQuery] = useState("");
-  const [skuHits, setSkuHits] = useState<InvoiceSkuHit[]>([]);
 
   // Apply the Sales Settings defaults once the data is here (immediately when prefetched,
   // later if the form was opened before it finished loading). Done during render so there
@@ -88,18 +89,8 @@ export function QuoteFormModal({
     }
   }
 
-  // Debounced SKU search.
-  useEffect(() => {
-    const q = skuQuery.trim();
-    if (q.length < 2) return;
-    let cancelled = false;
-    const t = setTimeout(() => {
-      searchInvoiceSkus(q).then((hits) => { if (!cancelled) setSkuHits(hits); });
-    }, 250);
-    return () => { cancelled = true; clearTimeout(t); };
-  }, [skuQuery]);
 
-  const visibleHits = skuQuery.trim().length < 2 ? [] : skuHits;
+  const { hits: visibleHits, loading: skuLoading } = useSkuSearch(skuQuery);
   const settings = data?.settings;
   const defaultRate = settings?.default_gst_rate ?? 18;
 
@@ -134,7 +125,7 @@ export function QuoteFormModal({
       });
       return rs.length === 1 && !rs[0].name && !rs[0].unitPrice ? [row] : [...rs, row];
     });
-    setSkuQuery(""); setSkuHits([]);
+    setSkuQuery("");
   };
 
   const patchRow = (key: number, patch: Partial<Row>) =>
@@ -297,8 +288,9 @@ export function QuoteFormModal({
             <div className="relative sm:w-80">
               <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-slate-400" />
               <Input placeholder="Search SKU to add..." value={skuQuery} onChange={(e) => setSkuQuery(e.target.value)} className="pl-8 h-9 text-xs" />
-              {visibleHits.length > 0 && (
+              {skuQuery.trim() && (
                 <div className="absolute z-10 mt-1 w-full max-h-56 overflow-auto rounded-lg border border-slate-200 bg-white shadow-lg">
+                  {(skuLoading || visibleHits.length === 0) && <SkuSearchStatus loading={skuLoading} />}
                   {visibleHits.map((h) => (
                     <button key={h.sku} type="button" onClick={() => addSku(h)} className="w-full text-left px-3 py-2 hover:bg-blue-50 text-xs">
                       <span className="font-bold text-slate-900">{h.sku}</span>
@@ -311,10 +303,11 @@ export function QuoteFormModal({
           </div>
 
           <div className="overflow-x-auto rounded-lg border border-slate-200">
-            <table className="w-full text-xs min-w-[760px]">
+            <table className="w-full text-xs min-w-[860px]">
               <thead className="bg-slate-50 text-[11px] uppercase tracking-wider text-slate-500">
                 <tr>
                   <th className="text-left p-2">Item</th>
+                  <th className="p-2 w-28">HSN / SAC</th>
                   <th className="p-2 w-20">Qty</th>
                   <th className="p-2 w-28">Rate</th>
                   <th className="p-2 w-20">Disc %</th>
@@ -332,6 +325,7 @@ export function QuoteFormModal({
                         <Input placeholder="Item name / SKU" value={r.name} onChange={(e) => patchRow(r.key, { name: e.target.value })} className="h-8 text-xs" />
                         <Input placeholder="Description (optional)" value={r.description} onChange={(e) => patchRow(r.key, { description: e.target.value })} className="h-7 text-[11px] mt-1 text-slate-500" />
                       </td>
+                      <td className="p-1.5"><Input placeholder="HSN / SAC" value={r.hsn} onChange={(e) => patchRow(r.key, { hsn: e.target.value })} className="h-8 text-xs font-mono" /></td>
                       <td className="p-1.5"><Input type="number" min={0} value={r.quantity} onChange={(e) => patchRow(r.key, { quantity: e.target.value })} className="h-8 text-xs" /></td>
                       <td className="p-1.5"><Input type="number" min={0} step="0.01" value={r.unitPrice} onChange={(e) => patchRow(r.key, { unitPrice: e.target.value })} className="h-8 text-xs" /></td>
                       <td className="p-1.5"><Input type="number" min={0} max={100} step="0.01" value={r.discountPct} onChange={(e) => patchRow(r.key, { discountPct: e.target.value })} className="h-8 text-xs" /></td>

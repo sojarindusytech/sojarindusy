@@ -1,5 +1,6 @@
 "use client";
 
+import { PageTitle } from "@/components/common/PageTitle";
 import { useState, useTransition, useMemo } from "react";
 import { Profile } from "@/types/database.types";
 import {
@@ -15,7 +16,9 @@ import {
   UserTitle,
 } from "@/lib/constants";
 import { updateCustomerApprovalStatus, createOfflineCustomer } from "@/actions/customer";
+import { CustomerEditModal } from "./CustomerEditModal";
 import { Card } from "@/components/ui/card";
+import { IconAction } from "@/components/common/IconAction";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -73,7 +76,11 @@ import {
   ArrowRight,
   ArrowLeft,
   CheckCircle2,
+  Pencil,
 } from "lucide-react";
+
+/** tel: link that dials: keeps digits and a leading +, drops spaces, dashes and brackets. */
+const telHref = (phone: string | null | undefined) => `tel:${(phone ?? "").replace(/[^\d+]/g, "")}`;
 
 interface CustomerManagementClientProps {
   initialCustomers: Profile[];
@@ -101,6 +108,7 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [addModalStep, setAddModalStep] = useState<1 | 2>(1);
   const [viewingCustomer, setViewingCustomer] = useState<Profile | null>(null);
+  const [editingCustomer, setEditingCustomer] = useState<Profile | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const [formSuccess, setFormSuccess] = useState<string | null>(null);
 
@@ -260,21 +268,9 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
     });
   };
 
-  // Statistics calculation
-  const totalCount = customers.length;
-  const platformCount = customers.filter(
-    (c) => (c.user_type || USER_TYPES.PLATFORM_USER) === USER_TYPES.PLATFORM_USER
-  ).length;
-  const offlineCount = customers.filter(
-    (c) => c.user_type === USER_TYPES.OFFLINE_USER
-  ).length;
-  const pendingCount = customers.filter(
-    (c) => (c.approval_status || APPROVAL_STATUSES.PENDING) === APPROVAL_STATUSES.PENDING && c.role !== "platform_owner"
-  ).length;
-
-  // Filtered & Sorted List
-  const filteredAndSortedCustomers = useMemo(() => {
-    const result = customers.filter((c) => {
+  // Customers matching the search and filters (before sorting).
+  const filteredCustomers = useMemo(() => {
+    return customers.filter((c) => {
       if (c.role === "platform_owner") return false;
 
       const query = searchQuery.toLowerCase().trim();
@@ -297,7 +293,20 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
 
       return matchesSearch && matchesType && matchesStatus;
     });
+  }, [customers, searchQuery, selectedUserType, selectedStatus]);
 
+  // The KPI cards count what the current search and filters show, so they update with them.
+  const totalCount = filteredCustomers.length;
+  const platformCount = filteredCustomers.filter(
+    (c) => (c.user_type || USER_TYPES.PLATFORM_USER) === USER_TYPES.PLATFORM_USER
+  ).length;
+  const offlineCount = filteredCustomers.filter((c) => c.user_type === USER_TYPES.OFFLINE_USER).length;
+  const pendingCount = filteredCustomers.filter(
+    (c) => (c.approval_status || APPROVAL_STATUSES.PENDING) === APPROVAL_STATUSES.PENDING
+  ).length;
+
+  const filteredAndSortedCustomers = useMemo(() => {
+    const result = [...filteredCustomers];
     result.sort((a, b) => {
       let comparison = 0;
       if (sortField === "name") {
@@ -326,7 +335,7 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
     });
 
     return result;
-  }, [customers, searchQuery, selectedUserType, selectedStatus, sortField, sortDirection]);
+  }, [filteredCustomers, sortField, sortDirection]);
 
   // Pagination Calculations
   const totalItems = filteredAndSortedCustomers.length;
@@ -407,11 +416,9 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
   return (
     <div className="space-y-6 w-full max-w-full">
       {/* Page Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-slate-200 pb-5">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900">
-            Customers
-          </h1>
+          <PageTitle icon={Users}>Customers</PageTitle>
         </div>
 
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 w-full sm:w-auto">
@@ -744,7 +751,15 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
                 return (
                   <TableRow
                     key={customer.id}
-                    className="hover:bg-slate-50/70 transition-colors bg-white border-b border-slate-200/80"
+                    tabIndex={0}
+                    onClick={() => setViewingCustomer(customer)}
+                    onKeyDown={(e) => {
+                      if (e.target === e.currentTarget && (e.key === "Enter" || e.key === " ")) {
+                        e.preventDefault();
+                        setViewingCustomer(customer);
+                      }
+                    }}
+                    className="hover:bg-slate-50/70 transition-colors bg-white border-b border-slate-200/80 cursor-pointer"
                   >
                     {/* Customer & Company */}
                     <TableCell className="py-2.5 px-3.5 truncate">
@@ -775,11 +790,25 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
                       <div className="space-y-0.5 text-xs">
                         <div className="flex items-center gap-1.5 text-slate-700 truncate">
                           <Mail className="h-3 w-3 text-slate-400 shrink-0" />
-                          <span className="truncate">{customer.email}</span>
+                          <a
+                            href={`mailto:${customer.email}`}
+                            onClick={(e) => e.stopPropagation()}
+                            className="truncate hover:text-[#024AE5] hover:underline"
+                            title={`Email ${customer.email}`}
+                          >
+                            {customer.email}
+                          </a>
                         </div>
                         <div className="flex items-center gap-1.5 text-slate-500 text-[11px] truncate">
                           <Phone className="h-3 w-3 text-slate-400 shrink-0" />
-                          <span>{customer.mobile}</span>
+                          <a
+                            href={telHref(customer.mobile)}
+                            onClick={(e) => e.stopPropagation()}
+                            className="hover:text-[#024AE5] hover:underline"
+                            title={`Call ${customer.mobile}`}
+                          >
+                            {customer.mobile}
+                          </a>
                         </div>
                       </div>
                     </TableCell>
@@ -800,7 +829,7 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
                         </span>
                       ) : (
                         <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium bg-emerald-50 text-emerald-700 border border-emerald-200/60">
-                          <Store className="h-3 w-3 text-emerald-600" /> Offline ERP
+                          <Store className="h-3 w-3 text-emerald-600" /> Offline
                         </span>
                       )}
                     </TableCell>
@@ -835,14 +864,15 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
                     </TableCell>
 
                     {/* Actions with Confirmation Triggers */}
-                    <TableCell className="py-2.5 px-3.5 text-right whitespace-nowrap">
+                    <TableCell className="py-2.5 px-3.5 text-right whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
                       <div className="flex items-center justify-end gap-1.5">
+                        {/* Fixed-width slot (2 buttons): rows without Approve/Reject keep View and Edit in the same place. */}
+                        <div className="flex w-[60px] shrink-0 items-center justify-end gap-1.5">
                         {approvalStatus === APPROVAL_STATUSES.PENDING && (
                           <>
-                            <Button
-                              type="button"
-                              size="icon"
-                              title="Approve Customer"
+                            <IconAction
+                              label="Approve customer"
+                              tone="success"
                               disabled={isPending}
                               onClick={() =>
                                 setConfirmDialog({
@@ -850,14 +880,12 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
                                   targetStatus: APPROVAL_STATUSES.APPROVED,
                                 })
                               }
-                              className="h-7 w-7 bg-emerald-600 text-white hover:bg-emerald-700 cursor-pointer shadow-none rounded-md p-1.5 shrink-0"
                             >
-                              <Check className="h-3.5 w-3.5" />
-                            </Button>
-                            <Button
-                              type="button"
-                              size="icon"
-                              title="Reject Customer"
+                              <Check />
+                            </IconAction>
+                            <IconAction
+                              label="Reject customer"
+                              tone="danger"
                               disabled={isPending}
                               onClick={() =>
                                 setConfirmDialog({
@@ -865,23 +893,15 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
                                   targetStatus: APPROVAL_STATUSES.REJECTED,
                                 })
                               }
-                              className="h-7 w-7 bg-rose-600 text-white hover:bg-rose-700 cursor-pointer shadow-none rounded-md p-1.5 shrink-0"
                             >
-                              <X className="h-3.5 w-3.5" />
-                            </Button>
+                              <X />
+                            </IconAction>
                           </>
                         )}
+                        </div>
 
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setViewingCustomer(customer)}
-                          className="h-7 text-xs px-2.5 border-slate-200 text-slate-700 hover:bg-slate-50 hover:text-slate-900 shadow-none cursor-pointer shrink-0"
-                        >
-                          <Eye className="h-3.5 w-3.5 text-slate-500 mr-1" />
-                          <span>View</span>
-                        </Button>
+                        <IconAction label="View customer" onClick={() => setViewingCustomer(customer)}><Eye /></IconAction>
+                        <IconAction label="Edit customer" tone="primary" onClick={() => setEditingCustomer(customer)}><Pencil /></IconAction>
                       </div>
                     </TableCell>
                   </TableRow>
@@ -1007,6 +1027,10 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
                 <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600 border border-emerald-200">
                   <ShieldCheck className="h-5 w-5" />
                 </div>
+              ) : confirmDialog?.targetStatus === APPROVAL_STATUSES.PENDING ? (
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-50 text-amber-600 border border-amber-200">
+                  <Clock className="h-5 w-5" />
+                </div>
               ) : (
                 <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-rose-50 text-rose-600 border border-rose-200">
                   <AlertTriangle className="h-5 w-5" />
@@ -1016,6 +1040,8 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
                 <AlertDialogTitle className="text-base font-bold text-slate-900">
                   {confirmDialog?.targetStatus === APPROVAL_STATUSES.APPROVED
                     ? "Approve Customer Account?"
+                    : confirmDialog?.targetStatus === APPROVAL_STATUSES.PENDING
+                    ? "Move Back to Pending Review?"
                     : "Reject Customer Account?"}
                 </AlertDialogTitle>
                 <p className="text-xs text-slate-500 mt-0.5">
@@ -1037,6 +1063,20 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
                     {confirmDialog.customer.company_name}
                   </strong>
                   ? This account will gain full purchasing, quotations, and online catalogue access.
+                  <span className="mt-3 flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 p-2.5 text-amber-900">
+                    <Mail className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                    <span>
+                      An approval email with a sign-in link will be sent to{" "}
+                      <strong className="font-semibold">{confirmDialog.customer.email}</strong>. Each email sent is a billed
+                      delivery, and approving the same customer again sends it again. Confirm only if you are sure.
+                    </span>
+                  </span>
+                </>
+              ) : confirmDialog?.targetStatus === APPROVAL_STATUSES.PENDING ? (
+                <>
+                  <strong className="text-slate-900 font-semibold">{confirmDialog?.customer.company_name}</strong> will go
+                  back to Pending Review and lose access to pricing and orders until approved again. Approving them again
+                  sends another approval email.
                 </>
               ) : (
                 <>
@@ -1060,13 +1100,17 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
               className={`h-8 text-xs font-medium text-white shadow-none ${
                 confirmDialog?.targetStatus === APPROVAL_STATUSES.APPROVED
                   ? "bg-emerald-600 hover:bg-emerald-700"
+                  : confirmDialog?.targetStatus === APPROVAL_STATUSES.PENDING
+                  ? "bg-amber-600 hover:bg-amber-700"
                   : "bg-rose-600 hover:bg-rose-700"
               }`}
             >
               {isPending
                 ? "Updating..."
                 : confirmDialog?.targetStatus === APPROVAL_STATUSES.APPROVED
-                ? "Yes, Approve Account"
+                ? "Yes, Approve & Send Email"
+                : confirmDialog?.targetStatus === APPROVAL_STATUSES.PENDING
+                ? "Yes, Move to Pending"
                 : "Yes, Reject Account"}
             </AlertDialogAction>
           </AlertDialogFooter>
@@ -1209,7 +1253,7 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
                     <div className="space-y-1">
                       <div className="flex items-center justify-between">
                         <Label className="text-xs">Landline</Label>
-                        <span className="text-[10px] text-slate-400">Optional</span>
+                        <span className="text-[10px] leading-none text-slate-400">Optional</span>
                       </div>
                       <Input
                         name="landline"
@@ -1281,7 +1325,7 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
                   <div className="space-y-1">
                     <div className="flex items-center justify-between">
                       <Label className="text-xs">GSTIN</Label>
-                      <span className="text-[10px] text-slate-400">Optional</span>
+                      <span className="text-[10px] leading-none text-slate-400">Optional</span>
                     </div>
                     <Input
                       name="gstin"
@@ -1307,7 +1351,7 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
                   <div className="space-y-1">
                     <div className="flex items-center justify-between">
                       <Label className="text-xs">Additional Address</Label>
-                      <span className="text-[10px] text-slate-400">Optional</span>
+                      <span className="text-[10px] leading-none text-slate-400">Optional</span>
                     </div>
                     <Input
                       name="additional_address"
@@ -1423,10 +1467,10 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
 
       {/* VIEW CUSTOMER DETAILS MODAL */}
       {viewingCustomer && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-xs p-4 overflow-y-auto">
-          <div className="relative w-full max-w-2xl rounded-2xl bg-white p-6 shadow-2xl border border-slate-200 animate-in fade-in zoom-in-95 duration-150">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-xs p-4">
+          <div className="relative flex flex-col w-full max-w-3xl h-[85vh] max-h-[calc(100vh-2rem)] rounded-2xl bg-white p-6 shadow-2xl border border-slate-200 animate-in fade-in zoom-in-95 duration-150">
             {/* Header */}
-            <div className="flex items-center justify-between border-b border-slate-200 pb-4 mb-4">
+            <div className="flex shrink-0 items-center justify-between border-b border-slate-200 pb-4 mb-4">
               <div className="flex items-center gap-3">
                 <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-slate-100 text-slate-700 font-bold text-sm border border-slate-200/80">
                   {viewingCustomer.first_name?.[0]}
@@ -1450,6 +1494,7 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
               </button>
             </div>
 
+            <div className="flex-1 min-h-0 overflow-y-auto pr-1">
             {/* Approval & Type Status Row */}
             <div className="flex flex-wrap items-center justify-between gap-3 bg-slate-50 p-3.5 rounded-xl border border-slate-200 mb-4">
               <div className="flex items-center gap-2">
@@ -1457,11 +1502,11 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
                 <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[11px] font-medium bg-white text-slate-700 border border-slate-200">
                   {viewingCustomer.user_type === USER_TYPES.OFFLINE_USER ? (
                     <>
-                      <Store className="h-3 w-3 text-slate-500" /> Offline ERP
+                      <Store className="h-3 w-3 text-slate-500" /> Offline
                     </>
                   ) : (
                     <>
-                      <Globe className="h-3 w-3 text-slate-500" /> Platform User
+                      <Globe className="h-3 w-3 text-slate-500" /> Online
                     </>
                   )}
                 </span>
@@ -1473,6 +1518,8 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
                   <Select
                     value={viewingCustomer.approval_status || APPROVAL_STATUSES.APPROVED}
                     onValueChange={(val) => {
+                      // Re-selecting the current status changes nothing (and must not re-send the approval email).
+                      if (val === (viewingCustomer.approval_status || APPROVAL_STATUSES.APPROVED)) return;
                       setConfirmDialog({
                         customer: viewingCustomer,
                         targetStatus: val as ApprovalStatus,
@@ -1496,11 +1543,15 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
               <div className="space-y-1">
                 <span className="text-slate-400 font-medium">Official Email</span>
-                <p className="font-semibold text-slate-800">{viewingCustomer.email}</p>
+                <p className="font-semibold text-slate-800">
+                  <a href={`mailto:${viewingCustomer.email}`} className="hover:text-[#024AE5] hover:underline">{viewingCustomer.email}</a>
+                </p>
               </div>
               <div className="space-y-1">
                 <span className="text-slate-400 font-medium">Mobile Phone</span>
-                <p className="font-semibold text-slate-800">{viewingCustomer.mobile}</p>
+                <p className="font-semibold text-slate-800">
+                  <a href={telHref(viewingCustomer.mobile)} className="hover:text-[#024AE5] hover:underline">{viewingCustomer.mobile}</a>
+                </p>
               </div>
               <div className="space-y-1">
                 <span className="text-slate-400 font-medium">GSTIN</span>
@@ -1554,8 +1605,10 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
               )}
             </div>
 
+            </div>
+
             {/* Footer */}
-            <div className="flex items-center justify-end gap-3 border-t border-slate-200 pt-4 mt-6">
+            <div className="flex shrink-0 items-center justify-end gap-3 border-t border-slate-200 pt-4 mt-4">
               <Button
                 type="button"
                 variant="outline"
@@ -1565,9 +1618,32 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
               >
                 Close
               </Button>
+              <Button
+                type="button"
+                size="sm"
+                onClick={() => {
+                  setEditingCustomer(viewingCustomer);
+                  setViewingCustomer(null);
+                }}
+                className="text-xs gap-1.5"
+              >
+                <Pencil className="h-3.5 w-3.5" />
+                Edit
+              </Button>
             </div>
           </div>
         </div>
+      )}
+
+      {editingCustomer && (
+        <CustomerEditModal
+          customer={editingCustomer}
+          onClose={() => setEditingCustomer(null)}
+          onSaved={(updated) => {
+            setCustomers((prev) => prev.map((c) => (c.id === updated.id ? { ...c, ...updated } : c)));
+            setEditingCustomer(null);
+          }}
+        />
       )}
     </div>
   );
