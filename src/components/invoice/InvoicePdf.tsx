@@ -1,6 +1,6 @@
 import { Document, Image, Page, Text, View } from "@react-pdf/renderer";
 import type { Invoice, SalesSettings } from "@/types/database.types";
-import { normalizeCopies } from "@/lib/invoice";
+import { normalizeCopies, round2, type InvoiceLine, type TaxSummaryRow } from "@/lib/invoice";
 import { Money, SellerHeader, fmtDate, fmtPct, s } from "@/components/invoice/pdf-shared";
 
 /**
@@ -18,6 +18,25 @@ function MoneyPct({ value, pct }: { value: number; pct: number }) {
       <Text>({fmtPct(pct)})</Text>
     </View>
   );
+}
+
+/**
+ * Tax rows by the rate actually applied. A debit note's "GST charged too low" line
+ * is shown as the value its missing rate was charged on (e.g. ₹1,000 at 3% = ₹30),
+ * not as a ₹0 taxable value that wouldn't explain the tax.
+ */
+function taxSummaryByAppliedRate(items: InvoiceLine[]): TaxSummaryRow[] {
+  const byRate = new Map<number, TaxSummaryRow>();
+  for (const l of items) {
+    const rate = l.taxOnly ? round2(l.gstRate - l.taxOnly.chargedRate) : l.gstRate;
+    const row = byRate.get(rate) ?? { rate, taxable: 0, cgst: 0, sgst: 0, igst: 0 };
+    row.taxable = round2(row.taxable + (l.taxOnly ? l.taxOnly.base : l.taxable));
+    row.cgst = round2(row.cgst + l.cgst);
+    row.sgst = round2(row.sgst + l.sgst);
+    row.igst = round2(row.igst + l.igst);
+    byRate.set(rate, row);
+  }
+  return [...byRate.values()].sort((a, b) => a.rate - b.rate);
 }
 
 interface Col {
@@ -102,6 +121,8 @@ export function InvoicePdf({
   );
 
   const lineCell = (key: string, l: (typeof items)[number], idx: number): React.ReactNode => {
+    // A debit note's "GST charged too low" line adds no value: only the missing rate is taxed.
+    const taxPct = l.taxOnly ? l.gstRate - l.taxOnly.chargedRate : l.gstRate;
     switch (key) {
       case "idx": return String(idx + 1);
       case "name":
@@ -114,12 +135,12 @@ export function InvoicePdf({
       case "hsn": return l.hsn ?? "";
       case "qty": return String(l.quantity);
       case "unit": return l.unit;
-      case "price": return <Money value={l.unitPrice} />;
+      case "price": return l.taxOnly ? "—" : <Money value={l.unitPrice} />;
       case "disc": return <MoneyPct value={l.discountAmount} pct={l.discountPct} />;
       case "taxable": return <Money value={l.taxable} />;
-      case "cgst": return <MoneyPct value={l.cgst} pct={l.gstRate / 2} />;
-      case "sgst": return <MoneyPct value={l.sgst} pct={l.gstRate / 2} />;
-      case "igst": return <MoneyPct value={l.igst} pct={l.gstRate} />;
+      case "cgst": return <MoneyPct value={l.cgst} pct={taxPct / 2} />;
+      case "sgst": return <MoneyPct value={l.sgst} pct={taxPct / 2} />;
+      case "igst": return <MoneyPct value={l.igst} pct={taxPct} />;
       case "amount": return <Money value={l.amount} />;
       default: return "";
     }
@@ -139,7 +160,8 @@ export function InvoicePdf({
     }
   };
 
-  const taxRows = (totals.taxSummary ?? [])
+  const summary = items.some((l) => l.taxOnly) ? taxSummaryByAppliedRate(items) : totals.taxSummary ?? [];
+  const taxRows = summary
     .filter((r) => r.rate > 0)
     .flatMap((r) =>
       interState

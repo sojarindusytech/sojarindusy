@@ -142,6 +142,25 @@ describe("invoice maths", () => {
     assert.equal(placeOfSupplyFor(""), null);
   });
 
+  it("A tax-only line charges just the missing rate on the original value", () => {
+    const line = { name: "EM-12", quantity: 10, unitPrice: 999, gstRate: 18, taxOnly: { base: 1000, chargedRate: 12 } };
+    const intra = computeInvoice({ ...base, items: [line], gstEnabled: true });
+    assert.deepEqual(
+      [intra.lines[0].unitPrice, intra.lines[0].taxable, intra.lines[0].cgst, intra.lines[0].sgst, intra.lines[0].amount],
+      [0, 0, 30, 30, 60]
+    );
+    assert.deepEqual(intra.lines[0].taxOnly, { base: 1000, chargedRate: 12 });
+    assert.equal(intra.totals.total, 60);
+
+    const inter = computeInvoice({ ...base, placeOfSupplyStateCode: "27", items: [line], gstEnabled: true });
+    assert.equal(inter.lines[0].igst, 60);
+
+    // No GST billing: nothing to correct, and the line adds nothing.
+    const plain = computeInvoice({ ...base, items: [line], gstEnabled: false });
+    assert.equal(plain.lines[0].amount, 0);
+    assert.equal(plain.lines[0].taxOnly, undefined);
+  });
+
   it("An exact discount amount wins over the percentage", () => {
     const { lines, totals } = computeInvoice({
       ...base,

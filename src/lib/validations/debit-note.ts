@@ -1,6 +1,7 @@
 import { z } from "zod";
-import { DEBIT_NOTE_NUMBER_PATTERN, DEBIT_NOTE_REASONS } from "@/lib/debit-notes";
+import { DEBIT_NOTE_NUMBER_PATTERN, DEBIT_NOTE_REASONS, lineKindFor } from "@/lib/debit-notes";
 import { normalizeHsn } from "@/lib/invoice";
+import type { DebitNoteReason } from "@/types/database.types";
 
 const optionalText = (max: number) =>
   z
@@ -10,30 +11,49 @@ const optionalText = (max: number) =>
     .nullish()
     .transform((v) => (v ? v : null));
 
-const REASON_VALUES = DEBIT_NOTE_REASONS.map((r) => r.value) as [string, ...string[]];
+const hsn = z
+  .string()
+  .nullish()
+  .transform((v, ctx) => {
+    const r = normalizeHsn(v);
+    if (!r.ok) {
+      ctx.addIssue({ code: "custom", message: "HSN/SAC must be 4 to 8 digits." });
+      return z.NEVER;
+    }
+    return r.value;
+  });
 
-const lineSchema = z.object({
-  name: z.string().trim().min(1, "Every line needs an item name.").max(200, "Item name is too long."),
-  sku: optionalText(100),
-  description: optionalText(300),
-  hsn: z
-    .string()
-    .nullish()
-    .transform((v, ctx) => {
-      const r = normalizeHsn(v);
-      if (!r.ok) {
-        ctx.addIssue({ code: "custom", message: "HSN/SAC must be 4 to 8 digits." });
-        return z.NEVER;
-      }
-      return r.value;
-    }),
-  quantity: z.number().positive("Quantity must be greater than 0.").max(10_000_000),
-  unit: optionalText(20),
-  /** The amount being added per unit (e.g. the price difference), not the original price. */
-  unitPrice: z.number().positive("Rate must be greater than 0.").max(1_000_000_000),
-  /** null = the Sales Settings default. Ignored when the invoice has no GST. */
-  gstRate: z.number().min(0).max(100).nullable(),
-});
+const REASON_VALUES = DEBIT_NOTE_REASONS.map((r) => r.value) as [DebitNoteReason, ...DebitNoteReason[]];
+const lineIndex = z.number().int().min(0).max(999);
+const money = z.number().max(1_000_000_000);
+const quantity = z.number().positive("Quantity must be greater than 0.").max(10_000_000);
+const gstRate = z.number().min(0).max(100);
+
+/**
+ * One entry of the form. Lines that adjust an invoice line point at it by index;
+ * the server prices them from the stored invoice (src/lib/debit-notes.ts).
+ */
+const adjustmentSchema = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("rate"), line: lineIndex, quantity, newRate: money.positive("Enter the new rate.") }),
+  z.object({ kind: z.literal("quantity"), line: lineIndex, quantity, rate: money.positive("Enter the rate.") }),
+  z.object({
+    kind: z.literal("charge"),
+    label: z.string().trim().min(1, "Every charge needs a name, e.g. Freight charges.").max(200),
+    amount: money.positive("Enter the charge amount."),
+    gstRate: gstRate.nullable(),
+    hsn,
+  }),
+  z.object({ kind: z.literal("tax"), line: lineIndex, correctRate: gstRate }),
+  z.object({
+    kind: z.literal("custom"),
+    name: z.string().trim().min(1, "Every line needs an item name.").max(200, "Item name is too long."),
+    description: optionalText(300),
+    hsn,
+    quantity,
+    unitPrice: money.positive("Rate must be greater than 0."),
+    gstRate: gstRate.nullable(),
+  }),
+]);
 
 /** Everything the Issue Debit Note form submits. Re-validated in the database. */
 export const issueDebitNoteSchema = z
@@ -49,11 +69,15 @@ export const issueDebitNoteSchema = z
       (v) => v === null || DEBIT_NOTE_NUMBER_PATTERN.test(v),
       "Debit note numbers are up to 16 letters, digits, / and - (GST rule)."
     ),
-    lines: z.array(lineSchema).min(1, "Add at least one line.").max(200, "Too many lines."),
+    adjustments: z.array(adjustmentSchema).min(1, "Add at least one line.").max(200, "Too many lines."),
   })
   .superRefine((v, ctx) => {
     if (v.reason === "other" && (v.reasonNote?.length ?? 0) < 3) {
       ctx.addIssue({ code: "custom", path: ["reasonNote"], message: "Describe the reason in a few words." });
+    }
+    const kind = lineKindFor(v.reason);
+    if (v.adjustments.some((a) => a.kind !== kind)) {
+      ctx.addIssue({ code: "custom", path: ["adjustments"], message: "These lines don't match the selected reason." });
     }
   });
 

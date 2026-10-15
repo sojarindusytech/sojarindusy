@@ -161,6 +161,17 @@ describe("issuing debit notes", () => {
     expect((await issue(input(inv.id, { debit_note_date: daysAgo(3) }))).status).toBe("issued");
   });
 
+  it("accepts a GST-correction note that adds only tax (taxable value 0), but never an empty line", async () => {
+    const inv = await invoice();
+    const taxOnly = [{ name: "TD-8", quantity: 10, unitPrice: 0, gstRate: 28, taxOnly: { base: 1000, chargedRate: 18 } }];
+    const dn = await issue(input(inv.id, { reason: "tax_rate_correction" }, { lines: taxOnly }));
+    expect(Number(dn.total_amount)).toBe(100); // 10% of 1000
+    expect((dn.items as { taxable: number; cgst: number }[])[0]).toMatchObject({ taxable: 0, cgst: 50 });
+
+    const empty = [{ name: "TD-8", quantity: 1, unitPrice: 0, gstRate: 18 }, { name: "Freight", quantity: 1, unitPrice: 100, gstRate: 18 }];
+    await rejectsWithCode(issue(input(inv.id, {}, { lines: empty })), "INVALID_REQUEST");
+  });
+
   it("follows the invoice's GST: none on a non-GST invoice, IGST stays IGST", async () => {
     const plain = await invoice({ gst: false });
     await rejectsWithCode(issue(input(plain.id)), "TAX_MISMATCH");

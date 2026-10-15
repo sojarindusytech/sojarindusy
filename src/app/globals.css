@@ -200,6 +200,37 @@ main {
   animation: pageEnter 0.18s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
+/* Something that appears after a click (a picked invoice, a new row): slides in softly. */
+@keyframes softEnter {
+  from {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.99);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* One brief brand-blue ring to confirm a selection. */
+@keyframes selectPulse {
+  from {
+    box-shadow: 0 0 0 0 rgb(2 74 229 / 0.35);
+  }
+  to {
+    box-shadow: 0 0 0 8px rgb(2 74 229 / 0);
+  }
+}
+
+/* Use with motion-safe: so users who prefer reduced motion get no animation. */
+@utility animate-soft-enter {
+  animation: softEnter 0.24s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@utility animate-select-pulse {
+  animation: selectPulse 0.7s ease-out 1;
+}
+
 /*
  * Press feedback for everything clickable. Lives in @layer base with :where() (zero
  * specificity) so component utilities such as the Button's own active:scale-* still win,

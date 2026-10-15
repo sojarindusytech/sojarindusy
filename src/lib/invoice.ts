@@ -22,6 +22,18 @@ export interface InvoiceLineInput {
   discountAmount?: number | null;
   /** GST % for this line. Ignored (treated as 0) when GST billing is off. */
   gstRate?: number | null;
+  /**
+   * Debit note for GST charged too low: the line adds no value, only tax.
+   * Its taxable amount is 0 and its tax is `base` x (gstRate - chargedRate)%,
+   * where gstRate is the rate that was due. unitPrice and discounts are ignored.
+   */
+  taxOnly?: TaxOnlyAdjustment | null;
+}
+
+/** The invoice line value and the rate it was wrongly charged at. */
+export interface TaxOnlyAdjustment {
+  base: number;
+  chargedRate: number;
 }
 
 export interface InvoiceLine {
@@ -40,6 +52,8 @@ export interface InvoiceLine {
   sgst: number;
   igst: number;
   amount: number;
+  /** Present on an "extra GST only" line (see InvoiceLineInput.taxOnly). */
+  taxOnly?: TaxOnlyAdjustment;
 }
 
 export interface TaxSummaryRow {
@@ -125,8 +139,16 @@ export function computeInvoice(input: ComputeInvoiceInput): ComputedInvoice {
   const intraState = !seller || !supply || seller === supply;
 
   const lines: InvoiceLine[] = input.items.map((it) => {
+    const taxOnly: TaxOnlyAdjustment | null =
+      it.taxOnly && gstEnabled
+        ? {
+            base: Math.max(0, round2(Number(it.taxOnly.base) || 0)),
+            chargedRate: clamp(Number(it.taxOnly.chargedRate) || 0, 0, 100),
+          }
+        : null;
     const quantity = Math.max(0, Number(it.quantity) || 0);
-    const unitPrice = Math.max(0, Number(it.unitPrice) || 0);
+    // A tax-only line never adds value, even when GST billing is off (then it adds nothing).
+    const unitPrice = it.taxOnly ? 0 : Math.max(0, Number(it.unitPrice) || 0);
     const gross = round2(quantity * unitPrice);
     const fixedDiscount =
       it.discountAmount === null || it.discountAmount === undefined
@@ -141,16 +163,19 @@ export function computeInvoice(input: ComputeInvoiceInput): ComputedInvoice {
     const discountAmount = fixedDiscount ?? round2((gross * discountPct) / 100);
     const taxable = round2(gross - discountAmount);
     const gstRate = gstEnabled ? clamp(resolveGstRate(it.gstRate, defaultGstRate), 0, 100) : 0;
+    // A tax-only line charges just the missing rate on the original value.
+    const taxBase = taxOnly ? taxOnly.base : taxable;
+    const taxRate = taxOnly ? Math.max(0, gstRate - taxOnly.chargedRate) : gstRate;
 
     let cgst = 0;
     let sgst = 0;
     let igst = 0;
-    if (gstRate > 0) {
+    if (taxRate > 0) {
       if (intraState) {
-        cgst = round2((taxable * gstRate) / 200);
-        sgst = round2((taxable * gstRate) / 200);
+        cgst = round2((taxBase * taxRate) / 200);
+        sgst = round2((taxBase * taxRate) / 200);
       } else {
-        igst = round2((taxable * gstRate) / 100);
+        igst = round2((taxBase * taxRate) / 100);
       }
     }
 
@@ -170,6 +195,7 @@ export function computeInvoice(input: ComputeInvoiceInput): ComputedInvoice {
       sgst,
       igst,
       amount: round2(taxable + cgst + sgst + igst),
+      ...(taxOnly ? { taxOnly } : {}),
     };
   });
 

@@ -6,6 +6,7 @@ import { requireAdmin, requireUser } from "@/lib/auth-guard";
 import { loadSalesSettings } from "@/lib/sales-settings";
 import { amountInWords, computeInvoice, stateCodeOf } from "@/lib/invoice";
 import { issueDebitNoteSchema, type IssueDebitNoteInput } from "@/lib/validations/debit-note";
+import { buildDebitNoteLines } from "@/lib/debit-notes";
 import { issueDebitNote as issueDebitNoteRpc, cancelDebitNote as cancelDebitNoteRpc } from "@/lib/server/rpc";
 import { debitNoteErrorMessage } from "@/lib/server/debit-notes";
 import { filterCustomerVisibleInvoices } from "@/lib/server/invoice-access";
@@ -136,23 +137,31 @@ export async function issueDebitNote(input: IssueDebitNoteInput): Promise<Result
       loadSalesSettings(),
       db
         .from("invoices" as never)
-        .select("id, invoice_number, status, gst_enabled, place_of_supply, order_id, user_id")
+        .select("id, invoice_number, status, gst_enabled, place_of_supply, order_id, user_id, items")
         .eq("id", v.invoiceId)
         .maybeSingle(),
     ]);
     if (!settings) return { success: false, error: "Sales settings are not configured." };
     const invoice = invoiceRes.data as unknown as Pick<
-      Invoice, "id" | "invoice_number" | "status" | "gst_enabled" | "place_of_supply" | "order_id" | "user_id"
+      Invoice, "id" | "invoice_number" | "status" | "gst_enabled" | "place_of_supply" | "order_id" | "user_id" | "items"
     > | null;
     if (!invoice) return { success: false, error: "Invoice not found." };
     if (invoice.status !== "issued") {
       return { success: false, error: `Invoice ${invoice.invoice_number} is cancelled, so a debit note can't be issued against it.` };
     }
 
+    // Lines are priced from the stored invoice (billed rates, quantities, GST), not the browser.
+    const built = buildDebitNoteLines(
+      { gst_enabled: invoice.gst_enabled, items: Array.isArray(invoice.items) ? invoice.items : [] },
+      v.reason,
+      v.adjustments
+    );
+    if (!built.ok) return { success: false, error: built.error };
+
     // Same GST basis as the invoice it adjusts.
     const placeOfSupply = invoice.place_of_supply || `${settings.state_code}-${settings.state_name}`;
     const computed = computeInvoice({
-      items: v.lines.map((l) => ({ ...l, discountPct: 0 })),
+      items: built.lines,
       gstEnabled: invoice.gst_enabled,
       defaultGstRate: settings.default_gst_rate,
       sellerStateCode: settings.state_code,

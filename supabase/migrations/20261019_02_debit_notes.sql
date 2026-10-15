@@ -266,8 +266,12 @@ BEGIN
        OR coalesce(v_item ->> 'igst', '') !~ c_num_re THEN
       RAISE EXCEPTION 'INVALID_REQUEST' USING ERRCODE = 'P0001';
     END IF;
-    IF (v_item ->> 'quantity')::numeric <= 0 OR (v_item ->> 'taxable')::numeric <= 0
-       OR (v_item ->> 'gstRate')::numeric > 100 THEN
+    -- Every line adds something: value, or only tax ("GST charged too low" lines
+    -- have a taxable value of 0 and carry just the missing tax).
+    IF (v_item ->> 'quantity')::numeric <= 0
+       OR (v_item ->> 'gstRate')::numeric > 100
+       OR (v_item ->> 'taxable')::numeric + (v_item ->> 'cgst')::numeric
+          + (v_item ->> 'sgst')::numeric + (v_item ->> 'igst')::numeric <= 0 THEN
       RAISE EXCEPTION 'INVALID_REQUEST' USING ERRCODE = 'P0001';
     END IF;
     IF NOT v_inv.gst_enabled
