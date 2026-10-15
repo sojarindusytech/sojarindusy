@@ -1,9 +1,11 @@
 "use client";
 
+import { pdfViewerSrc } from "@/lib/pdf-viewer";
 import { useState } from "react";
 import { Download, Eye, Receipt } from "lucide-react";
 import type { InvoiceListRow } from "@/actions/invoice";
 import { Card } from "@/components/ui/card";
+import { IconAction } from "@/components/common/IconAction";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -64,16 +66,8 @@ export function CustomerInvoicesView({ invoices }: { invoices: InvoiceListRow[] 
                     </TableCell>
                     <TableCell className="font-mono font-bold text-slate-900">{inr(Number(inv.total_amount))}</TableCell>
                     <TableCell className="text-right pr-4 whitespace-nowrap">
-                      <Button size="sm" variant="outline" onClick={() => setViewing(inv)} className="h-7 text-[11px] border-slate-200 gap-1 text-slate-700 shadow-none hover:text-[#024AE5]">
-                        <Eye className="h-3 w-3" />
-                        <span>View</span>
-                      </Button>
-                      <Button asChild size="sm" variant="outline" className="h-7 text-[11px] border-slate-200 gap-1 text-slate-700 shadow-none hover:text-[#024AE5] ml-1.5">
-                        <a href={`/api/invoices/${inv.id}/pdf?download=1`}>
-                          <Download className="h-3 w-3" />
-                          <span>Download</span>
-                        </a>
-                      </Button>
+                      <IconAction label="View invoice" onClick={() => setViewing(inv)}><Eye /></IconAction>
+                      <IconAction label="Download invoice" href={`/api/invoices/${inv.id}/pdf?download=1`}><Download /></IconAction>
                     </TableCell>
                   </TableRow>
                 ))
@@ -85,10 +79,18 @@ export function CustomerInvoicesView({ invoices }: { invoices: InvoiceListRow[] 
 
       <Dialog open={!!viewing} onOpenChange={(o) => !o && setViewing(null)}>
         <DialogContent className="max-w-4xl h-[90vh] flex flex-col">
-          <DialogHeader>
-            <DialogTitle className="font-mono">{viewing?.invoice_number}</DialogTitle>
-            <DialogDescription>{viewing && fmtDate(viewing.invoice_date)}</DialogDescription>
-          </DialogHeader>
+          <div className="flex items-start justify-between gap-3 pr-8">
+            <DialogHeader className="min-w-0">
+              <DialogTitle className="font-mono">{viewing?.invoice_number}</DialogTitle>
+              <DialogDescription>{viewing && fmtDate(viewing.invoice_date)}</DialogDescription>
+            </DialogHeader>
+            <Button asChild size="sm" variant="outline" className="gap-1.5 shrink-0">
+              <a href={`/api/invoices/${viewing?.id}/pdf?download=1`}>
+                <Download className="h-4 w-4" />
+                Download
+              </a>
+            </Button>
+          </div>
           {viewing && (
             <div className="relative flex-1 min-h-0">
               {loadedId !== viewing.id && (
@@ -103,7 +105,7 @@ export function CustomerInvoicesView({ invoices }: { invoices: InvoiceListRow[] 
               <iframe
                 key={viewing.id}
                 title={`Invoice ${viewing.invoice_number}`}
-                src={`/api/invoices/${viewing.id}/pdf`}
+                src={pdfViewerSrc(`/api/invoices/${viewing.id}/pdf`)}
                 onLoad={() => setLoadedId(viewing.id)}
                 className="h-full w-full rounded-lg border border-slate-200 bg-slate-50"
               />

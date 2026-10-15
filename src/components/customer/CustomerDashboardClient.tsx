@@ -14,6 +14,7 @@ import { CustomerSidebar } from "./CustomerSidebar";
 import { CustomerHeader } from "./CustomerHeader";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { IconAction } from "@/components/common/IconAction";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -777,15 +778,7 @@ export function CustomerDashboardClient({
                                 </span>
                               </TableCell>
                               <TableCell className="text-right pr-4">
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() => setActiveOrderDetails(ord)}
-                                  className="h-7 text-[11px] border-slate-200 gap-1 text-slate-700 shadow-none cursor-pointer"
-                                >
-                                  <Eye className="h-3 w-3" />
-                                  <span>View</span>
-                                </Button>
+                                <IconAction label="View order" onClick={() => setActiveOrderDetails(ord)}><Eye /></IconAction>
                               </TableCell>
                             </TableRow>
                           );

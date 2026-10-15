@@ -1,5 +1,5 @@
 import { AdminComingSoon } from "@/components/admin/AdminComingSoon";
-import { DollarSign } from "lucide-react";
+import { IndianRupee } from "lucide-react";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
@@ -13,7 +13,7 @@ export default function ExpensesAdminPage() {
       section="Sales"
       title="Expense"
       description="Track manufacturing plant overheads, CNC tooling consumables, machine maintenance, and courier expenses."
-      icon={DollarSign}
+      icon={IndianRupee}
       features={[
         "Expense category classification (Electricity, Coolants, Packaging, Logistics)",
         "Receipt / bill attachment upload and OCR parsing",

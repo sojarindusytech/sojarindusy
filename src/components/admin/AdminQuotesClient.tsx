@@ -1,13 +1,17 @@
 "use client";
 
+import { PageTitle } from "@/components/common/PageTitle";
+import { pdfViewerSrc } from "@/lib/pdf-viewer";
 import React, { useEffect, useState } from "react";
 import { CommercialQuote, QuoteStatus, QuoteStatusHistoryEntry } from "@/types/database.types";
 import { QUOTE_STATUS_CONFIG } from "@/lib/constants";
 import { updateCommercialQuoteStatus, fetchCommercialQuotesList, getQuoteFormData, fetchQuoteStatusHistory, type QuoteFormData } from "@/actions/quote";
 import { QuoteFormModal } from "./QuoteFormModal";
+import { InvoiceFormModal } from "./InvoiceFormModal";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PaginationBar, usePagination } from "@/components/common/Pagination";
 import { Card } from "@/components/ui/card";
+import { IconAction } from "@/components/common/IconAction";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -50,6 +54,7 @@ import {
   RefreshCw,
   Download,
   Eye,
+  ReceiptText,
   Plus,
   IndianRupee,
   Calendar,
@@ -63,6 +68,8 @@ interface AdminQuotesClientProps {
 
 export function AdminQuotesClient({ initialQuotes }: AdminQuotesClientProps) {
   const [quotes, setQuotes] = useState<CommercialQuote[]>(initialQuotes);
+  // Quotation being turned into an invoice (opens the invoice form pre-filled).
+  const [convertingQuote, setConvertingQuote] = useState<CommercialQuote | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -99,13 +106,6 @@ export function AdminQuotesClient({ initialQuotes }: AdminQuotesClientProps) {
   // Id of the quote whose PDF has finished loading; the skeleton shows until it matches.
   const [loadedPdfId, setLoadedPdfId] = useState<string | null>(null);
 
-  // Metrics
-  const totalCount = quotes.length;
-  const totalPipelineValue = quotes.reduce((acc, q) => acc + q.total_amount, 0);
-  const acceptedQuotes = quotes.filter((q) => q.status === "accepted");
-  const acceptedValue = acceptedQuotes.reduce((acc, q) => acc + q.total_amount, 0);
-  const pendingOrSentCount = quotes.filter((q) => q.status === "sent" || q.status === "draft").length;
-
   const filteredQuotes = quotes.filter((q) => {
     if (statusFilter !== "ALL" && q.status !== statusFilter) {
       return false;
@@ -124,6 +124,13 @@ export function AdminQuotesClient({ initialQuotes }: AdminQuotesClientProps) {
     }
     return true;
   });
+
+  // Metrics: the cards follow the filters
+  const totalCount = filteredQuotes.length;
+  const totalPipelineValue = filteredQuotes.reduce((acc, q) => acc + q.total_amount, 0);
+  const acceptedQuotes = filteredQuotes.filter((q) => q.status === "accepted");
+  const acceptedValue = acceptedQuotes.reduce((acc, q) => acc + q.total_amount, 0);
+  const pendingOrSentCount = filteredQuotes.filter((q) => q.status === "sent" || q.status === "draft").length;
 
   const pager = usePagination(filteredQuotes, `${searchQuery}|${statusFilter}`);
 
@@ -166,6 +173,21 @@ export function AdminQuotesClient({ initialQuotes }: AdminQuotesClientProps) {
     }
   };
 
+  // The invoice exists: mark the quotation accepted and note which invoice it became.
+  const handleConverted = async (quote: CommercialQuote, invoiceNumber: string) => {
+    setConvertingQuote(null);
+    const note = `Converted to invoice ${invoiceNumber}`;
+    const notes = quote.admin_notes ? `${quote.admin_notes}
+${note}` : note;
+    const res = await updateCommercialQuoteStatus(quote.id, { status: "accepted", admin_notes: notes });
+    if (res.success) {
+      setQuotes((prev) => prev.map((q) => (q.id === quote.id ? { ...q, status: "accepted", admin_notes: notes, updated_at: new Date().toISOString() } : q)));
+      toast.success(`${quote.quote_number} converted to invoice ${invoiceNumber}.`);
+    } else {
+      toast.error(`Invoice ${invoiceNumber} was created, but the quotation could not be marked accepted.`);
+    }
+  };
+
   const handleSaveStatus = async () => {
     if (!selectedQuote) return;
     setIsUpdatingStatus(true);
@@ -205,10 +227,7 @@ export function AdminQuotesClient({ initialQuotes }: AdminQuotesClientProps) {
               <FileText className="w-5 h-5" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Commercial Quotes</h1>
-              <p className="text-sm text-slate-500">
-                Official price estimates, line-item valuations, GST calculations, and print-ready PDF quotations.
-              </p>
+              <PageTitle icon={FileText}>Quotes</PageTitle>
             </div>
           </div>
         </div>
@@ -346,16 +365,13 @@ export function AdminQuotesClient({ initialQuotes }: AdminQuotesClientProps) {
       {/* Commercial Quotes Table */}
       <Card className="bg-white border border-slate-200 shadow-sm rounded-xl overflow-hidden">
         <div className="overflow-x-auto [scrollbar-width:thin]">
-          <Table className="min-w-[1000px]">
+          <Table className="min-w-[760px]">
             <TableHeader className="bg-slate-50/75 border-b border-slate-200">
               <TableRow className="whitespace-nowrap">
                 <TableHead className="font-semibold text-slate-700">Quote #</TableHead>
                 <TableHead className="font-semibold text-slate-700">Date</TableHead>
-                <TableHead className="font-semibold text-slate-700">Valid Until</TableHead>
                 <TableHead className="font-semibold text-slate-700">Client</TableHead>
                 <TableHead className="font-semibold text-slate-700 text-center">Items</TableHead>
-                <TableHead className="font-semibold text-slate-700 text-right">Taxable</TableHead>
-                <TableHead className="font-semibold text-slate-700 text-right">GST</TableHead>
                 <TableHead className="font-semibold text-slate-700 text-right">Total</TableHead>
                 <TableHead className="font-semibold text-slate-700">Status</TableHead>
                 <TableHead className="font-semibold text-slate-700 text-right">Actions</TableHead>
@@ -364,7 +380,7 @@ export function AdminQuotesClient({ initialQuotes }: AdminQuotesClientProps) {
             <TableBody>
               {filteredQuotes.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={10} className="h-44 text-center">
+                  <TableCell colSpan={7} className="h-44 text-center">
                     <div className="flex flex-col items-center justify-center text-slate-400">
                       <FileText className="w-8 h-8 mb-2 text-slate-300" />
                       <p className="text-sm font-medium text-slate-600">No commercial quotations found</p>
@@ -395,7 +411,6 @@ export function AdminQuotesClient({ initialQuotes }: AdminQuotesClientProps) {
                         </button>
                       </TableCell>
                       <TableCell className="py-2.5 text-xs text-slate-600">{fmtDay(quote.quote_date)}</TableCell>
-                      <TableCell className="py-2.5 text-xs text-slate-500">{fmtDay(quote.valid_until)}</TableCell>
                       <TableCell
                         className="py-2.5 max-w-[240px] truncate text-xs font-semibold text-slate-900"
                         title={[quote.company_name, quote.contact_person, quote.mobile, quote.email, quote.gstin && `GSTIN ${quote.gstin}`].filter(Boolean).join(" · ")}
@@ -411,10 +426,6 @@ export function AdminQuotesClient({ initialQuotes }: AdminQuotesClientProps) {
                         >
                           {quote.items.length} item{quote.items.length !== 1 ? "s" : ""}
                         </button>
-                      </TableCell>
-                      <TableCell className="py-2.5 text-right font-mono text-xs text-slate-700">{money(quote.subtotal)}</TableCell>
-                      <TableCell className="py-2.5 text-right font-mono text-xs text-slate-500">
-                        {quote.gst_enabled ? money(quote.tax_amount) : "—"}
                       </TableCell>
                       <TableCell className="py-2.5 text-right font-mono font-bold text-xs text-[#024AE5]">{money(quote.total_amount)}</TableCell>
                       <TableCell className="py-2.5" title={quote.admin_notes ? `Note: ${quote.admin_notes}` : undefined}>
@@ -438,21 +449,11 @@ export function AdminQuotesClient({ initialQuotes }: AdminQuotesClientProps) {
                       </TableCell>
                       <TableCell className="py-2.5 text-right">
                         <div className="flex items-center justify-end gap-1">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setPdfQuote(quote)}
-                            className="h-7 px-2 border-[#024AE5]/30 text-[#024AE5] hover:bg-[#024AE5]/5 text-xs font-medium"
-                            title="View official PDF quotation"
-                          >
-                            <Eye className="w-3.5 h-3.5 mr-1" />
-                            PDF
-                          </Button>
-                          <Button asChild variant="ghost" size="sm" className="h-7 px-2 text-slate-600" title="Download PDF">
-                            <a href={`/api/quotes/${quote.id}/pdf?download=1`}>
-                              <Download className="w-3.5 h-3.5" />
-                            </a>
-                          </Button>
+                          <IconAction label="View quotation PDF" onClick={() => setPdfQuote(quote)}><Eye /></IconAction>
+                          <IconAction label="Download PDF" href={`/api/quotes/${quote.id}/pdf?download=1`}><Download /></IconAction>
+                          {quote.status !== "rejected" && quote.status !== "expired" && (
+                            <IconAction label="Convert to invoice" tone="primary" onClick={() => setConvertingQuote(quote)}><ReceiptText /></IconAction>
+                          )}
                         </div>
                       </TableCell>
                     </TableRow>
@@ -686,13 +687,29 @@ export function AdminQuotesClient({ initialQuotes }: AdminQuotesClientProps) {
         />
       )}
 
+      {convertingQuote && (
+        <InvoiceFormModal
+          fromQuote={convertingQuote}
+          onOpenChange={(open) => !open && setConvertingQuote(null)}
+          onSaved={(invoice) => handleConverted(convertingQuote, invoice.invoice_number)}
+        />
+      )}
+
       {/* PDF preview: the same react-pdf render that Download saves */}
       <Dialog open={!!pdfQuote} onOpenChange={(open) => !open && setPdfQuote(null)}>
         <DialogContent className="max-w-4xl h-[90vh] flex flex-col">
-          <DialogHeader>
-            <DialogTitle className="font-mono">{pdfQuote?.quote_number}</DialogTitle>
-            <DialogDescription>{pdfQuote?.company_name}</DialogDescription>
-          </DialogHeader>
+          <div className="flex items-start justify-between gap-3 pr-8">
+            <DialogHeader className="min-w-0">
+              <DialogTitle className="font-mono">{pdfQuote?.quote_number}</DialogTitle>
+              <DialogDescription>{pdfQuote?.company_name}</DialogDescription>
+            </DialogHeader>
+            <Button asChild size="sm" variant="outline" className="gap-1.5 shrink-0">
+              <a href={`/api/quotes/${pdfQuote?.id}/pdf?download=1`}>
+                <Download className="h-4 w-4" />
+                Download
+              </a>
+            </Button>
+          </div>
           {pdfQuote && (
             <div className="relative flex-1 min-h-0">
               {loadedPdfId !== pdfQuote.id && (
@@ -707,7 +724,7 @@ export function AdminQuotesClient({ initialQuotes }: AdminQuotesClientProps) {
               <iframe
                 key={pdfQuote.id}
                 title={`Quotation ${pdfQuote.quote_number}`}
-                src={`/api/quotes/${pdfQuote.id}/pdf`}
+                src={pdfViewerSrc(`/api/quotes/${pdfQuote.id}/pdf`)}
                 onLoad={() => setLoadedPdfId(pdfQuote.id)}
                 className="h-full w-full rounded-lg border border-slate-200 bg-slate-50"
               />

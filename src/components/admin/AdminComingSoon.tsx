@@ -1,3 +1,4 @@
+import { PageTitle } from "@/components/common/PageTitle";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -19,7 +20,6 @@ interface AdminComingSoonProps {
 
 export function AdminComingSoon({
   title,
-  description,
   features = [
     "Comprehensive data filtering and real-time search",
     "Bulk actions and multi-format export (Excel, CSV, PDF)",
@@ -33,14 +33,11 @@ export function AdminComingSoon({
       {/* Header */}
       <div className="border-b border-slate-200 pb-4">
         <div className="flex items-center gap-3">
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900">
-            {title}
-          </h1>
+          <PageTitle icon={Icon}>{title}</PageTitle>
           <Badge variant="warning" className="gap-1 text-[11px] font-semibold">
             <Clock className="h-3 w-3" /> Coming Soon
           </Badge>
         </div>
-        <p className="text-sm text-slate-500 mt-1">{description}</p>
       </div>
 
       {/* Coming Soon Full Width Card */}

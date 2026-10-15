@@ -3,37 +3,43 @@
 import { useEffect, useState, useTransition } from "react";
 import toast from "react-hot-toast";
 import { Search } from "lucide-react";
-import { createManualPurchaseOrder } from "@/actions/purchase-order";
-import { searchInvoiceSkus, type InvoiceSkuHit } from "@/actions/invoice";
+import { createManualPurchaseOrder, getPoManufacturerOptions } from "@/actions/purchase-order";
+import { type InvoiceSkuHit } from "@/actions/invoice";
+import { useSkuSearch } from "@/components/admin/useSkuSearch";
+import { SkuSearchStatus } from "@/components/admin/SkuSearchStatus";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 
 /** Create a purchase order by hand. The parent mounts it only while open. */
 export function PurchaseOrderFormModal({ onOpenChange, onCreated }: { onOpenChange: (open: boolean) => void; onCreated: () => void }) {
   const [pending, startTransition] = useTransition();
   const [query, setQuery] = useState("");
-  const [hits, setHits] = useState<InvoiceSkuHit[]>([]);
   const [sku, setSku] = useState<InvoiceSkuHit | null>(null);
   const [quantity, setQuantity] = useState("");
   const [notes, setNotes] = useState("");
   const [manual, setManual] = useState(false);
   const [manualNumber, setManualNumber] = useState("");
+  const [manufacturers, setManufacturers] = useState<{ id: string; name: string }[]>([]);
+  // "" = no one in particular. Starts at the Sales Settings default once that has loaded.
+  const [manufacturerId, setManufacturerId] = useState("");
+  const [optionsReady, setOptionsReady] = useState(false);
 
-  // Debounced SKU search.
   useEffect(() => {
-    const q = query.trim();
-    if (q.length < 2) return;
     let cancelled = false;
-    const t = setTimeout(() => {
-      searchInvoiceSkus(q).then((r) => { if (!cancelled) setHits(r); });
-    }, 250);
-    return () => { cancelled = true; clearTimeout(t); };
-  }, [query]);
+    getPoManufacturerOptions().then((o) => {
+      if (cancelled) return;
+      setManufacturers(o.manufacturers);
+      setManufacturerId(o.defaultId ?? "");
+      setOptionsReady(true);
+    });
+    return () => { cancelled = true; };
+  }, []);
 
-  const visibleHits = query.trim().length < 2 ? [] : hits;
+  const { hits: visibleHits, loading: skuLoading } = useSkuSearch(query);
 
   const submit = () => {
     if (!sku) return void toast.error("Select a SKU.");
@@ -43,6 +49,7 @@ export function PurchaseOrderFormModal({ onOpenChange, onCreated }: { onOpenChan
         quantity: Number(quantity),
         notes,
         manualNumber: manual ? manualNumber : null,
+        manufacturerId: manufacturerId || null,
       });
       if (res.success && res.order) {
         toast.success(`Purchase order ${res.order.order_number} created.`);
@@ -73,10 +80,11 @@ export function PurchaseOrderFormModal({ onOpenChange, onCreated }: { onOpenChan
               <div className="relative">
                 <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-slate-400" />
                 <Input placeholder="Search SKU..." value={query} onChange={(e) => setQuery(e.target.value)} className="pl-8 h-9 text-xs" />
-                {visibleHits.length > 0 && (
+                {query.trim() && (
                   <div className="absolute z-10 mt-1 w-full max-h-56 overflow-auto rounded-lg border border-slate-200 bg-white shadow-lg">
+                    {(skuLoading || visibleHits.length === 0) && <SkuSearchStatus loading={skuLoading} />}
                     {visibleHits.map((h) => (
-                      <button key={h.id} type="button" onClick={() => { setSku(h); setQuery(""); setHits([]); }} className="w-full text-left px-3 py-2 hover:bg-blue-50 text-xs">
+                      <button key={h.id} type="button" onClick={() => { setSku(h); setQuery(""); }} className="w-full text-left px-3 py-2 hover:bg-blue-50 text-xs">
                         <span className="font-bold text-slate-900">{h.sku}</span>
                         <span className="text-slate-500"> · {h.title}</span>
                       </button>
@@ -90,6 +98,19 @@ export function PurchaseOrderFormModal({ onOpenChange, onCreated }: { onOpenChan
           <div className="space-y-1.5">
             <Label>Quantity</Label>
             <Input type="number" min={1} step={1} value={quantity} onChange={(e) => setQuantity(e.target.value)} placeholder="Units to order" className="h-9 text-xs" />
+          </div>
+
+          <div className="space-y-1.5">
+            <Label>Manufacturer</Label>
+            <Select value={manufacturerId || "none"} onValueChange={(v) => setManufacturerId(v === "none" ? "" : v)} disabled={!optionsReady}>
+              <SelectTrigger className="h-9 text-xs"><SelectValue /></SelectTrigger>
+              <SelectContent className="bg-white">
+                <SelectItem value="none" className="text-xs">All manufacturers (no one in particular)</SelectItem>
+                {manufacturers.map((m) => (
+                  <SelectItem key={m.id} value={m.id} className="text-xs">{m.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="space-y-1.5">
@@ -112,7 +133,7 @@ export function PurchaseOrderFormModal({ onOpenChange, onCreated }: { onOpenChan
 
         <DialogFooter className="gap-2">
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={pending}>Cancel</Button>
-          <Button onClick={submit} disabled={pending}>{pending ? "Creating..." : "Create Purchase Order"}</Button>
+          <Button onClick={submit} disabled={pending || !optionsReady}>{pending ? "Creating..." : "Create Purchase Order"}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

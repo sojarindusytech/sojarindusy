@@ -92,6 +92,14 @@ export function normalizeCopies(input: readonly string[] | null | undefined): In
   return picked.length ? picked : ["original"];
 }
 
+/**
+ * An E-Way Bill is required when the consignment value (invoice total, tax included) is above this.
+ * Only a warning in the app: the bill itself is generated on the government portal.
+ */
+export const EWAY_BILL_THRESHOLD = 50000;
+export const EWAY_BILL_PORTAL_URL = "https://ewaybillgst.gov.in/";
+export const needsEwayBill = (invoiceTotal: number): boolean => invoiceTotal > EWAY_BILL_THRESHOLD;
+
 /** GST slabs offered in dropdowns (settings default, per-SKU rate). */
 export const GST_RATE_OPTIONS = [0, 5, 12, 18, 28, 40] as const;
 

@@ -5,7 +5,7 @@ cutting tools (end mills, drills, oscillating blades, carbide wear parts) to Ind
 
 - **Customers** register, are approved by an admin, then see prices, order, track shipments,
   request returns and submit RFQs.
-- **Admins** manage the catalogue, stock, customers, orders, dispatch, returns, RFQs, quotes,
+- **Admins** manage the catalogue, stock, customers, orders, returns, RFQs, quotes,
   coupons and purchase orders.
 - **The manufacturer** sees purchase orders raised automatically when stock runs low.
 

@@ -1,5 +1,6 @@
 "use client";
 
+import { PageTitle } from "@/components/common/PageTitle";
 import { useState, useRef, useTransition, useEffect } from "react";
 import { CategoryNode, Attribute, Tag, Product, ProductImage, ProductDocument } from "@/types/database.types";
 import { CsvDataPreviewTable } from "./CsvDataPreviewTable";
@@ -18,25 +19,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Download,
-  History,
-  CheckCircle2,
-  Sparkles,
-  ArrowRight,
-  Upload,
-  FolderTree,
-  Plus,
-  Trash2,
-  Image as ImageIcon,
-  Loader2,
-  AlertCircle,
-  Check,
-  FileText,
-  FileSpreadsheet,
-  ExternalLink,
-  Layers,
-} from "lucide-react";
+import { Download, History, CheckCircle2, Sparkles, ArrowRight, Upload, FolderTree, Plus, Trash2, Image as ImageIcon, Loader2, AlertCircle, Check, FileText, FileSpreadsheet, ExternalLink, Layers, UploadCloud } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
@@ -805,14 +788,7 @@ export function ProductUploadClient({
       {!hideHeader && (
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-slate-200 pb-5">
           <div>
-            <h1 className="text-2xl font-bold tracking-tight text-slate-900">
-              {mode === "edit" ? "Edit Product Family" : "Product Upload Wizard"}
-            </h1>
-            <p className="text-xs text-slate-500 mt-0.5">
-              {mode === "edit"
-                ? "Update family metadata, overview description, per-series descriptions, datasheets, and SKU matrices."
-                : "Add new product family, assign categories, upload datasheets, and import CSV SKU variant matrices."}
-            </p>
+            <PageTitle icon={UploadCloud}>{mode === "edit" ? "Edit Product Family" : "Product Upload Wizard"}</PageTitle>
           </div>
 
           <div className="flex items-center gap-3">

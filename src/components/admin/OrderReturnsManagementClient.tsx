@@ -1,5 +1,6 @@
 "use client";
 
+import { PageTitle } from "@/components/common/PageTitle";
 import { useState, useMemo, useEffect } from "react";
 import { Order, OrderItem } from "@/types/database.types";
 import {
@@ -9,6 +10,7 @@ import {
 } from "@/lib/constants";
 import { updateOrderStatus } from "@/actions/order";
 import { Card } from "@/components/ui/card";
+import { IconAction } from "@/components/common/IconAction";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -105,12 +107,12 @@ export function OrderReturnsManagementClient({
     });
   }, [returnRelatedOrders, searchQuery, activeTab]);
 
-  // Metrics
+  // Metrics: the cards follow the filters
   const metrics = useMemo(() => {
-    const completedReturns = returnRelatedOrders.filter(
+    const completedReturns = filteredOrders.filter(
       (o) => o.status === ORDER_STATUSES.RETURNED
     );
-    const pendingRequests = returnRelatedOrders.filter(
+    const pendingRequests = filteredOrders.filter(
       (o) => o.status !== ORDER_STATUSES.RETURNED && !!o.return_reason
     );
     const totalRestockedValue = completedReturns.reduce(
@@ -123,13 +125,13 @@ export function OrderReturnsManagementClient({
     }, 0);
 
     return {
-      totalRecords: returnRelatedOrders.length,
+      totalRecords: filteredOrders.length,
       completedReturns: completedReturns.length,
       pendingRequests: pendingRequests.length,
       totalRestockedValue,
       totalUnitsRestocked,
     };
-  }, [returnRelatedOrders]);
+  }, [filteredOrders]);
 
   const handleConfirmProcessReturn = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -175,12 +177,7 @@ export function OrderReturnsManagementClient({
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
-            Order Returns & Reverse Logistics (RMA)
-          </h1>
-          <p className="text-xs text-slate-500 mt-1">
-            Review client return requests, inspect defective consignments, verify stock restock to inventory, and manage reverse pickups.
-          </p>
+          <PageTitle icon={RotateCcw}>Order Returns</PageTitle>
         </div>
       </div>
 
@@ -418,30 +415,20 @@ export function OrderReturnsManagementClient({
                       {/* Actions */}
                       <TableCell className="text-right pr-4">
                         <div className="flex items-center justify-end gap-1.5">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => setViewOrder(ord)}
-                            className="h-7 text-[11px] border-slate-200 px-2 gap-1 text-slate-700 shadow-none cursor-pointer"
-                            title="View Consignment Details"
-                          >
-                            <Eye className="h-3 w-3" />
-                            <span>Details</span>
-                          </Button>
+                          <IconAction label="View return details" onClick={() => setViewOrder(ord)}><Eye /></IconAction>
 
-                          {!isReturned && (
-                            <Button
-                              size="sm"
-                              onClick={() => {
-                                setProcessReturnOrder(ord);
-                                setProcessReason(ord.return_reason || "");
-                              }}
-                              className="h-7 text-[11px] bg-purple-600 hover:bg-purple-700 text-white px-2.5 gap-1 shadow-none font-bold cursor-pointer"
-                            >
-                              <RotateCcw className="h-3 w-3" />
-                              <span>Process Return</span>
-                            </Button>
-                          )}
+                           {!isReturned && (
+                             <IconAction
+                               label="Process return"
+                               tone="primary"
+                               onClick={() => {
+                                 setProcessReturnOrder(ord);
+                                 setProcessReason(ord.return_reason || "");
+                               }}
+                             >
+                               <RotateCcw />
+                             </IconAction>
+                           )}
                         </div>
                       </TableCell>
                     </TableRow>

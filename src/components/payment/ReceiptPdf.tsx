@@ -2,6 +2,7 @@ import { Document, Image, Page, Text, View } from "@react-pdf/renderer";
 import type { Payment, SalesSettings } from "@/types/database.types";
 import { amountInWords } from "@/lib/invoice";
 import { modeLabel } from "@/lib/payments";
+import { documentTerms, termsParagraphs } from "@/lib/document-terms";
 import { Money, SellerHeader, fmtDate, s } from "@/components/invoice/pdf-shared";
 
 /** What the receipt shows about each invoice the payment was applied to. */
@@ -29,6 +30,7 @@ export function ReceiptPdf({
 }) {
   const cancelled = payment.status === "cancelled";
   const allocations = payment.allocations ?? [];
+  const receiptTerms = termsParagraphs(documentTerms(settings, "receipt"));
 
   return (
     <Document title={`Receipt ${payment.receipt_number}`} author={settings.company_name}>
@@ -114,17 +116,29 @@ export function ReceiptPdf({
           </View>
         ) : null}
 
-        <View style={[s.split, { marginTop: 8 }]} wrap={false}>
-          <View style={[s.half, { borderTopWidth: 1, borderRightWidth: 0, padding: 4, justifyContent: "flex-end" }]}>
-            <Text style={{ color: "#6B7280" }}>This is a computer generated receipt of payment received.</Text>
-          </View>
-          <View style={[s.half, { borderTopWidth: 1, alignItems: "center", padding: 4 }]}>
+        {/* Terms (when set) sit beside the signature so there is never an empty box next to it. */}
+        <View style={[s.split, { marginTop: 8, justifyContent: "flex-end" }]} wrap={false}>
+          {receiptTerms.length > 0 ? (
+            <View style={[s.half, { borderTopWidth: 1, borderRightWidth: 0 }]}>
+              <Text style={s.bar}>Terms and conditions</Text>
+              <View style={s.halfPad}>
+                {receiptTerms.map((p, i) => (
+                  <Text key={i} style={{ marginBottom: 4 }}>{p}</Text>
+                ))}
+              </View>
+            </View>
+          ) : null}
+          <View style={[s.half, { flex: receiptTerms.length > 0 ? 1 : 0, width: receiptTerms.length > 0 ? undefined : "50%", borderTopWidth: 1, alignItems: "center", padding: 4 }]}>
             <Text>For: {settings.company_name}</Text>
             {/* eslint-disable-next-line jsx-a11y/alt-text */}
             {settings.signature_url ? <Image src={settings.signature_url} style={s.sig} /> : <View style={{ height: 54 }} />}
             <Text style={s.bold}>Authorized Signatory</Text>
           </View>
         </View>
+
+        <Text fixed style={{ position: "absolute", bottom: 14, left: 0, right: 0, textAlign: "center", color: "#6B7280", fontSize: 8 }}>
+          This is a computer generated receipt of payment received.
+        </Text>
       </Page>
     </Document>
   );
