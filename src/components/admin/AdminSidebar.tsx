@@ -90,6 +90,7 @@ const navItems: NavSectionItem[] = [
     icon: FileSpreadsheet,
     subItems: [
       { title: "Invoice", href: "/admin/invoices" },
+      { title: "Payments Received", href: "/admin/payments-received" },
       { title: "Purchase Orders", href: "/admin/purchase-orders" },
       { title: "RFQs", href: "/admin/rfqs" },
       { title: "Quotes", href: "/admin/quotes" },

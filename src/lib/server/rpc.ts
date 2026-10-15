@@ -2,7 +2,7 @@ import "server-only";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { parseDbError, type DbAppError } from "@/lib/server/db-error";
 import type { OrderTaxSnapshot } from "@/lib/order-pricing";
-import type { CouponCheckoutContext, CouponUsageSummary, OrderStatus } from "@/types/database.types";
+import type { CouponCheckoutContext, CouponUsageSummary, OrderStatus, Payment } from "@/types/database.types";
 
 /**
  * Typed wrappers around the transactional database functions created by the
@@ -189,6 +189,34 @@ export const repostInvoiceStock = (invoiceId: string, actorId: string, oldItems:
     p_actor: actorId,
     p_old_items: oldItems,
     p_new_items: newItems,
+  });
+
+// ---- Payments received (20261018_payments) -----------------------------------------------
+
+export interface RecordPaymentPayload {
+  request_id: string;
+  user_id: string | null;
+  payer_name: string | null;
+  payment_date: string;
+  amount: number;
+  mode: string;
+  channel: "ecom" | "offline";
+  reference: string | null;
+  deposit_account: string | null;
+  remarks: string | null;
+  manual_number: string | null;
+  allocations: { kind: "invoice" | "advance" | "other"; invoice_id?: string; amount: number; note?: string | null }[];
+}
+
+/** Validates, locks the invoices, numbers and stores a receipt atomically. Returns the receipt row. */
+export const recordPayment = (payload: RecordPaymentPayload, actorId: string) =>
+  callRpc<Payment>("record_payment", { p_input: payload, p_actor: actorId });
+
+export const cancelPayment = (paymentId: string, reason: string, actorId: string) =>
+  callRpc<{ already_cancelled: boolean; receipt_number: string; amount?: number }>("cancel_payment", {
+    p_payment_id: paymentId,
+    p_reason: reason,
+    p_actor: actorId,
   });
 
 export type DocumentType = "ORD" | "PO";

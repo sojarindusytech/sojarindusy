@@ -26,7 +26,7 @@ type Form = Record<string, string | boolean>;
 const TEXT_FIELDS = [
   "company_name", "address", "gstin", "state_code", "state_name", "msme", "website", "phone", "email",
   "logo_url", "signature_url", "bank_name", "bank_address", "account_no", "ifsc", "account_holder",
-  "terms", "invoice_prefix", "po_prefix", "rfq_prefix", "quote_prefix", "credit_note_prefix", "quote_payment_terms", "quote_delivery_terms",
+  "terms", "invoice_prefix", "po_prefix", "rfq_prefix", "quote_prefix", "credit_note_prefix", "quote_payment_terms", "quote_delivery_terms", "receipt_prefix",
 ] as const;
 
 function toForm(s: SalesSettings): Form {
@@ -46,12 +46,15 @@ function toForm(s: SalesSettings): Form {
     credit_note_next_number: String(s.credit_note_next_number ?? 1),
     credit_note_pad: String(s.credit_note_pad ?? 2),
     quote_validity_days: String(s.quote_validity_days ?? 30),
+    receipt_next_number: String(s.receipt_next_number ?? 1),
+    receipt_pad: String(s.receipt_pad ?? 2),
   };
   for (const k of TEXT_FIELDS) form[k] = (s[k] as string | null) ?? "";
   form.po_prefix = s.po_prefix ?? "SI/PO";
   form.rfq_prefix = s.rfq_prefix ?? "SI/RFQ";
   form.credit_note_prefix = s.credit_note_prefix ?? "SI/CN";
   form.quote_prefix = s.quote_prefix ?? "SI/QT";
+  form.receipt_prefix = s.receipt_prefix ?? "SI/RCPT";
   return form;
 }
 
@@ -109,6 +112,10 @@ export function SalesSettingsClient({ initial }: { initial: SalesSettings }) {
   const creditCounter = Math.max(1, Number(form.credit_note_next_number) || 1);
   const creditNext = initial.credit_note_fy === fy || creditCounter !== initial.credit_note_next_number ? creditCounter : 1;
   const creditPreview = formatInvoiceNumber(text("credit_note_prefix") || "SI/CN", fy, creditNext, Number(form.credit_note_pad) || 2);
+  const receiptCounter = Math.max(1, Number(form.receipt_next_number) || 1);
+  const receiptCounterEdited = receiptCounter !== (initial.receipt_next_number ?? 1);
+  const receiptNextSeq = initial.receipt_fy === fy || receiptCounterEdited ? receiptCounter : 1;
+  const receiptPreview = formatInvoiceNumber(text("receipt_prefix") || "RCPT", fy, receiptNextSeq, Number(form.receipt_pad) || 2);
 
   const upload = async (kind: "logo" | "signature", file: File | undefined) => {
     if (!file) return;
@@ -325,6 +332,19 @@ export function SalesSettingsClient({ initial }: { initial: SalesSettings }) {
         </div>
         <p className="text-xs text-slate-600">Next credit note: <span className="font-mono font-bold text-slate-900">{creditPreview}</span> · Restarts at 1 each April.</p>
         <p className="text-[11px] text-slate-500">Choose Auto or Manual on each credit note. A manual number does not move this counter. Numbers use letters, numbers, / and - and must fit within 16 characters. Auto numbering skips numbers already used manually.</p>
+      </Card>
+
+      <Card className="p-5 space-y-4 shadow-none border-slate-200 rounded-xl">
+        <h2 className="text-sm font-bold text-slate-900">Payment Receipts</h2>
+        <div className="grid sm:grid-cols-3 gap-4">
+          {field("receipt_prefix", "Prefix")}
+          {field("receipt_next_number", "Next number", { type: "number", min: 1, step: 1 })}
+          {field("receipt_pad", "Digits", { type: "number", min: 1, max: 8, step: 1 })}
+        </div>
+        <p className="text-xs text-slate-600">
+          Next receipt: <span className="font-mono font-bold text-slate-900">{receiptPreview}</span>
+          <span className="text-slate-400"> · Restarts at 1 each April. A number typed on a single receipt doesn&apos;t move this counter.</span>
+        </p>
       </Card>
 
       <Card className="p-5 space-y-3 shadow-none border-slate-200 rounded-xl">

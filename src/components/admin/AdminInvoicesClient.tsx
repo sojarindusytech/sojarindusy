@@ -1,10 +1,10 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
-import { Calendar, Download, Eye, FilePlus2, Pencil, Receipt, Search, Settings, Ban } from "lucide-react";
+import { Calendar, Download, Eye, FilePlus2, HandCoins, Pencil, Receipt, Search, Settings, Ban } from "lucide-react";
 import type { InvoiceListRow } from "@/actions/invoice";
 import { cancelInvoice, getInvoice } from "@/actions/invoice";
 import type { Invoice } from "@/types/database.types";
@@ -28,6 +28,9 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { InvoiceFormModal } from "./InvoiceFormModal";
+import { PaymentFormModal } from "./PaymentFormModal";
+import { getPaymentFormData, type PaymentFormData } from "@/actions/payment";
+import { paymentStatusLabel } from "@/lib/payments";
 import { PaginationBar, usePagination } from "@/components/common/Pagination";
 
 const inr = (n: number) => `₹${n.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -71,6 +74,14 @@ export function AdminInvoicesClient({ initialInvoices }: { initialInvoices: Invo
   const [customFrom, setCustomFrom] = useState("");
   const [customTo, setCustomTo] = useState("");
   const [creating, setCreating] = useState(false);
+  // "Record payment" from a row: the form opens with that invoice preselected. Its data is fetched ahead of the click.
+  const [payingInvoiceId, setPayingInvoiceId] = useState<string | null>(null);
+  const [paymentData, setPaymentData] = useState<PaymentFormData | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    getPaymentFormData().then((d) => { if (!cancelled) setPaymentData(d); });
+    return () => { cancelled = true; };
+  }, []);
   // Full invoice (with lines) loaded for the edit form.
   const [editing, setEditing] = useState<Invoice | null>(null);
   const [loadingEditId, setLoadingEditId] = useState<string | null>(null);
@@ -214,6 +225,8 @@ export function AdminInvoicesClient({ initialInvoices }: { initialInvoices: Invo
                 <TableHead className="text-[11px] font-bold uppercase tracking-wider">Customer</TableHead>
                 <TableHead className="text-[11px] font-bold uppercase tracking-wider">PO</TableHead>
                 <TableHead className="text-[11px] font-bold uppercase tracking-wider text-right">Total</TableHead>
+                <TableHead className="text-[11px] font-bold uppercase tracking-wider text-right">Balance</TableHead>
+                <TableHead className="text-[11px] font-bold uppercase tracking-wider">Payment</TableHead>
                 <TableHead className="text-[11px] font-bold uppercase tracking-wider">Type</TableHead>
                 <TableHead className="text-[11px] font-bold uppercase tracking-wider">Status</TableHead>
                 <TableHead className="text-[11px] font-bold uppercase tracking-wider text-right">Actions</TableHead>
@@ -222,7 +235,7 @@ export function AdminInvoicesClient({ initialInvoices }: { initialInvoices: Invo
             <TableBody>
               {filtered.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={8} className="py-14 text-center">
+                  <TableCell colSpan={10} className="py-14 text-center">
                     <Receipt className="h-8 w-8 mx-auto text-slate-300 mb-2" />
                     <p className="text-sm font-semibold text-slate-700">
                       {initialInvoices.length === 0 ? "No invoices yet" : "No invoices match your filters"}
@@ -240,6 +253,16 @@ export function AdminInvoicesClient({ initialInvoices }: { initialInvoices: Invo
                     <TableCell className="text-xs text-slate-800 font-medium max-w-[220px] truncate">{inv.bill_to?.name}</TableCell>
                     <TableCell className="text-xs text-slate-600">{inv.po_number || "—"}</TableCell>
                     <TableCell className="text-xs font-bold text-slate-900 text-right whitespace-nowrap">{inr(Number(inv.total_amount))}</TableCell>
+                    <TableCell className="text-xs text-right whitespace-nowrap">
+                      {inv.balance === undefined || inv.status === "cancelled" ? "—" : <span className={inv.balance > 0 ? "font-semibold text-amber-700" : "text-emerald-700"}>{inr(inv.balance)}</span>}
+                    </TableCell>
+                    <TableCell>
+                      {inv.payment_status && inv.status !== "cancelled" ? (
+                        <Badge variant={inv.payment_status === "paid" ? "success" : inv.payment_status === "partial" ? "warning" : "outline"} className="text-[10px] whitespace-nowrap">
+                          {paymentStatusLabel(inv.payment_status)}
+                        </Badge>
+                      ) : "—"}
+                    </TableCell>
                     <TableCell>
                       <Badge variant="outline" className="text-[10px]">{inv.gst_enabled ? "GST" : "Non-GST"}</Badge>
                     </TableCell>
@@ -260,6 +283,11 @@ export function AdminInvoicesClient({ initialInvoices }: { initialInvoices: Invo
                           <Download className="h-4 w-4" />
                         </a>
                       </Button>
+                      {inv.status === "issued" && (inv.balance ?? 1) > 0 && (
+                        <Button variant="ghost" size="sm" className="h-8 px-2 text-emerald-700" title="Record payment" onClick={() => setPayingInvoiceId(inv.id)}>
+                          <HandCoins className="h-4 w-4" />
+                        </Button>
+                      )}
                       {inv.status === "issued" && (
                         <Button variant="ghost" size="sm" className="h-8 px-2" title="Edit invoice" disabled={loadingEditId === inv.id} onClick={() => startEdit(inv)}>
                           <Pencil className="h-4 w-4" />
@@ -279,6 +307,19 @@ export function AdminInvoicesClient({ initialInvoices }: { initialInvoices: Invo
         </div>
         <PaginationBar state={pager} noun="invoices" />
       </div>
+
+      {payingInvoiceId && (
+        <PaymentFormModal
+          data={paymentData}
+          initialInvoiceId={payingInvoiceId}
+          onOpenChange={(open) => !open && setPayingInvoiceId(null)}
+          onCreated={() => {
+            setPayingInvoiceId(null);
+            router.refresh();
+            getPaymentFormData().then(setPaymentData);
+          }}
+        />
+      )}
 
       {creating && (
         <InvoiceFormModal

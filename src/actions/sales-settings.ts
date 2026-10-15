@@ -49,6 +49,7 @@ export async function updateSalesSettings(
       return { success: false, error: "The credit note counter changed. Reload Sales Settings before editing it." };
     }
     const { credit_note_next_number, ...values } = parsed.data;
+    const receiptCounterEdited = current?.receipt_next_number !== parsed.data.receipt_next_number;
     const poCounterEdited = current?.po_next_number !== parsed.data.po_next_number;
 
     let update = createAdminClient().from("sales_settings")
@@ -57,6 +58,7 @@ export async function updateSalesSettings(
         ...(creditCounterEdited ? { credit_note_next_number, credit_note_fy: financialYear() } : {}),
         ...(counterEdited ? { invoice_fy: financialYear() } : {}),
         ...(poCounterEdited ? { po_fy: financialYear() } : {}),
+        ...(receiptCounterEdited ? { receipt_fy: financialYear() } : {}),
         ...(quoteCounterEdited ? { quote_fy: financialYear() } : {}),
         ...(rfqCounterEdited ? { rfq_fy: financialYear() } : {}),
         updated_at: new Date().toISOString(),

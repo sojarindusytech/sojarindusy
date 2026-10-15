@@ -15,6 +15,8 @@ import {
   type StockLine,
 } from "@/lib/server/rpc";
 import { shortageMessage, stockErrorMessage } from "@/lib/server/stock-errors";
+import { parseDbError } from "@/lib/server/db-error";
+import { paymentErrorMessage } from "@/lib/server/payment-errors";
 import { filterCustomerVisibleInvoices } from "@/lib/server/invoice-access";
 
 type Result<T> = ({ success: true } & T) | { success: false; error: string };
@@ -23,7 +25,18 @@ type Result<T> = ({ success: true } & T) | { success: false; error: string };
 export type InvoiceListRow = Pick<
   Invoice,
   "id" | "invoice_number" | "invoice_date" | "bill_to" | "po_number" | "gst_enabled" | "total_amount" | "status" | "order_id" | "created_at"
->;
+> & {
+  /** Money received against it (admin list only; from the invoice_payment_summary view). */
+  paid?: number;
+  balance?: number;
+  payment_status?: "unpaid" | "partial" | "paid" | "cancelled";
+};
+
+/** The two database guards that protect an invoice that has received money, in plain words. */
+function invoiceGuardMessage(error: { message?: string; details?: string | null; code?: string }): string | null {
+  const parsed = parseDbError(error);
+  return parsed.code === "INVOICE_HAS_PAYMENTS" || parsed.code === "TOTAL_BELOW_PAID" ? paymentErrorMessage(parsed) : null;
+}
 
 export interface ManualInvoicePayload {
   customerId?: string | null;
@@ -187,7 +200,18 @@ export async function listInvoices(): Promise<InvoiceListRow[]> {
     console.error("[listInvoices] Query error:", error);
     return [];
   }
-  return (data as InvoiceListRow[]) ?? [];
+  const rows = (data as InvoiceListRow[]) ?? [];
+
+  // Paid / balance / status come from the payments module.
+  const { data: sums } = await (createAdminClient().from("invoice_payment_summary" as never) as any)
+    .select("invoice_id, paid, balance, payment_status");
+  const byId = new Map<string, { paid: number | string; balance: number | string; payment_status: InvoiceListRow["payment_status"] }>(
+    ((sums as any[]) ?? []).map((r) => [r.invoice_id, r])
+  );
+  return rows.map((r) => {
+    const s = byId.get(r.id);
+    return s ? { ...r, paid: Number(s.paid), balance: Number(s.balance), payment_status: s.payment_status } : r;
+  });
 }
 
 /** The signed-in customer's own issued invoices. Never accepts a user id from the client. */
@@ -438,6 +462,8 @@ export async function updateInvoice(
       // The edit was not saved: put the stock back the way the saved invoice has it.
       if (stockAdjusted) await repostInvoiceStock(invoiceId, ctx.userId, newStock, oldStock);
       if (error.code === "23505") return { success: false, error: `Invoice number "${number}" already exists.` };
+      const guard = invoiceGuardMessage(error);
+      if (guard) return { success: false, error: guard };
       console.error("[updateInvoice] update failed:", error);
       return { success: false, error: error.message };
     }
@@ -567,7 +593,7 @@ export async function cancelInvoice(invoiceId: string): Promise<{ success: boole
     const { error } = await (db.from("invoices") as any)
       .update({ status: "cancelled", updated_at: new Date().toISOString() })
       .eq("id", invoiceId);
-    if (error) return { success: false, error: error.message };
+    if (error) return { success: false, error: invoiceGuardMessage(error) ?? error.message };
 
     // A hand-made invoice gives its units back (at most once, enforced in the database).
     if (inv.stock_owner === "invoice") {

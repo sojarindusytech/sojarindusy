@@ -15,7 +15,8 @@ const valid: SalesSettingsInput = {
   po_prefix: "SI/PO", po_next_number: 1, po_pad: 2,
   rfq_prefix: "SI/RFQ", rfq_next_number: 1, rfq_pad: 2,
   quote_prefix: "SI/QT", quote_next_number: 1, quote_pad: 2, quote_validity_days: 30,
-  credit_note_prefix: "SI/CN", credit_note_next_number: 1, credit_note_pad: 2, invoice_copies: ["original"],
+  credit_note_prefix: "SI/CN", credit_note_next_number: 1, credit_note_pad: 2,
+  receipt_prefix: "SI/RCPT", receipt_next_number: 1, receipt_pad: 2, invoice_copies: ["original"],
 };
 beforeEach(() => {
   vi.resetAllMocks();

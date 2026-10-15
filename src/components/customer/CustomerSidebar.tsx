@@ -9,6 +9,7 @@ import {
   Boxes,
   FileText,
   Receipt,
+  Wallet,
   Building2,
   Headphones,
   ShoppingBag,
@@ -85,6 +86,13 @@ export function CustomerSidebar({
       title: "Credit Notes",
       href: "/dashboard/credit-notes",
       icon: Receipt,
+      matchExact: false,
+    },
+    {
+      id: "payments",
+      title: "Payments & Receipts",
+      href: "/dashboard/payments",
+      icon: Wallet,
       matchExact: false,
     },
     {

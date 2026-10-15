@@ -87,6 +87,14 @@ export const salesSettingsSchema = z.object({
   quote_validity_days: z.coerce.number().int("Must be a whole number.").min(1, "At least 1 day.").max(365, "At most 365 days."),
   quote_payment_terms: optionalText,
   quote_delivery_terms: optionalText,
+  receipt_prefix: z
+    .string()
+    .trim()
+    .min(1, "Prefix is required.")
+    .max(20, "Prefix is too long.")
+    .regex(/^[A-Za-z0-9/\-_.]+$/, "Use letters, numbers, / - _ . only."),
+  receipt_next_number: z.coerce.number().int("Must be a whole number.").min(1, "Counter must be at least 1."),
+  receipt_pad: z.coerce.number().int().min(1).max(8),
   invoice_copies: z.array(z.enum(INVOICE_COPIES)).min(1, "Select at least one copy to print."),
 }).superRefine((value, ctx) => {
   if (value.credit_note_prefix.length + 7 + Math.max(value.credit_note_pad, String(value.credit_note_next_number).length) > 16) {

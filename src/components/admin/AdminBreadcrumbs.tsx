@@ -98,6 +98,10 @@ const routeMap: Record<string, RouteMeta> = {
     section: "Sales",
     title: "Invoice",
   },
+  "/admin/payments-received": {
+    section: "Sales",
+    title: "Payments Received",
+  },
   "/admin/settings/sales": {
     section: "Sales",
     title: "Sales Settings",
