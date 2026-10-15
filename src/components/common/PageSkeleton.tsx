@@ -1,13 +1,13 @@
 import { Skeleton } from "@/components/ui/skeleton";
 
-// Generic dashboard page skeleton: title row, stat cards, toolbar, table.
+// Generic dashboard page skeleton: icon + title row, stat cards, toolbar, table with icon-only actions.
 export function PageSkeleton({ rows = 8 }: { rows?: number }) {
   return (
     <div className="w-full space-y-6 animate-in fade-in duration-150" aria-busy="true" aria-label="Loading">
       <div className="flex items-center justify-between gap-4">
-        <div className="space-y-2">
-          <Skeleton className="h-7 w-48" />
-          <Skeleton className="h-4 w-72 max-w-full" />
+        <div className="flex items-center gap-2.5">
+          <Skeleton className="h-6 w-6 rounded-md" />
+          <Skeleton className="h-7 w-44" />
         </div>
         <Skeleton className="h-9 w-28" />
       </div>
@@ -33,6 +33,10 @@ export function PageSkeleton({ rows = 8 }: { rows?: number }) {
               <Skeleton className="h-4 flex-1" />
               <Skeleton className="h-4 w-20 hidden sm:block" />
               <Skeleton className="h-6 w-16 rounded-full" />
+              <div className="flex items-center gap-1.5">
+                <Skeleton className="h-5 w-5 rounded-md" />
+                <Skeleton className="h-5 w-5 rounded-md" />
+              </div>
             </div>
           ))}
         </div>

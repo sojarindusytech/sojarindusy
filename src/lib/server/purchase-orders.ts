@@ -5,6 +5,7 @@ import { evaluateReorder } from "@/lib/reorder";
 import { nextDocumentNumber, nextPoNumber } from "@/lib/server/rpc";
 import { parseDbError } from "@/lib/server/db-error";
 import { notifyAll } from "@/lib/server/notifications";
+import { loadSalesSettings } from "@/lib/sales-settings";
 import type { PurchaseOrder } from "@/types/database.types";
 
 /**
@@ -19,6 +20,43 @@ export async function allocatePoNumber(): Promise<string | null> {
   const fallback = await nextDocumentNumber("PO");
   return fallback.error ? null : fallback.data;
 }
+
+export interface PoManufacturer {
+  id: string;
+  name: string;
+}
+
+/** Every manufacturer account, for the Sales Settings and New Purchase Order dropdowns. */
+export async function listManufacturers(): Promise<PoManufacturer[]> {
+  const { data, error } = await createAdminClient()
+    .from("profiles")
+    .select("id, company_name, first_name, last_name, email")
+    .eq("role", "manufacturer")
+    .order("company_name", { ascending: true });
+  if (error) {
+    console.error("[listManufacturers] Query error:", error.message);
+    return [];
+  }
+  return ((data as { id: string; company_name: string | null; first_name: string | null; last_name: string | null; email: string | null }[]) ?? []).map((p) => ({
+    id: p.id,
+    name: p.company_name || `${p.first_name ?? ""} ${p.last_name ?? ""}`.trim() || p.email || "Manufacturer",
+  }));
+}
+
+export async function isManufacturer(id: string): Promise<boolean> {
+  const { data } = await createAdminClient().from("profiles").select("id").eq("id", id).eq("role", "manufacturer").maybeSingle();
+  return Boolean(data);
+}
+
+/** The manufacturer new POs go to (Sales Settings), or null while none is chosen / the account is gone. */
+export async function defaultPoManufacturerId(): Promise<string | null> {
+  const id = (await loadSalesSettings())?.po_manufacturer_id ?? null;
+  return id && (await isManufacturer(id)) ? id : null;
+}
+
+/** Notify the PO's manufacturer, or every manufacturer when the PO has none assigned. */
+export const manufacturerTarget = (manufacturerId: string | null | undefined) =>
+  manufacturerId ? { userId: manufacturerId } : { role: "manufacturer" as const };
 
 interface VariantForReorder {
   id: string;
@@ -80,6 +118,7 @@ export async function checkAndGeneratePurchaseOrder(
 
     const orderNumber = await allocatePoNumber();
     if (!orderNumber) return { created: false, reason: "Could not number the purchase order" };
+    const manufacturerId = await defaultPoManufacturerId();
     const productTitle = variant.products?.title || "Tooling Product";
 
     const { data: created, error: insertErr } = await adminDb
@@ -96,6 +135,7 @@ export async function checkAndGeneratePurchaseOrder(
         order_quantity: decision.orderQuantity,
         specifications: variant.specifications || {},
         status: "Placed",
+        manufacturer_id: manufacturerId,
         is_auto: true,
       } as never)
       .select("*")
@@ -120,7 +160,7 @@ export async function checkAndGeneratePurchaseOrder(
         metadata: { order_number: orderNumber, sku: variant.sku, quantity: decision.orderQuantity },
       },
       {
-        role: "manufacturer",
+        ...manufacturerTarget(manufacturerId),
         title: "New Production Order",
         message: `New PO #${orderNumber} placed: ${decision.orderQuantity} units of ${productTitle} (${variant.sku}).`,
         type: "purchase_order",

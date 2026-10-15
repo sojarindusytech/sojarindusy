@@ -20,15 +20,19 @@ import {
   Layers,
   X,
   LogOut,
+  ExternalLink,
   TicketPercent,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { createClient } from "@/lib/supabase/client";
+import { EWAY_BILL_PORTAL_URL } from "@/lib/invoice";
 
 interface SubItem {
   title: string;
   href: string;
+  /** Opens in a new tab (an outside site) instead of an app route. */
+  external?: boolean;
 }
 
 interface NavSectionItem {
@@ -75,7 +79,6 @@ const navItems: NavSectionItem[] = [
     subItems: [
       { title: "Order List", href: "/admin/orders" },
       { title: "Order Returns", href: "/admin/order-returns" },
-      { title: "Dispatch / Delivery", href: "/admin/dispatch" },
     ],
   },
   {
@@ -96,8 +99,7 @@ const navItems: NavSectionItem[] = [
       { title: "Quotes", href: "/admin/quotes" },
       { title: "Debit Note", href: "/admin/debit-notes" },
       { title: "Credit Note", href: "/admin/credit-notes" },
-      { title: "E-Way Bill", href: "/admin/eway-bills" },
-      { title: "Delivery (Challan)", href: "/admin/delivery-challans" },
+      { title: "E-Way Bill", href: EWAY_BILL_PORTAL_URL, external: true },
       { title: "Sales Settings", href: "/admin/settings/sales" },
     ],
   },
@@ -251,7 +253,22 @@ export function AdminSidebar({ isMobileOpen, onMobileClose }: AdminSidebarProps 
               {!collapsed && isOpen && item.subItems && (
                 <div className="pl-8 pr-2 space-y-0.5 border-l-2 border-slate-100 ml-5 py-1 animate-in fade-in-50 duration-200">
                   {item.subItems.map((sub) => {
-                    const isChildActive = pathname === sub.href || pathname.startsWith(sub.href + "/");
+                    const isChildActive = !sub.external && (pathname === sub.href || pathname.startsWith(sub.href + "/"));
+                    if (sub.external) {
+                      return (
+                        <a
+                          key={sub.href}
+                          href={sub.href}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          title="Opens the government E-Way Bill portal in a new tab"
+                          className="flex items-center justify-between gap-2 rounded-md px-3 py-1.5 text-xs font-medium text-slate-600 transition-all duration-150 hover:translate-x-0.5 hover:bg-slate-50 hover:text-slate-900"
+                        >
+                          <span className="truncate">{sub.title}</span>
+                          <ExternalLink className="h-3 w-3 shrink-0 text-slate-400" />
+                        </a>
+                      );
+                    }
                     return (
                       <Link
                         key={sub.href}
@@ -402,7 +419,22 @@ export function AdminSidebar({ isMobileOpen, onMobileClose }: AdminSidebarProps 
                     {isOpen && item.subItems && (
                       <div className="pl-8 pr-2 space-y-0.5 border-l-2 border-slate-100 ml-5 py-1 animate-in fade-in-50 duration-200">
                         {item.subItems.map((sub) => {
-                          const isChildActive = pathname === sub.href || pathname.startsWith(sub.href + "/");
+                          const isChildActive = !sub.external && (pathname === sub.href || pathname.startsWith(sub.href + "/"));
+                          if (sub.external) {
+                            return (
+                              <a
+                                key={sub.href}
+                                href={sub.href}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                onClick={onMobileClose}
+                                className="flex items-center justify-between gap-2 rounded-md px-3 py-1.5 text-xs font-medium text-slate-600 transition-all duration-150 hover:bg-slate-50 hover:text-slate-900"
+                              >
+                                <span className="truncate">{sub.title}</span>
+                                <ExternalLink className="h-3 w-3 shrink-0 text-slate-400" />
+                              </a>
+                            );
+                          }
                           return (
                             <Link
                               key={sub.href}

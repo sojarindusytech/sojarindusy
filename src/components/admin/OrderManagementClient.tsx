@@ -1,5 +1,6 @@
 "use client";
 
+import { PageTitle } from "@/components/common/PageTitle";
 import { useState, useMemo, useEffect } from "react";
 import { getOrderAmounts } from "@/lib/order-amounts";
 import { OrderDiscountRow } from "@/components/common/OrderDiscountRow";
@@ -10,7 +11,9 @@ import {
   OrderStatus,
 } from "@/lib/constants";
 import { UpdateOrderTrackingModal } from "./UpdateOrderTrackingModal";
+import { OrderNumberModal } from "./OrderNumberModal";
 import { Card } from "@/components/ui/card";
+import { IconAction } from "@/components/common/IconAction";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -36,23 +39,7 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
-import {
-  Search,
-  Truck,
-  ExternalLink,
-  Package,
-  Clock,
-  CheckCircle2,
-  AlertCircle,
-  Building2,
-  Calendar,
-  Eye,
-  Edit,
-  ArrowUpRight,
-  TrendingUp,
-  Boxes,
-  RotateCcw,
-} from "lucide-react";
+import { Search, Truck, ExternalLink, Package, Clock, CheckCircle2, AlertCircle, Building2, Calendar, Eye, Edit, ArrowUpRight, TrendingUp, Boxes, RotateCcw, Pencil, ShoppingBag } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 interface OrderManagementClientProps {
@@ -68,6 +55,9 @@ export function OrderManagementClient({ initialOrders }: OrderManagementClientPr
   useEffect(() => {
     setOrders(initialOrders);
   }, [initialOrders]);
+
+  // Order whose number is being edited
+  const [numberModalOrder, setNumberModalOrder] = useState<Order | null>(null);
 
   // Selected order for tracking update modal
   const [trackingModalOrder, setTrackingModalOrder] = useState<Order | null>(null);
@@ -135,20 +125,20 @@ export function OrderManagementClient({ initialOrders }: OrderManagementClientPr
     });
   }, [orders, searchQuery, statusFilter]);
 
-  // Metrics summary
+  // Metrics summary: the cards follow the filters
   const metrics = useMemo(() => {
-    const total = orders.length;
-    const pending = orders.filter((o) => o.status === ORDER_STATUSES.PENDING).length;
-    const confirmed = orders.filter((o) => o.status === ORDER_STATUSES.CONFIRMED).length;
-    const processing = orders.filter((o) => o.status === ORDER_STATUSES.PROCESSING).length;
-    const shipped = orders.filter((o) => o.status === ORDER_STATUSES.SHIPPED).length;
-    const delivered = orders.filter((o) => o.status === ORDER_STATUSES.DELIVERED).length;
-    const totalRevenue = orders
+    const total = filteredOrders.length;
+    const pending = filteredOrders.filter((o) => o.status === ORDER_STATUSES.PENDING).length;
+    const confirmed = filteredOrders.filter((o) => o.status === ORDER_STATUSES.CONFIRMED).length;
+    const processing = filteredOrders.filter((o) => o.status === ORDER_STATUSES.PROCESSING).length;
+    const shipped = filteredOrders.filter((o) => o.status === ORDER_STATUSES.SHIPPED).length;
+    const delivered = filteredOrders.filter((o) => o.status === ORDER_STATUSES.DELIVERED).length;
+    const totalRevenue = filteredOrders
       .filter((o) => o.status !== ORDER_STATUSES.CANCELLED)
       .reduce((acc, o) => acc + (Number(o.total_amount) || 0), 0);
 
     return { total, pending, confirmed, processing, shipped, delivered, totalRevenue };
-  }, [orders]);
+  }, [filteredOrders]);
 
   const handleRefresh = () => {
     router.refresh();
@@ -159,12 +149,7 @@ export function OrderManagementClient({ initialOrders }: OrderManagementClientPr
       {/* Top Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
-            Order Fulfillment & Logistics
-          </h1>
-          <p className="text-xs text-slate-500 mt-1">
-            Manage live purchase orders, update fulfillment stages, and attach carrier tracking numbers.
-          </p>
+          <PageTitle icon={ShoppingBag}>Order List</PageTitle>
         </div>
       </div>
 
@@ -291,8 +276,17 @@ export function OrderManagementClient({ initialOrders }: OrderManagementClientPr
                     <TableRow key={ord.id} className="hover:bg-slate-50/60 border-b border-slate-100">
                       {/* Order Number & Date */}
                       <TableCell className="py-3.5">
-                        <div className="font-mono font-bold text-xs text-[#024AE5]">
-                          #{ord.order_number}
+                        <div className="flex items-center gap-1 font-mono font-bold text-xs text-[#024AE5]">
+                          <span>#{ord.order_number}</span>
+                          <button
+                            type="button"
+                            title="Edit order number"
+                            aria-label={`Edit order number ${ord.order_number}`}
+                            onClick={() => setNumberModalOrder(ord)}
+                            className="rounded p-0.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700 cursor-pointer"
+                          >
+                            <Pencil className="h-3 w-3" />
+                          </button>
                         </div>
                         <div className="text-[11px] text-slate-400 mt-0.5">
                           {new Date(ord.created_at).toLocaleDateString("en-IN", {
@@ -394,24 +388,8 @@ export function OrderManagementClient({ initialOrders }: OrderManagementClientPr
                       {/* Actions */}
                       <TableCell className="text-right pr-4">
                         <div className="flex items-center justify-end gap-1.5">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => setViewOrder(ord)}
-                            className="h-7 text-[11px] border-slate-200 px-2 gap-1 text-slate-700 shadow-none"
-                            title="View Invoice & Line Items"
-                          >
-                            <Eye className="h-3 w-3" />
-                            <span>Details</span>
-                          </Button>
-                          <Button
-                            size="sm"
-                            onClick={() => setTrackingModalOrder(ord)}
-                            className="h-7 text-[11px] bg-[#024AE5] hover:bg-[#024AE5]/90 text-white px-2.5 gap-1 shadow-none font-bold"
-                          >
-                            <Edit className="h-3 w-3" />
-                            <span>Update</span>
-                          </Button>
+                          <IconAction label="View order details" onClick={() => setViewOrder(ord)}><Eye /></IconAction>
+                           <IconAction label="Update order status" tone="primary" onClick={() => setTrackingModalOrder(ord)}><Edit /></IconAction>
                         </div>
                       </TableCell>
                     </TableRow>
@@ -430,6 +408,19 @@ export function OrderManagementClient({ initialOrders }: OrderManagementClientPr
           onClose={() => setTrackingModalOrder(null)}
           order={trackingModalOrder}
           onSuccess={handleTrackingUpdateSuccess}
+        />
+      )}
+
+      {/* Edit Order Number Modal */}
+      {numberModalOrder && (
+        <OrderNumberModal
+          order={numberModalOrder}
+          onClose={() => setNumberModalOrder(null)}
+          onSaved={(orderId, newNumber) => {
+            setOrders((prev) => prev.map((x) => (x.id === orderId ? { ...x, order_number: newNumber } : x)));
+            setNumberModalOrder(null);
+            router.refresh();
+          }}
         />
       )}
 

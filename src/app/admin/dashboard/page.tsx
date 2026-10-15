@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { IconAction } from "@/components/common/IconAction";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import {
@@ -18,6 +19,7 @@ import {
   Users,
   ChevronRight,
   ArrowUpRight,
+  LayoutDashboard,
 } from "lucide-react";
 import Link from "next/link";
 import { Order, Profile } from "@/types/database.types";
@@ -210,12 +212,10 @@ export default async function AdminDashboardPage() {
               <ShieldCheck className="h-3 w-3 mr-1" /> Platform Owner Console
             </Badge>
           </div>
-          <h1 className="text-xl sm:text-2xl font-bold tracking-tight">
-            Welcome back, {profile?.first_name || "Admin"}
+          <h1 className="flex items-center gap-2.5 text-xl sm:text-2xl font-bold tracking-tight">
+            <LayoutDashboard className="h-6 w-6 shrink-0" />
+            <span>Dashboard</span>
           </h1>
-          <p className="text-xs text-blue-100">
-            Industrial Operations & Multi-Module Enterprise Command Center
-          </p>
         </div>
 
         <div className="flex items-center gap-3">
@@ -397,9 +397,7 @@ export default async function AdminDashboardPage() {
                     {getStatusBadge(order.status)}
                   </TableCell>
                   <TableCell className="text-right">
-                    <Button size="sm" variant="outline" className="text-xs h-7 px-2">
-                      Manage
-                    </Button>
+                    <IconAction label="Manage orders" tone="primary" href="/admin/orders"><ArrowUpRight /></IconAction>
                   </TableCell>
                 </TableRow>
               ))}

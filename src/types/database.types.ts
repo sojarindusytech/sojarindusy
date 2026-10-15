@@ -284,12 +284,18 @@ export interface SalesSettings {
   invoice_fy: string | null;
   invoice_next_number: number;
   invoice_pad: number;
+  /** Terms printed on quotations. null = use `terms`. */
+  quote_terms?: string | null;
+  /** Note printed on payment receipts. null = none. */
+  receipt_terms?: string | null;
   /** Hand-made invoices reduce SKU stock when issued (order invoices are unaffected). */
   invoice_reduces_stock: boolean;
   po_prefix: string;
   po_fy: string | null;
   po_next_number: number;
   po_pad: number;
+  /** Manufacturer account that receives new purchase orders. null = every manufacturer sees them. */
+  po_manufacturer_id?: string | null;
   rfq_prefix: string;
   rfq_fy: string | null;
   rfq_next_number: number;
@@ -306,6 +312,10 @@ export interface SalesSettings {
   debit_note_fy: string | null;
   debit_note_next_number: number;
   debit_note_pad: number;
+  order_prefix: string;
+  order_fy: string | null;
+  order_next_number: number;
+  order_pad: number;
   quote_validity_days: number;
   quote_payment_terms: string | null;
   quote_delivery_terms: string | null;
@@ -565,6 +575,8 @@ export interface PurchaseOrder {
   specifications: Record<string, any>;
   status: PurchaseOrderStatus;
   manufacturer_id?: string | null;
+  /** Joined for the admin list. */
+  manufacturer?: { id: string; company_name: string | null; first_name: string | null; last_name: string | null; email?: string | null } | null;
   notes?: string | null;
   placed_at: string;
   dispatched_at?: string | null;

@@ -1,9 +1,10 @@
 "use client";
 
+import { PageTitle } from "@/components/common/PageTitle";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
-import { Save, Upload } from "lucide-react";
+import { Save, Upload, Settings } from "lucide-react";
 import type { SalesSettings } from "@/types/database.types";
 import { updateSalesSettings, uploadInvoiceAsset } from "@/actions/sales-settings";
 import { financialYear, formatInvoiceNumber, GST_RATE_OPTIONS, INVOICE_COPIES, normalizeCopies, type InvoiceCopy } from "@/lib/invoice";
@@ -15,11 +16,25 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
-const COPY_OPTIONS: Record<InvoiceCopy, { label: string; hint: string }> = {
-  original: { label: "Original", hint: "For the recipient (buyer)" },
-  duplicate: { label: "Duplicate", hint: "For the transporter" },
-  triplicate: { label: "Triplicate", hint: "For the supplier (your records)" },
+const COPY_OPTIONS: Record<InvoiceCopy, { label: string }> = {
+  original: { label: "Original" },
+  duplicate: { label: "Duplicate" },
+  triplicate: { label: "Triplicate" },
 };
+
+type NumberingKey = "invoice" | "quote" | "rfq" | "po" | "receipt" | "order" | "debit_note";
+
+/** One row per numbered document in the Document Numbering table. */
+const NUMBERING_ROWS: { key: NumberingKey; label: string; fallback: string; maxLength?: number }[] = [
+  { key: "invoice", label: "Invoice", fallback: "INV" },
+  { key: "quote", label: "Quotation", fallback: "QT" },
+  { key: "rfq", label: "RFQ", fallback: "RFQ" },
+  { key: "po", label: "Purchase Order", fallback: "PO" },
+  { key: "receipt", label: "Payment Receipt", fallback: "RCPT" },
+  { key: "order", label: "Order", fallback: "ORD" },
+  // GST Rule 53: a debit note number is at most 16 characters.
+  { key: "debit_note", label: "Debit Note", fallback: "DN", maxLength: MAX_DEBIT_NOTE_NUMBER_LENGTH },
+];
 
 // Form values are strings so empty inputs stay empty; the server schema coerces.
 type Form = Record<string, string | boolean>;
@@ -27,7 +42,7 @@ type Form = Record<string, string | boolean>;
 const TEXT_FIELDS = [
   "company_name", "address", "gstin", "state_code", "state_name", "msme", "website", "phone", "email",
   "logo_url", "signature_url", "bank_name", "bank_address", "account_no", "ifsc", "account_holder",
-  "terms", "invoice_prefix", "po_prefix", "rfq_prefix", "quote_prefix", "quote_payment_terms", "quote_delivery_terms", "receipt_prefix",
+  "terms", "quote_terms", "receipt_terms", "invoice_prefix", "po_prefix", "rfq_prefix", "quote_prefix", "quote_payment_terms", "quote_delivery_terms", "receipt_prefix", "order_prefix",
   "debit_note_prefix",
 ] as const;
 
@@ -49,6 +64,9 @@ function toForm(s: SalesSettings): Form {
     receipt_pad: String(s.receipt_pad ?? 2),
     debit_note_next_number: String(s.debit_note_next_number ?? 1),
     debit_note_pad: String(s.debit_note_pad ?? 2),
+    order_next_number: String(s.order_next_number ?? 1),
+    order_pad: String(s.order_pad ?? 2),
+    po_manufacturer_id: s.po_manufacturer_id ?? "",
   };
   for (const k of TEXT_FIELDS) form[k] = (s[k] as string | null) ?? "";
   form.po_prefix = s.po_prefix ?? "SI/PO";
@@ -56,10 +74,11 @@ function toForm(s: SalesSettings): Form {
   form.quote_prefix = s.quote_prefix ?? "SI/QT";
   form.receipt_prefix = s.receipt_prefix ?? "SI/RCPT";
   form.debit_note_prefix = s.debit_note_prefix ?? "SI/DN";
+  form.order_prefix = s.order_prefix ?? "SI/ORD";
   return form;
 }
 
-export function SalesSettingsClient({ initial }: { initial: SalesSettings }) {
+export function SalesSettingsClient({ initial, manufacturers }: { initial: SalesSettings; manufacturers: { id: string; name: string }[] }) {
   const router = useRouter();
   const [form, setForm] = useState<Form>(() => toForm(initial));
   const [copies, setCopies] = useState<InvoiceCopy[]>(() => normalizeCopies(initial.invoice_copies));
@@ -86,40 +105,16 @@ export function SalesSettingsClient({ initial }: { initial: SalesSettings }) {
     </div>
   );
 
-  // Preview what the next auto number will be. A stale FY resets the counter to 1
-  // unless the admin edits the counter in this save (the action stamps the FY).
+  // Document numbering table. A stale financial year resets a counter to 1 unless the admin edits it in
+  // this save (the save action stamps the year), so the preview follows the same rule as the database.
   const fy = financialYear();
-  const counter = Math.max(1, Number(form.invoice_next_number) || 1);
-  const counterEdited = counter !== initial.invoice_next_number;
-  const nextSeq = initial.invoice_fy === fy || counterEdited ? counter : 1;
-  const preview = formatInvoiceNumber(text("invoice_prefix") || "INV", fy, nextSeq, Number(form.invoice_pad) || 2);
-
-  // Same rule as invoices: a stale FY resets the counter to 1 unless the admin edits it in this save.
-  const poCounter = Math.max(1, Number(form.po_next_number) || 1);
-  const poCounterEdited = poCounter !== (initial.po_next_number ?? 1);
-  const poNextSeq = initial.po_fy === fy || poCounterEdited ? poCounter : 1;
-  const poPreview = formatInvoiceNumber(text("po_prefix") || "PO", fy, poNextSeq, Number(form.po_pad) || 2);
-
-  const rfqCounter = Math.max(1, Number(form.rfq_next_number) || 1);
-  const rfqCounterEdited = rfqCounter !== (initial.rfq_next_number ?? 1);
-  const rfqNextSeq = initial.rfq_fy === fy || rfqCounterEdited ? rfqCounter : 1;
-  const rfqPreview = formatInvoiceNumber(text("rfq_prefix") || "RFQ", fy, rfqNextSeq, Number(form.rfq_pad) || 2);
-
-  const quoteCounter = Math.max(1, Number(form.quote_next_number) || 1);
-  const quoteCounterEdited = quoteCounter !== (initial.quote_next_number ?? 1);
-  const quoteNextSeq = initial.quote_fy === fy || quoteCounterEdited ? quoteCounter : 1;
-  const quotePreview = formatInvoiceNumber(text("quote_prefix") || "QT", fy, quoteNextSeq, Number(form.quote_pad) || 2);
-
-  const receiptCounter = Math.max(1, Number(form.receipt_next_number) || 1);
-  const receiptCounterEdited = receiptCounter !== (initial.receipt_next_number ?? 1);
-  const receiptNextSeq = initial.receipt_fy === fy || receiptCounterEdited ? receiptCounter : 1;
-  const receiptPreview = formatInvoiceNumber(text("receipt_prefix") || "RCPT", fy, receiptNextSeq, Number(form.receipt_pad) || 2);
-
-  const debitNoteCounter = Math.max(1, Number(form.debit_note_next_number) || 1);
-  const debitNoteCounterEdited = debitNoteCounter !== (initial.debit_note_next_number ?? 1);
-  const debitNoteNextSeq = initial.debit_note_fy === fy || debitNoteCounterEdited ? debitNoteCounter : 1;
-  const debitNotePreview = formatInvoiceNumber(text("debit_note_prefix") || "DN", fy, debitNoteNextSeq, Number(form.debit_note_pad) || 2);
-  const debitNoteTooLong = debitNotePreview.length > MAX_DEBIT_NOTE_NUMBER_LENGTH;
+  const initialRec = initial as unknown as Record<string, unknown>;
+  const nextPreview = (key: NumberingKey, fallback: string) => {
+    const counter = Math.max(1, Number(form[`${key}_next_number`]) || 1);
+    const edited = counter !== (Number(initialRec[`${key}_next_number`]) || 1);
+    const seq = initialRec[`${key}_fy`] === fy || edited ? counter : 1;
+    return formatInvoiceNumber(text(`${key}_prefix`) || fallback, fy, seq, Number(form[`${key}_pad`]) || 2);
+  };
 
   const upload = async (kind: "logo" | "signature", file: File | undefined) => {
     if (!file) return;
@@ -190,8 +185,7 @@ export function SalesSettingsClient({ initial }: { initial: SalesSettings }) {
     <div className="space-y-6 w-full">
       <div className="flex items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Sales Settings</h1>
-          <p className="text-xs text-slate-500 mt-1">Company details, GST billing and invoice numbering used on every invoice.</p>
+          <PageTitle icon={Settings}>Sales Settings</PageTitle>
         </div>
         <Button onClick={save} disabled={pending} className="gap-1.5">
           <Save className="h-4 w-4" />
@@ -209,10 +203,7 @@ export function SalesSettingsClient({ initial }: { initial: SalesSettings }) {
             className="mt-0.5 h-4 w-4 accent-[#024AE5]"
           />
           <span>
-            <span className="block text-sm font-semibold text-slate-900">Bill with GST</span>
-            <span className="block text-xs text-slate-500">
-              Default for new invoices. Turn off for non-GST billing (plain invoice, no tax). Each invoice can still override this when created.
-            </span>
+            <span className="block text-sm font-semibold text-slate-900">Bill with GST by default (admin invoices &amp; quotes)</span>
           </span>
         </label>
         <label className="flex items-start gap-3 cursor-pointer">
@@ -224,11 +215,6 @@ export function SalesSettingsClient({ initial }: { initial: SalesSettings }) {
           />
           <span>
             <span className="block text-sm font-semibold text-slate-900">Reduce stock when an invoice is issued</span>
-            <span className="block text-xs text-slate-500">
-              Hand-made invoices take their SKU units off the shelf (and give them back if cancelled); an invoice that would
-              take more than is available is refused. Invoices raised from orders are not affected: an order takes its stock
-              out when you set it to Shipped.
-            </span>
           </span>
         </label>
         <div className="grid sm:grid-cols-2 gap-4">
@@ -249,105 +235,88 @@ export function SalesSettingsClient({ initial }: { initial: SalesSettings }) {
             {errors.default_gst_rate && <p className="text-[11px] text-red-600">{errors.default_gst_rate}</p>}
           </div>
         </div>
-        <p className="text-[11px] text-slate-500">Used for any SKU without its own GST % (set per SKU in Product Management).</p>
+      </Card>
+
+      <Card className="p-5 space-y-3 shadow-none border-slate-200 rounded-xl">
+        <h2 className="text-sm font-bold text-slate-900">Document Numbering</h2>
+
+        <div className="overflow-x-auto rounded-lg border border-slate-200">
+          <table className="w-full min-w-[760px] text-xs">
+            <thead className="bg-slate-50 text-[11px] uppercase tracking-wider text-slate-500">
+              <tr>
+                <th className="text-left p-2.5 font-bold">Document</th>
+                <th className="text-left p-2.5 font-bold w-40">Prefix</th>
+                <th className="text-left p-2.5 font-bold w-32">Next number</th>
+                <th className="text-left p-2.5 font-bold w-24">Digits</th>
+                <th className="text-left p-2.5 font-bold">Next will be</th>
+              </tr>
+            </thead>
+            <tbody>
+              {NUMBERING_ROWS.map((row) => {
+                const err = errors[`${row.key}_prefix`] || errors[`${row.key}_next_number`] || errors[`${row.key}_pad`];
+                const next = nextPreview(row.key, row.fallback);
+                const tooLong = row.maxLength !== undefined && next.length > row.maxLength;
+                return (
+                  <tr key={row.key} className="border-t border-slate-100 align-top">
+                    <td className="p-2.5">
+                      <div className="font-semibold text-slate-900">{row.label}</div>
+                    </td>
+                    <td className="p-2">
+                      <Input aria-label={`${row.label} prefix`} value={text(`${row.key}_prefix`)} onChange={(e) => set(`${row.key}_prefix`, e.target.value)} className="h-8 text-xs font-mono" />
+                    </td>
+                    <td className="p-2">
+                      <Input aria-label={`${row.label} next number`} type="number" min={1} step={1} value={text(`${row.key}_next_number`)} onChange={(e) => set(`${row.key}_next_number`, e.target.value)} className="h-8 text-xs [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
+                    </td>
+                    <td className="p-2">
+                      <Input aria-label={`${row.label} digits`} type="number" min={1} max={8} step={1} value={text(`${row.key}_pad`)} onChange={(e) => set(`${row.key}_pad`, e.target.value)} className="h-8 text-xs [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
+                    </td>
+                    <td className="p-2.5">
+                      <span className={`font-mono font-bold ${tooLong ? "text-red-600" : "text-slate-900"}`}>{next}</span>
+                      {tooLong && !err && (
+                        <p className="text-[11px] text-red-600 mt-0.5">
+                          GST allows at most {row.maxLength} characters (letters, digits, / and -). Shorten the prefix or use fewer digits.
+                        </p>
+                      )}
+                      {err && <p className="text-[11px] text-red-600 mt-0.5">{err}</p>}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
       </Card>
 
       <Card className="p-5 space-y-4 shadow-none border-slate-200 rounded-xl">
-        <h2 className="text-sm font-bold text-slate-900">Invoice Numbering</h2>
-        <div className="grid sm:grid-cols-3 gap-4">
-          {field("invoice_prefix", "Prefix")}
-          {field("invoice_next_number", "Next number", { type: "number", min: 1, step: 1 })}
-          {field("invoice_pad", "Digits", { type: "number", min: 1, max: 8, step: 1 })}
+        <h2 className="text-sm font-bold text-slate-900">Purchase Orders</h2>
+        <div className="grid sm:grid-cols-2 gap-4">
+          <div className="space-y-1.5">
+            <Label>Manufacturer</Label>
+            <Select value={text("po_manufacturer_id") || "none"} onValueChange={(v) => set("po_manufacturer_id", v === "none" ? "" : v)}>
+              <SelectTrigger className="h-9 text-sm"><SelectValue placeholder="Select manufacturer" /></SelectTrigger>
+              <SelectContent className="bg-white">
+                <SelectItem value="none" className="text-sm">All manufacturers (no one in particular)</SelectItem>
+                {manufacturers.map((m) => (
+                  <SelectItem key={m.id} value={m.id} className="text-sm">{m.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {errors.po_manufacturer_id && <p className="text-[11px] text-red-600">{errors.po_manufacturer_id}</p>}
+          </div>
         </div>
-        <p className="text-xs text-slate-600">
-          Next invoice: <span className="font-mono font-bold text-slate-900">{preview}</span>
-          <span className="text-slate-400"> · Financial year {fy} (April–March); the counter restarts at 1 each April.</span>
-        </p>
-        <p className="text-[11px] text-slate-500">You can also type a custom number on any single invoice; it doesn&apos;t move this counter.</p>
       </Card>
 
       <Card className="p-5 space-y-4 shadow-none border-slate-200 rounded-xl">
-        <h2 className="text-sm font-bold text-slate-900">Purchase Order Numbering</h2>
-        <div className="grid sm:grid-cols-3 gap-4">
-          {field("po_prefix", "Prefix")}
-          {field("po_next_number", "Next number", { type: "number", min: 1, step: 1 })}
-          {field("po_pad", "Digits", { type: "number", min: 1, max: 8, step: 1 })}
-        </div>
-        <p className="text-xs text-slate-600">
-          Next purchase order: <span className="font-mono font-bold text-slate-900">{poPreview}</span>
-          <span className="text-slate-400"> · Used for automatic low-stock POs and new POs created without a typed number. Restarts at 1 each April.</span>
-        </p>
-        <p className="text-[11px] text-slate-500">You can also type a custom PO number when creating a purchase order by hand; it doesn&apos;t move this counter.</p>
-      </Card>
-
-      <Card className="p-5 space-y-4 shadow-none border-slate-200 rounded-xl">
-        <h2 className="text-sm font-bold text-slate-900">RFQ Numbering</h2>
-        <div className="grid sm:grid-cols-3 gap-4">
-          {field("rfq_prefix", "Prefix")}
-          {field("rfq_next_number", "Next number", { type: "number", min: 1, step: 1 })}
-          {field("rfq_pad", "Digits", { type: "number", min: 1, max: 8, step: 1 })}
-        </div>
-        <p className="text-xs text-slate-600">
-          Next RFQ: <span className="font-mono font-bold text-slate-900">{rfqPreview}</span>
-          <span className="text-slate-400"> · Used for customer-submitted RFQs and RFQs created without a typed number. Restarts at 1 each April.</span>
-        </p>
-        <p className="text-[11px] text-slate-500">You can also type a custom RFQ number when creating an RFQ by hand; it doesn&apos;t move this counter.</p>
-      </Card>
-
-      <Card className="p-5 space-y-4 shadow-none border-slate-200 rounded-xl">
-        <h2 className="text-sm font-bold text-slate-900">Quotations</h2>
-        <div className="grid sm:grid-cols-3 gap-4">
-          {field("quote_prefix", "Prefix")}
-          {field("quote_next_number", "Next number", { type: "number", min: 1, step: 1 })}
-          {field("quote_pad", "Digits", { type: "number", min: 1, max: 8, step: 1 })}
-        </div>
-        <p className="text-xs text-slate-600">
-          Next quotation: <span className="font-mono font-bold text-slate-900">{quotePreview}</span>
-          <span className="text-slate-400"> · Restarts at 1 each April. A number typed on a single quotation doesn&apos;t move this counter.</span>
-        </p>
+        <h2 className="text-sm font-bold text-slate-900">Quotation Defaults</h2>
         <div className="grid sm:grid-cols-3 gap-4">
           {field("quote_validity_days", "Validity (days)", { type: "number", min: 1, max: 365, step: 1 })}
           {field("quote_payment_terms", "Default payment terms")}
           {field("quote_delivery_terms", "Default delivery terms")}
         </div>
-        <p className="text-[11px] text-slate-500">These prefill every new quotation and can be changed on each one.</p>
-      </Card>
-
-      <Card className="p-5 space-y-4 shadow-none border-slate-200 rounded-xl">
-        <h2 className="text-sm font-bold text-slate-900">Payment Receipts</h2>
-        <div className="grid sm:grid-cols-3 gap-4">
-          {field("receipt_prefix", "Prefix")}
-          {field("receipt_next_number", "Next number", { type: "number", min: 1, step: 1 })}
-          {field("receipt_pad", "Digits", { type: "number", min: 1, max: 8, step: 1 })}
-        </div>
-        <p className="text-xs text-slate-600">
-          Next receipt: <span className="font-mono font-bold text-slate-900">{receiptPreview}</span>
-          <span className="text-slate-400"> · Restarts at 1 each April. A number typed on a single receipt doesn&apos;t move this counter.</span>
-        </p>
-      </Card>
-
-      <Card className="p-5 space-y-4 shadow-none border-slate-200 rounded-xl">
-        <h2 className="text-sm font-bold text-slate-900">Debit Notes</h2>
-        <div className="grid sm:grid-cols-3 gap-4">
-          {field("debit_note_prefix", "Prefix")}
-          {field("debit_note_next_number", "Next number", { type: "number", min: 1, step: 1 })}
-          {field("debit_note_pad", "Digits", { type: "number", min: 1, max: 8, step: 1 })}
-        </div>
-        <p className="text-xs text-slate-600">
-          Next debit note: <span className={`font-mono font-bold ${debitNoteTooLong ? "text-red-600" : "text-slate-900"}`}>{debitNotePreview}</span>
-          <span className="text-slate-400"> · Restarts at 1 each April. A number typed on a single debit note doesn&apos;t move this counter.</span>
-        </p>
-        <p className={`text-[11px] ${debitNoteTooLong ? "text-red-600" : "text-slate-500"}`}>
-          GST allows at most {MAX_DEBIT_NOTE_NUMBER_LENGTH} characters (letters, digits, / and -) in a debit note number
-          {debitNoteTooLong ? `; this one has ${debitNotePreview.length}. Shorten the prefix or use fewer digits.` : "."}
-        </p>
       </Card>
 
       <Card className="p-5 space-y-3 shadow-none border-slate-200 rounded-xl">
         <h2 className="text-sm font-bold text-slate-900">Invoice Copies</h2>
-        <p className="text-[11px] text-slate-500">
-          Each ticked copy is printed as its own set of pages in the invoice PDF, marked ORIGINAL, DUPLICATE or TRIPLICATE at the top right.
-        </p>
         <div className="grid sm:grid-cols-3 gap-3">
           {INVOICE_COPIES.map((c) => {
             const checked = copies.includes(c);
@@ -363,7 +332,6 @@ export function SalesSettingsClient({ initial }: { initial: SalesSettings }) {
                 />
                 <span>
                   <span className="block text-sm font-semibold text-slate-900">{COPY_OPTIONS[c].label}</span>
-                  <span className="block text-xs text-slate-500">{COPY_OPTIONS[c].hint}</span>
                 </span>
               </label>
             );
@@ -394,7 +362,7 @@ export function SalesSettingsClient({ initial }: { initial: SalesSettings }) {
       </Card>
 
       <Card className="p-5 space-y-4 shadow-none border-slate-200 rounded-xl">
-        <h2 className="text-sm font-bold text-slate-900">Bank Details & Terms</h2>
+        <h2 className="text-sm font-bold text-slate-900">Bank Details</h2>
         <div className="grid sm:grid-cols-2 gap-4">
           {field("bank_name", "Bank name")}
           {field("account_holder", "Account holder")}
@@ -402,7 +370,19 @@ export function SalesSettingsClient({ initial }: { initial: SalesSettings }) {
           {field("ifsc", "IFSC")}
         </div>
         {area("bank_address", "Bank address", 2)}
-        {area("terms", "Terms & conditions", 8)}
+      </Card>
+
+      <Card className="p-5 space-y-4 shadow-none border-slate-200 rounded-xl">
+        <h2 className="text-sm font-bold text-slate-900">Terms & Conditions</h2>
+        <div className="space-y-1">
+          {area("terms", "Invoice terms & conditions", 7)}
+        </div>
+        <div className="space-y-1">
+          {area("quote_terms", "Quotation terms & conditions", 7)}
+        </div>
+        <div className="space-y-1">
+          {area("receipt_terms", "Payment receipt note", 4)}
+        </div>
       </Card>
     </div>
   );

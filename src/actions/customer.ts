@@ -329,6 +329,113 @@ export async function createOfflineCustomer(formData: FormData): Promise<{
   };
 }
 
+export interface AdminCustomerUpdate {
+  title: UserTitle;
+  first_name: string;
+  last_name: string;
+  company_name: string;
+  designation: string;
+  department: string;
+  mobile: string;
+  landline: string;
+  gstin: string;
+  company_address: string;
+  additional_address: string;
+  city: string;
+  state: string;
+  pincode: string;
+  /** Blank = no credit terms (prepaid). */
+  credit_limit: string;
+  credit_days: string;
+  notes: string;
+}
+
+const GSTIN_RE = /^\d{2}[A-Z]{5}\d{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/;
+
+/**
+ * Admin edit of a customer's profile. Email, account type and approval status are not editable here:
+ * the email is the login, and approval has its own action with its own notification.
+ */
+export async function adminUpdateCustomer(
+  customerId: string,
+  input: AdminCustomerUpdate
+): Promise<{ success: boolean; error?: string; customer?: Profile }> {
+  await requireAdmin();
+  const supabase = createAdminClient();
+
+  const t = (v: unknown) => (typeof v === "string" ? v.trim() : "");
+  const first = t(input.first_name);
+  const last = t(input.last_name);
+  const company = t(input.company_name);
+  const mobile = t(input.mobile);
+  const address = t(input.company_address);
+  const city = t(input.city);
+  const state = t(input.state);
+  const pincode = t(input.pincode);
+  const gstin = t(input.gstin).toUpperCase();
+
+  if (!(USER_TITLES as readonly string[]).includes(input.title)) return { success: false, error: "Select a valid title." };
+  if (!first || !last || !company || !mobile || !address || !city || !state || !pincode) {
+    return { success: false, error: "Please fill in all required fields marked with an asterisk (*)." };
+  }
+  if (!/^[0-9+\-\s()]{7,20}$/.test(mobile)) return { success: false, error: "Enter a valid mobile number." };
+  if (gstin && !GSTIN_RE.test(gstin)) return { success: false, error: "Enter a valid 15-character GSTIN, or leave it blank." };
+
+  const parseCredit = (raw: string, label: string): { value: number | null } | { error: string } => {
+    const v = t(raw);
+    if (v === "") return { value: null };
+    const n = Number(v);
+    return Number.isFinite(n) && n >= 0 ? { value: n } : { error: `${label} must be zero or more.` };
+  };
+  const limit = parseCredit(input.credit_limit, "Credit limit");
+  if ("error" in limit) return { success: false, error: limit.error };
+  const days = parseCredit(input.credit_days, "Credit days");
+  if ("error" in days) return { success: false, error: days.error };
+
+  const { data: existing } = await supabase.from("profiles").select("id, role").eq("id", customerId).maybeSingle();
+  const target = existing as { id: string; role: string } | null;
+  if (!target) return { success: false, error: "Customer not found." };
+  if (target.role === "admin" || target.role === "platform_owner") {
+    return { success: false, error: "Administrator accounts cannot be edited here." };
+  }
+
+  const payload = {
+    title: input.title,
+    first_name: first,
+    last_name: last,
+    company_name: company,
+    designation: t(input.designation) || "Commercial Contact",
+    department: t(input.department) || "Procurement",
+    mobile,
+    landline: t(input.landline) || null,
+    gstin: gstin || null,
+    company_address: address,
+    additional_address: t(input.additional_address) || null,
+    city,
+    state,
+    pincode,
+    credit_limit: limit.value,
+    credit_days: days.value,
+    notes: t(input.notes) || null,
+    updated_at: new Date().toISOString(),
+  };
+
+  const { data, error } = await supabase
+    .from("profiles")
+    .update(payload as never)
+    .eq("id", customerId)
+    .select("*")
+    .single();
+  if (error) {
+    console.error("[adminUpdateCustomer]", error.code, error.message);
+    // Admin-only action: show the real reason so a database problem is diagnosable from the screen.
+    return { success: false, error: `Could not save the changes: ${error.message}` };
+  }
+
+  revalidatePath("/admin/customers");
+  return { success: true, customer: data as unknown as Profile };
+}
+
 /**
  * Update authenticated customer's profile & company data
  */

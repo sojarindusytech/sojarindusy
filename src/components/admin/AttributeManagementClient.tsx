@@ -1,9 +1,11 @@
 "use client";
 
+import { PageTitle } from "@/components/common/PageTitle";
 import { useState, useTransition } from "react";
 import { Attribute } from "@/types/database.types";
 import { createAttribute, deleteAttribute } from "@/actions/attribute";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { IconAction } from "@/components/common/IconAction";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -53,7 +55,6 @@ export function AttributeManagementClient({
   const [formSuccess, setFormSuccess] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
 
-  const totalCount = attributes.length;
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -109,9 +110,7 @@ export function AttributeManagementClient({
       {/* Page Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-slate-200 pb-5">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900">
-            Product Attributes Management
-          </h1>
+          <PageTitle icon={Sparkles}>Attributes</PageTitle>
         </div>
 
         <div className="flex items-center gap-3">
@@ -153,7 +152,7 @@ export function AttributeManagementClient({
           <p className="text-[11px] font-medium uppercase tracking-wider text-slate-500">
             Total Attributes
           </p>
-          <h3 className="text-2xl font-bold text-slate-900 mt-1">{totalCount}</h3>
+          <h3 className="text-2xl font-bold text-slate-900 mt-1">{filteredAttributes.length}</h3>
         </Card>
       </div>
 
@@ -263,16 +262,7 @@ export function AttributeManagementClient({
                       {attr.slug}
                     </TableCell>
                     <TableCell className="py-2.5 px-3.5 text-right">
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleDelete(attr.id, attr.name)}
-                        className="h-7 w-7 text-rose-500 hover:bg-rose-50 rounded cursor-pointer"
-                        title="Delete Attribute (Only if unassigned)"
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </Button>
+                      <IconAction label="Delete attribute (only if unassigned)" tone="danger" onClick={() => handleDelete(attr.id, attr.name)}><Trash2 /></IconAction>
                     </TableCell>
                   </TableRow>
                 ))

@@ -5,6 +5,7 @@ import { RFQ } from "@/types/database.types";
 import { RFQ_STATUS_CONFIG, RFQ_STATUSES } from "@/lib/constants";
 import { submitCustomerRfq } from "@/actions/rfq";
 import { Card } from "@/components/ui/card";
+import { IconAction } from "@/components/common/IconAction";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -287,15 +288,7 @@ export function CustomerRfqsView({ initialRfqs }: CustomerRfqsViewProps) {
                         )}
                       </TableCell>
                       <TableCell className="text-right pr-4">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => setSelectedRfq(rfq)}
-                          className="h-7 text-[11px] border-slate-200 gap-1 text-slate-700 shadow-none cursor-pointer hover:text-[#024AE5] hover:border-blue-200"
-                        >
-                          <Eye className="h-3 w-3" />
-                          <span>View RFQ</span>
-                        </Button>
+                        <IconAction label="View RFQ" onClick={() => setSelectedRfq(rfq)}><Eye /></IconAction>
                       </TableCell>
                     </TableRow>
                   );

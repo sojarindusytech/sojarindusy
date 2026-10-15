@@ -261,11 +261,20 @@ main {
       [role="tab"],
       [role="menuitem"],
       summary,
-      label[for],
-      select:not(:disabled),
-      .cursor-pointer
+      select:not(:disabled)
     ):active {
       transform: scale(0.97);
+      transition-duration: 0.07s;
+    }
+
+    /*
+     * Clickable containers (cards, rows): :active also matches every ancestor of the pressed
+     * element, so scaling them would shrink the buttons inside while you press and the click
+     * would miss (e.g. the Edit icon in a clickable table row). Table rows never scale, and a
+     * container does not scale while one of its own buttons/links/inputs is the thing pressed.
+     */
+    .cursor-pointer:where(:not(tr, td, th)):active:not(:has(button:active, a:active, input:active, select:active, [role="button"]:active)) {
+      transform: scale(0.985);
       transition-duration: 0.07s;
     }
 
@@ -297,4 +306,15 @@ main {
   [aria-disabled="true"] {
     cursor: not-allowed;
   }
+}
+
+/* Number inputs: no up/down spinner arrows anywhere (amounts and quantities are typed). */
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type="number"] {
+  -moz-appearance: textfield;
+  appearance: textfield;
 }

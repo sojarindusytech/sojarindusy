@@ -18,6 +18,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { PaginationBar, usePagination } from "@/components/common/Pagination";
+import { PageTitle } from "@/components/common/PageTitle";
+import { IconAction } from "@/components/common/IconAction";
+import { pdfViewerSrc } from "@/lib/pdf-viewer";
 import { DebitNoteFormModal } from "./DebitNoteFormModal";
 
 const inr = (n: number) => `₹${n.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -85,7 +88,7 @@ export function AdminDebitNotesClient({
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Debit Notes</h1>
+          <PageTitle icon={FileUp}>Debit Note</PageTitle>
           <p className="text-xs text-slate-500 mt-1">
             Issued to a customer when an invoice charged too little. Reported in GSTR-1 for the month of issue.
           </p>
@@ -223,24 +226,15 @@ export function AdminDebitNotesClient({
                       )}
                     </TableCell>
                     <TableCell className="text-right whitespace-nowrap">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-8 px-2"
-                        title="View PDF"
+                      <IconAction
+                        label="View PDF"
                         onClick={() => setViewing({ id: dn.id, number: dn.debit_note_number, customer: dn.bill_to?.name ?? "" })}
                       >
-                        <Eye className="h-4 w-4" />
-                      </Button>
-                      <Button asChild variant="ghost" size="sm" className="h-8 px-2" title="Download PDF">
-                        <a href={`/api/debit-notes/${dn.id}/pdf?download=1`}>
-                          <Download className="h-4 w-4" />
-                        </a>
-                      </Button>
+                        <Eye />
+                      </IconAction>
+                      <IconAction label="Download PDF" href={`/api/debit-notes/${dn.id}/pdf?download=1`}><Download /></IconAction>
                       {dn.status === "issued" && (
-                        <Button variant="ghost" size="sm" className="h-8 px-2 text-red-600 hover:text-red-700" title="Cancel debit note" onClick={() => setCancelling(dn)}>
-                          <Ban className="h-4 w-4" />
-                        </Button>
+                        <IconAction label="Cancel debit note" tone="danger" onClick={() => setCancelling(dn)}><Ban /></IconAction>
                       )}
                     </TableCell>
                   </TableRow>
@@ -265,10 +259,18 @@ export function AdminDebitNotesClient({
 
       <Dialog open={!!viewing} onOpenChange={(o) => !o && setViewing(null)}>
         <DialogContent className="max-w-4xl h-[90vh] flex flex-col">
-          <DialogHeader>
-            <DialogTitle className="font-mono">{viewing?.number}</DialogTitle>
-            <DialogDescription>{viewing?.customer}</DialogDescription>
-          </DialogHeader>
+          <div className="flex items-start justify-between gap-3 pr-8">
+            <DialogHeader className="min-w-0">
+              <DialogTitle className="font-mono">{viewing?.number}</DialogTitle>
+              <DialogDescription>{viewing?.customer}</DialogDescription>
+            </DialogHeader>
+            <Button asChild size="sm" variant="outline" className="gap-1.5 shrink-0">
+              <a href={`/api/debit-notes/${viewing?.id}/pdf?download=1`}>
+                <Download className="h-4 w-4" />
+                Download
+              </a>
+            </Button>
+          </div>
           {viewing && (
             <div className="relative flex-1 min-h-0">
               {loadedPdfId !== viewing.id && (
@@ -283,7 +285,7 @@ export function AdminDebitNotesClient({
               <iframe
                 key={viewing.id}
                 title={`Debit note ${viewing.number}`}
-                src={`/api/debit-notes/${viewing.id}/pdf`}
+                src={pdfViewerSrc(`/api/debit-notes/${viewing.id}/pdf`)}
                 onLoad={() => setLoadedPdfId(viewing.id)}
                 className="h-full w-full rounded-lg border border-slate-200 bg-slate-50"
               />

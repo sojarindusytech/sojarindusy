@@ -185,3 +185,14 @@ describe("invoice maths", () => {
     assert.deepEqual(normalizeCopies(["bogus"]), ["original"]);
   });
 });
+
+describe("E-Way Bill warning", () => {
+  it("applies only to an invoice total above Rs 50,000", async () => {
+    const { needsEwayBill, EWAY_BILL_THRESHOLD } = await import("../invoice");
+    assert.equal(EWAY_BILL_THRESHOLD, 50000);
+    assert.equal(needsEwayBill(50000), false, "exactly 50,000 is not above the limit");
+    assert.equal(needsEwayBill(50000.01), true);
+    assert.equal(needsEwayBill(8330), false);
+    assert.equal(needsEwayBill(250000), true);
+  });
+});

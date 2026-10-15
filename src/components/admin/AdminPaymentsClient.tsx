@@ -1,5 +1,7 @@
 "use client";
 
+import { PageTitle } from "@/components/common/PageTitle";
+import { pdfViewerSrc } from "@/lib/pdf-viewer";
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
@@ -9,6 +11,7 @@ import { PAYMENT_CHANNELS, PAYMENT_MODES, modeLabel } from "@/lib/payments";
 import { DATE_RANGE_OPTIONS, isWithinDateRange, type DateRangeKey } from "@/lib/date-range";
 import type { Payment } from "@/types/database.types";
 import { Card } from "@/components/ui/card";
+import { IconAction } from "@/components/common/IconAction";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -83,20 +86,19 @@ export function AdminPaymentsClient({ initialPayments }: { initialPayments: Paym
 
   const pager = usePagination(filtered, `${search}|${mode}|${channel}|${status}|${dateRange}|${customFrom}|${customTo}`);
 
+  // Cards follow the filters above (cancelled receipts never count as money received).
   const stats = useMemo(() => {
-    const month = new Date().toISOString().slice(0, 7);
-    const live = initialPayments.filter((p) => p.status === "received");
-    const thisMonth = live.filter((p) => p.payment_date.startsWith(month));
+    const live = filtered.filter((p) => p.status === "received");
     const sum = (rows: Payment[]) => rows.reduce((s, p) => s + p.amount, 0);
     const advances = live.flatMap((p) => p.allocations ?? []).filter((a) => a.kind === "advance").reduce((s, a) => s + Number(a.amount), 0);
     return {
-      month: sum(thisMonth),
+      total: sum(live),
       count: live.length,
-      ecom: sum(thisMonth.filter((p) => p.channel === "ecom")),
-      offline: sum(thisMonth.filter((p) => p.channel === "offline")),
+      ecom: sum(live.filter((p) => p.channel === "ecom")),
+      offline: sum(live.filter((p) => p.channel === "offline")),
       advances,
     };
-  }, [initialPayments]);
+  }, [filtered]);
 
   const confirmCancel = () => {
     const target = cancelling;
@@ -119,8 +121,7 @@ export function AdminPaymentsClient({ initialPayments }: { initialPayments: Paym
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Payments Received</h1>
-          <p className="text-xs text-slate-500 mt-1">Every receipt across eCom and Offline / POS, with the invoices it was applied to.</p>
+          <PageTitle icon={HandCoins}>Payments Received</PageTitle>
         </div>
         <Button onClick={() => setCreating(true)} className="gap-1.5">
           <HandCoins className="h-4 w-4" />
@@ -130,11 +131,11 @@ export function AdminPaymentsClient({ initialPayments }: { initialPayments: Paym
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <Card className="p-3.5 bg-white border border-slate-200 shadow-none rounded-xl">
-          <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1">Received This Month</div>
-          <div className="text-xl font-bold text-[#024AE5]">{inr(stats.month)}</div>
+          <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1">Amount Received</div>
+          <div className="text-xl font-bold text-[#024AE5]">{inr(stats.total)}</div>
         </Card>
         <Card className="p-3.5 bg-white border border-slate-200 shadow-none rounded-xl">
-          <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1">eCom / Offline (month)</div>
+          <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1">eCom / Offline</div>
           <div className="text-sm font-bold text-slate-900">{inr(stats.ecom)} <span className="text-slate-400 font-normal">/</span> {inr(stats.offline)}</div>
         </Card>
         <Card className="p-3.5 bg-white border border-slate-200 shadow-none rounded-xl">
@@ -237,12 +238,10 @@ export function AdminPaymentsClient({ initialPayments }: { initialPayments: Paym
                       {p.status === "received" ? <Badge variant="success" className="text-[10px]">Received</Badge> : <Badge variant="destructive" className="text-[10px]" title={p.cancel_reason ?? undefined}>Cancelled</Badge>}
                     </TableCell>
                     <TableCell className="text-right">
-                      <Button variant="ghost" size="sm" className="h-8 px-2" title="View receipt" onClick={() => setViewing(p)}><Eye className="h-4 w-4" /></Button>
-                      <Button asChild variant="ghost" size="sm" className="h-8 px-2" title="Download receipt">
-                        <a href={`/api/payments/${p.id}/pdf?download=1`}><Download className="h-4 w-4" /></a>
-                      </Button>
+                      <IconAction label="View receipt" onClick={() => setViewing(p)}><Eye /></IconAction>
+                      <IconAction label="Download receipt" href={`/api/payments/${p.id}/pdf?download=1`}><Download /></IconAction>
                       {p.status === "received" && (
-                        <Button variant="ghost" size="sm" className="h-8 px-2 text-red-600 hover:text-red-700" title="Cancel receipt" onClick={() => setCancelling(p)}><Ban className="h-4 w-4" /></Button>
+                        <IconAction label="Cancel receipt" tone="danger" onClick={() => setCancelling(p)}><Ban /></IconAction>
                       )}
                     </TableCell>
                   </TableRow>
@@ -269,10 +268,18 @@ export function AdminPaymentsClient({ initialPayments }: { initialPayments: Paym
 
       <Dialog open={!!viewing} onOpenChange={(o) => !o && setViewing(null)}>
         <DialogContent className="max-w-4xl h-[90vh] flex flex-col">
-          <DialogHeader>
-            <DialogTitle className="font-mono">{viewing?.receipt_number}</DialogTitle>
-            <DialogDescription>{viewing?.payer_name}</DialogDescription>
-          </DialogHeader>
+          <div className="flex items-start justify-between gap-3 pr-8">
+            <DialogHeader className="min-w-0">
+              <DialogTitle className="font-mono">{viewing?.receipt_number}</DialogTitle>
+              <DialogDescription>{viewing?.payer_name}</DialogDescription>
+            </DialogHeader>
+            <Button asChild size="sm" variant="outline" className="gap-1.5 shrink-0">
+              <a href={`/api/payments/${viewing?.id}/pdf?download=1`}>
+                <Download className="h-4 w-4" />
+                Download
+              </a>
+            </Button>
+          </div>
           {viewing && (
             <div className="relative flex-1 min-h-0">
               {loadedPdfId !== viewing.id && (
@@ -285,7 +292,7 @@ export function AdminPaymentsClient({ initialPayments }: { initialPayments: Paym
               <iframe
                 key={viewing.id}
                 title={`Receipt ${viewing.receipt_number}`}
-                src={`/api/payments/${viewing.id}/pdf`}
+                src={pdfViewerSrc(`/api/payments/${viewing.id}/pdf`)}
                 onLoad={() => setLoadedPdfId(viewing.id)}
                 className="h-full w-full rounded-lg border border-slate-200 bg-slate-50"
               />

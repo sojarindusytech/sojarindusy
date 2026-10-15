@@ -46,6 +46,8 @@ export const salesSettingsSchema = z.object({
   ifsc: optionalText,
   account_holder: optionalText,
   terms: optionalText,
+  quote_terms: optionalText,
+  receipt_terms: optionalText,
 
   gst_billing_enabled: z.boolean(),
   invoice_reduces_stock: z.boolean(),
@@ -68,6 +70,13 @@ export const salesSettingsSchema = z.object({
     .regex(/^[A-Za-z0-9/\-_.]+$/, "Use letters, numbers, / - _ . only."),
   po_next_number: z.coerce.number().int("Must be a whole number.").min(1, "Counter must be at least 1."),
   po_pad: z.coerce.number().int().min(1).max(8),
+  po_manufacturer_id: z
+    .string()
+    .trim()
+    .transform((v) => (v === "" ? null : v))
+    .nullable()
+    .refine((v) => v === null || z.uuid().safeParse(v).success, "Select a manufacturer.")
+    .optional(),
   rfq_prefix: z
     .string()
     .trim()
@@ -104,6 +113,14 @@ export const salesSettingsSchema = z.object({
     .regex(DEBIT_NOTE_PREFIX_PATTERN, "Use letters, numbers, / and - only."),
   debit_note_next_number: z.coerce.number().int("Must be a whole number.").min(1, "Counter must be at least 1."),
   debit_note_pad: z.coerce.number().int().min(1).max(8),
+  order_prefix: z
+    .string()
+    .trim()
+    .min(1, "Prefix is required.")
+    .max(20, "Prefix is too long.")
+    .regex(/^[A-Za-z0-9/\-_.]+$/, "Use letters, numbers, / - _ . only."),
+  order_next_number: z.coerce.number().int("Must be a whole number.").min(1, "Counter must be at least 1."),
+  order_pad: z.coerce.number().int().min(1).max(8),
   invoice_copies: z.array(z.enum(INVOICE_COPIES)).min(1, "Select at least one copy to print."),
 }).superRefine((v, ctx) => {
   if (debitNoteNumberLength(v.debit_note_prefix, v.debit_note_pad) > MAX_DEBIT_NOTE_NUMBER_LENGTH) {

@@ -282,21 +282,10 @@ export interface InvoiceSkuHit {
   available: number;
 }
 
-export async function searchInvoiceSkus(query: string): Promise<InvoiceSkuHit[]> {
-  await requireAdmin();
-  const q = query.trim().replace(/[%_\\]/g, "\\$&");
-  if (q.length < 2) return [];
-  const { data, error } = await (createAdminClient().from("product_variants") as any)
-    .select("id, sku, list_price, gst_rate, hsn_code, stock_quantity, reserved_quantity, products(title)")
-    .eq("is_archived", false)
-    .ilike("sku", `%${q}%`)
-    .order("sku", { ascending: true })
-    .limit(15);
-  if (error) {
-    console.error("[searchInvoiceSkus] Query error:", error);
-    return [];
-  }
-  return ((data as any[]) ?? []).map((v) => ({
+const SKU_SELECT = "id, sku, list_price, gst_rate, hsn_code, stock_quantity, reserved_quantity, products(title)";
+
+function toSkuHit(v: any): InvoiceSkuHit {
+  return {
     id: v.id,
     sku: v.sku,
     title: v.products?.title ?? "",
@@ -304,7 +293,25 @@ export async function searchInvoiceSkus(query: string): Promise<InvoiceSkuHit[]>
     gst_rate: v.gst_rate === null || v.gst_rate === undefined ? null : Number(v.gst_rate),
     hsn_code: v.hsn_code ?? null,
     available: Math.max(0, (Number(v.stock_quantity) || 0) - (Number(v.reserved_quantity) || 0)),
-  }));
+  };
+}
+
+/**
+ * Every live SKU, once. The SKU pickers load this when they open and filter it in the browser,
+ * so suggestions appear as you type with no server round trip per keystroke.
+ */
+export async function listInvoiceSkus(): Promise<InvoiceSkuHit[]> {
+  await requireAdmin();
+  const { data, error } = await (createAdminClient().from("product_variants") as any)
+    .select(SKU_SELECT)
+    .eq("is_archived", false)
+    .order("sku", { ascending: true })
+    .limit(10000);
+  if (error) {
+    console.error("[listInvoiceSkus] Query error:", error);
+    return [];
+  }
+  return ((data as any[]) ?? []).map(toSkuHit);
 }
 
 /** Shared by create and edit: trims, validates and normalises the form payload. */

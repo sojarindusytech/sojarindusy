@@ -198,6 +198,7 @@ describe("salesSettingsSchema: debit note series", () => {
     quote_prefix: "SI/QT", quote_next_number: 1, quote_pad: 2, quote_validity_days: 30,
     receipt_prefix: "SI/RCPT", receipt_next_number: 1, receipt_pad: 2,
     debit_note_prefix: "SI/DN", debit_note_next_number: 1, debit_note_pad: 2,
+    order_prefix: "SI/ORD", order_next_number: 1, order_pad: 2,
     invoice_copies: ["original"],
   };
   const issues = (over: Record<string, unknown>) => {
