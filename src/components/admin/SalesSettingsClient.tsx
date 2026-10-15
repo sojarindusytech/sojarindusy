@@ -8,6 +8,7 @@ import { Save, Upload, Settings } from "lucide-react";
 import type { SalesSettings } from "@/types/database.types";
 import { updateSalesSettings, uploadInvoiceAsset } from "@/actions/sales-settings";
 import { financialYear, formatInvoiceNumber, GST_RATE_OPTIONS, INVOICE_COPIES, normalizeCopies, type InvoiceCopy } from "@/lib/invoice";
+import { MAX_DEBIT_NOTE_NUMBER_LENGTH } from "@/lib/debit-notes";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,16 +22,18 @@ const COPY_OPTIONS: Record<InvoiceCopy, { label: string }> = {
   triplicate: { label: "Triplicate" },
 };
 
-type NumberingKey = "invoice" | "quote" | "rfq" | "po" | "receipt" | "order";
+type NumberingKey = "invoice" | "quote" | "rfq" | "po" | "receipt" | "order" | "debit_note";
 
 /** One row per numbered document in the Document Numbering table. */
-const NUMBERING_ROWS: { key: NumberingKey; label: string; fallback: string }[] = [
+const NUMBERING_ROWS: { key: NumberingKey; label: string; fallback: string; maxLength?: number }[] = [
   { key: "invoice", label: "Invoice", fallback: "INV" },
   { key: "quote", label: "Quotation", fallback: "QT" },
   { key: "rfq", label: "RFQ", fallback: "RFQ" },
   { key: "po", label: "Purchase Order", fallback: "PO" },
   { key: "receipt", label: "Payment Receipt", fallback: "RCPT" },
   { key: "order", label: "Order", fallback: "ORD" },
+  // GST Rule 53: a debit note number is at most 16 characters.
+  { key: "debit_note", label: "Debit Note", fallback: "DN", maxLength: MAX_DEBIT_NOTE_NUMBER_LENGTH },
 ];
 
 // Form values are strings so empty inputs stay empty; the server schema coerces.
@@ -40,6 +43,7 @@ const TEXT_FIELDS = [
   "company_name", "address", "gstin", "state_code", "state_name", "msme", "website", "phone", "email",
   "logo_url", "signature_url", "bank_name", "bank_address", "account_no", "ifsc", "account_holder",
   "terms", "quote_terms", "receipt_terms", "invoice_prefix", "po_prefix", "rfq_prefix", "quote_prefix", "quote_payment_terms", "quote_delivery_terms", "receipt_prefix", "order_prefix",
+  "debit_note_prefix",
 ] as const;
 
 function toForm(s: SalesSettings): Form {
@@ -58,6 +62,8 @@ function toForm(s: SalesSettings): Form {
     quote_validity_days: String(s.quote_validity_days ?? 30),
     receipt_next_number: String(s.receipt_next_number ?? 1),
     receipt_pad: String(s.receipt_pad ?? 2),
+    debit_note_next_number: String(s.debit_note_next_number ?? 1),
+    debit_note_pad: String(s.debit_note_pad ?? 2),
     order_next_number: String(s.order_next_number ?? 1),
     order_pad: String(s.order_pad ?? 2),
     po_manufacturer_id: s.po_manufacturer_id ?? "",
@@ -67,6 +73,7 @@ function toForm(s: SalesSettings): Form {
   form.rfq_prefix = s.rfq_prefix ?? "SI/RFQ";
   form.quote_prefix = s.quote_prefix ?? "SI/QT";
   form.receipt_prefix = s.receipt_prefix ?? "SI/RCPT";
+  form.debit_note_prefix = s.debit_note_prefix ?? "SI/DN";
   form.order_prefix = s.order_prefix ?? "SI/ORD";
   return form;
 }
@@ -247,6 +254,8 @@ export function SalesSettingsClient({ initial, manufacturers }: { initial: Sales
             <tbody>
               {NUMBERING_ROWS.map((row) => {
                 const err = errors[`${row.key}_prefix`] || errors[`${row.key}_next_number`] || errors[`${row.key}_pad`];
+                const next = nextPreview(row.key, row.fallback);
+                const tooLong = row.maxLength !== undefined && next.length > row.maxLength;
                 return (
                   <tr key={row.key} className="border-t border-slate-100 align-top">
                     <td className="p-2.5">
@@ -262,7 +271,12 @@ export function SalesSettingsClient({ initial, manufacturers }: { initial: Sales
                       <Input aria-label={`${row.label} digits`} type="number" min={1} max={8} step={1} value={text(`${row.key}_pad`)} onChange={(e) => set(`${row.key}_pad`, e.target.value)} className="h-8 text-xs [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
                     </td>
                     <td className="p-2.5">
-                      <span className="font-mono font-bold text-slate-900">{nextPreview(row.key, row.fallback)}</span>
+                      <span className={`font-mono font-bold ${tooLong ? "text-red-600" : "text-slate-900"}`}>{next}</span>
+                      {tooLong && !err && (
+                        <p className="text-[11px] text-red-600 mt-0.5">
+                          GST allows at most {row.maxLength} characters (letters, digits, / and -). Shorten the prefix or use fewer digits.
+                        </p>
+                      )}
                       {err && <p className="text-[11px] text-red-600 mt-0.5">{err}</p>}
                     </td>
                   </tr>

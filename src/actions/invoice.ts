@@ -18,6 +18,7 @@ import { shortageMessage, stockErrorMessage } from "@/lib/server/stock-errors";
 import { parseDbError } from "@/lib/server/db-error";
 import { paymentErrorMessage } from "@/lib/server/payment-errors";
 import { filterCustomerVisibleInvoices } from "@/lib/server/invoice-access";
+import { debitNoteErrorMessage, invoiceHasDebitNotesMessage, liveDebitNoteNumbers } from "@/lib/server/debit-notes";
 
 type Result<T> = ({ success: true } & T) | { success: false; error: string };
 
@@ -32,9 +33,10 @@ export type InvoiceListRow = Pick<
   payment_status?: "unpaid" | "partial" | "paid" | "cancelled";
 };
 
-/** The two database guards that protect an invoice that has received money, in plain words. */
+/** The database guards that protect an invoice with money received or debit notes against it, in plain words. */
 function invoiceGuardMessage(error: { message?: string; details?: string | null; code?: string }): string | null {
   const parsed = parseDbError(error);
+  if (parsed.code === "INVOICE_HAS_DEBIT_NOTES") return debitNoteErrorMessage(parsed);
   return parsed.code === "INVOICE_HAS_PAYMENTS" || parsed.code === "TOTAL_BELOW_PAID" ? paymentErrorMessage(parsed) : null;
 }
 
@@ -397,6 +399,9 @@ export async function updateInvoice(
     const existing = existingData as Invoice | null;
     if (!existing) return { success: false, error: "Invoice not found." };
     if (existing.status === "cancelled") return { success: false, error: "A cancelled invoice cannot be edited." };
+    // Debit notes quote this invoice: it is frozen while any is live (also enforced in the database).
+    const debitNotes = await liveDebitNoteNumbers(invoiceId);
+    if (debitNotes.length > 0) return { success: false, error: invoiceHasDebitNotesMessage(debitNotes.join(", ")) };
 
     const parsed = parseInvoicePayload(payload);
     if ("error" in parsed) return { success: false, error: parsed.error };
@@ -596,6 +601,8 @@ export async function cancelInvoice(invoiceId: string): Promise<{ success: boole
       // The order shipped these goods; cancelling the invoice would not bring them back.
       return { success: false, error: "This invoice belongs to a shipped order. Process an order return or issue a credit note instead." };
     }
+    const debitNotes = await liveDebitNoteNumbers(invoiceId);
+    if (debitNotes.length > 0) return { success: false, error: invoiceHasDebitNotesMessage(debitNotes.join(", ")) };
 
     const { error } = await (db.from("invoices") as any)
       .update({ status: "cancelled", updated_at: new Date().toISOString() })

@@ -42,7 +42,8 @@ export async function createTestDb(options: { applyNew: boolean; skipFrom?: stri
 
   const applied: string[] = [];
   const skipped: string[] = [];
-  const isNew = (f: string) => f.startsWith("20261015_") || f.startsWith("20261017_") || f.startsWith("20261018_") || f.startsWith("20261019_") || f.startsWith("20261020_") || f.startsWith("20261021_");
+  const isNew = (f: string) =>
+    ["20261015_", "20261017_", "20261018_", "20261019_", "20261020_", "20261021_", "20261022_"].some((p) => f.startsWith(p));
 
   for (const file of migrationFiles((f) => (!isNew(f) || options.applyNew) && (!options.skipFrom || f < options.skipFrom))) {
     try {
