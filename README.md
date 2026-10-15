@@ -22,6 +22,7 @@ npm ci
 npm run dev               # http://localhost:3000
 ```
 
+
 | Script | What it does |
 | --- | --- |
 | `npm run dev` | Development server |
