@@ -15,6 +15,13 @@ describe("documentTerms", () => {
     assert.equal(documentTerms({ ...base, quote_terms: "   " }, "quote"), "Invoice terms");
   });
 
+  it("uses only credit note terms and preserves old snapshots without that field", () => {
+    assert.equal(documentTerms({ ...base, credit_note_terms: "  Credit terms  " }, "credit_note"), "Credit terms");
+    assert.equal(documentTerms(base, "credit_note"), "");
+    assert.equal(documentTerms({ ...base, credit_note_terms: null }, "credit_note"), "");
+    assert.equal(documentTerms({ ...base, credit_note_terms: "   " }, "credit_note"), "");
+  });
+
   it("prints only a receipt's own note, never the invoice terms", () => {
     assert.equal(documentTerms(base, "receipt"), "");
     assert.equal(documentTerms({ ...base, receipt_terms: "Subject to realisation of cheque." }, "receipt"), "Subject to realisation of cheque.");

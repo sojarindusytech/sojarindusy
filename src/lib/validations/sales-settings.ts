@@ -41,6 +41,7 @@ export const salesSettingsSchema = z.object({
   ifsc: optionalText,
   account_holder: optionalText,
   terms: optionalText,
+  credit_note_terms: optionalText,
   quote_terms: optionalText,
   receipt_terms: optionalText,
 

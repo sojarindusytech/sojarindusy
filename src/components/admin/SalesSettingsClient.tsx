@@ -39,7 +39,7 @@ type Form = Record<string, string | boolean>;
 const TEXT_FIELDS = [
   "company_name", "address", "gstin", "state_code", "state_name", "msme", "website", "phone", "email",
   "logo_url", "signature_url", "bank_name", "bank_address", "account_no", "ifsc", "account_holder",
-  "terms", "quote_terms", "receipt_terms", "invoice_prefix", "po_prefix", "rfq_prefix", "quote_prefix", "credit_note_prefix", "quote_payment_terms", "quote_delivery_terms", "receipt_prefix", "order_prefix",
+  "terms", "quote_terms", "receipt_terms", "credit_note_terms", "invoice_prefix", "po_prefix", "rfq_prefix", "quote_prefix", "credit_note_prefix", "quote_payment_terms", "quote_delivery_terms", "receipt_prefix", "order_prefix",
 ] as const;
 
 function toForm(s: SalesSettings): Form {
@@ -399,6 +399,10 @@ export function SalesSettingsClient({ initial, manufacturers }: { initial: Sales
         </div>
         <div className="space-y-1">
           {area("quote_terms", "Quotation terms & conditions", 7)}
+        </div>
+        <div className="space-y-1">
+          {area("credit_note_terms", "Credit note terms & conditions", 7)}
+          <p className="text-xs text-slate-500">Applies to newly issued credit notes. Leave blank for no additional terms. GST treatment and credit acknowledgement are included automatically.</p>
         </div>
         <div className="space-y-1">
           {area("receipt_terms", "Payment receipt note", 4)}

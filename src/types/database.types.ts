@@ -278,6 +278,8 @@ export interface SalesSettings {
   ifsc: string | null;
   account_holder: string | null;
   terms: string | null;
+  /** Additional terms saved with each newly issued credit note. */
+  credit_note_terms?: string | null;
   gst_billing_enabled: boolean;
   default_gst_rate: number;
   invoice_prefix: string;
