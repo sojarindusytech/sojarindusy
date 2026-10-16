@@ -149,7 +149,7 @@ export function InvoicePdf({
     ...(quote?.paymentTerms ? [`Payment Terms: ${quote.paymentTerms}`] : []),
     ...(quote?.deliveryTerms ? [`Delivery Terms: ${quote.deliveryTerms}`] : []),
     ...(quote ? [`This quotation is valid until ${fmtDate(quote.validUntil)}.`] : []),
-    ...(creditNote ? [`Reason: ${creditNote.reason}`, creditNote.treatment === "commercial" ? "Commercial credit only. No adjustment to GST liability." : "GST adjustment against the referenced invoice.", "This document records a credit. It is not a payment or refund receipt."] : []),
+    ...(creditNote ? [creditNote.treatment === "commercial" ? "Commercial credit only. No adjustment to GST liability." : "GST adjustment against the referenced invoice.", "This document records a credit. It is not a payment or refund receipt."] : []),
     ...(creditNote ? "" : settings.terms ?? "").split(/\n{2,}/).filter(Boolean),
   ];
 
@@ -216,6 +216,11 @@ export function InvoicePdf({
                   </View>
                 ))}
               </>
+            ) : null}
+            {creditNote ? (
+              <Text style={{ padding: 4, marginTop: "auto", lineHeight: 1.35 }}>
+                <Text style={s.bold}>Reason: </Text>{creditNote.reason}
+              </Text>
             ) : null}
           </View>
           <View style={s.right}>
