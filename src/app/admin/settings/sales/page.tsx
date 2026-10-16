@@ -1,5 +1,6 @@
 import { SalesSettingsClient } from "@/components/admin/SalesSettingsClient";
 import { getSalesSettings } from "@/actions/sales-settings";
+import { getPoManufacturerOptions } from "@/actions/purchase-order";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
@@ -10,7 +11,7 @@ export const metadata: Metadata = {
 export const dynamic = "force-dynamic";
 
 export default async function SalesSettingsPage() {
-  const settings = await getSalesSettings();
+  const [settings, { manufacturers }] = await Promise.all([getSalesSettings(), getPoManufacturerOptions()]);
 
   if (!settings) {
     return (
@@ -20,5 +21,5 @@ export default async function SalesSettingsPage() {
     );
   }
 
-  return <SalesSettingsClient key={settings.updated_at} initial={settings} />;
+  return <SalesSettingsClient key={settings.updated_at} initial={settings} manufacturers={manufacturers} />;
 }

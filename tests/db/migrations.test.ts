@@ -170,8 +170,9 @@ const storedOrder = async (orderId: string) =>
 
 beforeAll(async () => {
   t = await createTestDb({ applyNew: true });
-  // Apply the new migrations a second time: they must be idempotent.
-  for (const f of migrationFiles((name) => name.startsWith("20261015_") || name.startsWith("20261017_"))) {
+  // Replay migrations designed to be idempotent. Credit-note stock setup is a
+  // one-time migration on the same date as payments; it is already applied above.
+  for (const f of migrationFiles((name) => name.startsWith("20261015_") || name.startsWith("20261017_") || name === "20261018_payments.sql" || name.startsWith("20261019_"))) {
     await t.db.exec(readMigration(f));
   }
   await seed(t);
@@ -263,7 +264,7 @@ describe("place_order", () => {
   it("places an order with real prices, GST and a stock log", async () => {
     const input = order();
     first = { input, result: await place(input) };
-    expect(first.result.order_number).toMatch(/^ORD-\d{4}-00001$/);
+    expect(first.result.order_number).toMatch(/^SI\/ORD\/\d{2}-\d{2}\/01$/);
     expect(Number(first.result.subtotal)).toBe(2000);
     expect(Number(first.result.gst_amount)).toBe(360);
     expect(Number(first.result.total_amount)).toBe(2360);

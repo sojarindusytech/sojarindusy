@@ -1,5 +1,7 @@
 "use client";
 
+import { PageTitle } from "@/components/common/PageTitle";
+import { pdfViewerSrc } from "@/lib/pdf-viewer";
 import { useEffect, useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -10,6 +12,7 @@ import { cancelInvoice, getInvoice } from "@/actions/invoice";
 import type { Invoice } from "@/types/database.types";
 import { DATE_RANGE_OPTIONS, isWithinDateRange, type DateRangeKey } from "@/lib/date-range";
 import { Card } from "@/components/ui/card";
+import { IconAction } from "@/components/common/IconAction";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -109,7 +112,8 @@ export function AdminInvoicesClient({ initialInvoices }: { initialInvoices: Invo
 
   const pager = usePagination(filtered, `${search}|${status}|${dateRange}|${customFrom}|${customTo}`);
 
-  const issued = initialInvoices.filter((i) => i.status === "issued");
+  // Cards follow the filters above.
+  const issued = filtered.filter((i) => i.status === "issued");
   const billed = issued.reduce((sum, i) => sum + Number(i.total_amount || 0), 0);
 
   const startEdit = async (inv: InvoiceListRow) => {
@@ -139,10 +143,7 @@ export function AdminInvoicesClient({ initialInvoices }: { initialInvoices: Invo
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Invoices</h1>
-          <p className="text-xs text-slate-500 mt-1">
-            Invoices are created automatically when an order is delivered, or manually for offline sales.
-          </p>
+          <PageTitle icon={Receipt}>Invoice</PageTitle>
         </div>
         <div className="flex items-center gap-2">
           <Button asChild variant="outline" className="gap-1.5">
@@ -169,7 +170,7 @@ export function AdminInvoicesClient({ initialInvoices }: { initialInvoices: Invo
         </Card>
         <Card className="p-3.5 bg-white border border-slate-200 shadow-none rounded-xl col-span-2 lg:col-span-1">
           <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1">Cancelled</div>
-          <div className="text-xl font-bold text-slate-900">{initialInvoices.length - issued.length}</div>
+          <div className="text-xl font-bold text-slate-900">{filtered.length - issued.length}</div>
         </Card>
       </div>
 
@@ -274,29 +275,17 @@ export function AdminInvoicesClient({ initialInvoices }: { initialInvoices: Invo
                       )}
                     </TableCell>
                     <TableCell className="text-right whitespace-nowrap">
-                      <Button variant="ghost" size="sm" className="h-8 px-2" title="View PDF" onClick={() => setViewing(inv)}>
-                        <Eye className="h-4 w-4" />
-                      </Button>
-                      {inv.status === "issued" && <Button asChild variant="ghost" size="sm" className="h-8 px-2" title="Create credit note"><Link href={`/admin/credit-notes?invoice=${inv.id}`}><FilePlus2 className="h-4 w-4" /></Link></Button>}
-                      <Button asChild variant="ghost" size="sm" className="h-8 px-2" title="Download PDF">
-                        <a href={`/api/invoices/${inv.id}/pdf?download=1`}>
-                          <Download className="h-4 w-4" />
-                        </a>
-                      </Button>
+                      <IconAction label="View PDF" onClick={() => setViewing(inv)}><Eye /></IconAction>
+                      {inv.status === "issued" && <IconAction label="Create credit note" href={`/admin/credit-notes?invoice=${inv.id}`}><FilePlus2 /></IconAction>}
+                      <IconAction label="Download PDF" href={`/api/invoices/${inv.id}/pdf?download=1`}><Download /></IconAction>
                       {inv.status === "issued" && (inv.balance ?? 1) > 0 && (
-                        <Button variant="ghost" size="sm" className="h-8 px-2 text-emerald-700" title="Record payment" onClick={() => setPayingInvoiceId(inv.id)}>
-                          <HandCoins className="h-4 w-4" />
-                        </Button>
+                        <IconAction label="Record payment" tone="success" onClick={() => setPayingInvoiceId(inv.id)}><HandCoins /></IconAction>
                       )}
                       {inv.status === "issued" && (
-                        <Button variant="ghost" size="sm" className="h-8 px-2" title="Edit invoice" disabled={loadingEditId === inv.id} onClick={() => startEdit(inv)}>
-                          <Pencil className="h-4 w-4" />
-                        </Button>
+                        <IconAction label="Edit invoice" disabled={loadingEditId === inv.id} onClick={() => startEdit(inv)}><Pencil /></IconAction>
                       )}
                       {inv.status === "issued" && (
-                        <Button variant="ghost" size="sm" className="h-8 px-2 text-red-600 hover:text-red-700" title="Cancel invoice" onClick={() => setCancelling(inv)}>
-                          <Ban className="h-4 w-4" />
-                        </Button>
+                        <IconAction label="Cancel invoice" tone="danger" onClick={() => setCancelling(inv)}><Ban /></IconAction>
                       )}
                     </TableCell>
                   </TableRow>
@@ -349,17 +338,25 @@ export function AdminInvoicesClient({ initialInvoices }: { initialInvoices: Invo
 
       <Dialog open={!!viewing} onOpenChange={(o) => !o && setViewing(null)}>
         <DialogContent className="max-w-4xl h-[90vh] flex flex-col">
-          <DialogHeader>
-            <DialogTitle className="font-mono">{viewing?.invoice_number}</DialogTitle>
-            <DialogDescription>{viewing?.bill_to?.name}</DialogDescription>
-          </DialogHeader>
+          <div className="flex items-start justify-between gap-3 pr-8">
+            <DialogHeader className="min-w-0">
+              <DialogTitle className="font-mono">{viewing?.invoice_number}</DialogTitle>
+              <DialogDescription>{viewing?.bill_to?.name}</DialogDescription>
+            </DialogHeader>
+            <Button asChild size="sm" variant="outline" className="gap-1.5 shrink-0">
+              <a href={`/api/invoices/${viewing?.id}/pdf?download=1`}>
+                <Download className="h-4 w-4" />
+                Download
+              </a>
+            </Button>
+          </div>
           {viewing && (
             <div className="relative flex-1 min-h-0">
               {loadedPdfId !== viewing.id && <PdfSkeleton />}
               <iframe
                 key={`${viewing.id}-${pdfVersion}`}
                 title={`Invoice ${viewing.invoice_number}`}
-                src={`/api/invoices/${viewing.id}/pdf?v=${pdfVersion}`}
+                src={pdfViewerSrc(`/api/invoices/${viewing.id}/pdf?v=${pdfVersion}`)}
                 onLoad={() => setLoadedPdfId(viewing.id)}
                 className="h-full w-full rounded-lg border border-slate-200 bg-slate-50"
               />

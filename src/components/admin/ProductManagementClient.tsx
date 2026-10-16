@@ -1,5 +1,6 @@
 "use client";
 
+import { PageTitle } from "@/components/common/PageTitle";
 import React, { useState, useTransition } from "react";
 import { Product, ProductVariant, CategoryNode, Attribute, Tag } from "@/types/database.types";
 import { deleteProduct, fetchProductsList } from "@/actions/product";
@@ -13,6 +14,7 @@ import { BulkUpdateModal } from "@/components/admin/BulkUpdateModal";
 import { SkuStockLogModal } from "@/components/admin/SkuStockLogModal";
 import toast from "react-hot-toast";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { IconAction } from "@/components/common/IconAction";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -89,13 +91,6 @@ export function ProductManagementClient({
   const [skuStockFilters, setSkuStockFilters] = useState<Record<string, "all" | "in_stock" | "out_of_stock">>({});
   const [selectedPath, setSelectedPath] = useState<string[]>([]);
   const [isPending, startTransition] = useTransition();
-
-  const totalFamilies = products.length;
-  const totalSkus = products.reduce((acc, p) => acc + (p.variants?.filter(v => !v.is_archived).length || 0), 0);
-  const totalStock = products.reduce(
-    (acc, p) => acc + (p.variants?.filter(v => !v.is_archived).reduce((vAcc, v) => vAcc + (v.stock_quantity || 0), 0) || 0),
-    0
-  );
 
   const toggleExpand = (id: string) => {
     setExpandedProductIds((prev) => ({ ...prev, [id]: !prev[id] }));
@@ -199,6 +194,14 @@ export function ProductManagementClient({
     return matchCat && (matchTitle || matchDesc || matchSku);
   });
 
+  // KPI cards follow the search and category filters.
+  const totalFamilies = filteredProducts.length;
+  const totalSkus = filteredProducts.reduce((acc, p) => acc + (p.variants?.filter(v => !v.is_archived).length || 0), 0);
+  const totalStock = filteredProducts.reduce(
+    (acc, p) => acc + (p.variants?.filter(v => !v.is_archived).reduce((vAcc, v) => vAcc + (v.stock_quantity || 0), 0) || 0),
+    0
+  );
+
   // Generate cascading dropdown data
   const dropdownsToRender: { level: number; options: CategoryNode[]; selectedValue: string }[] = [];
   let currentOptions = treeNodes;
@@ -234,9 +237,7 @@ export function ProductManagementClient({
       {/* Page Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-slate-200 pb-5">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900">
-            Product Families
-          </h1>
+          <PageTitle icon={Package}>Products</PageTitle>
         </div>
 
         <div className="flex items-center gap-3 w-full sm:w-auto">
@@ -360,38 +361,9 @@ export function ProductManagementClient({
                       </TableCell>
                       <TableCell className="text-right py-3 pr-4" onClick={(e) => e.stopPropagation()}>
                         <div className="flex items-center justify-end gap-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setAppendingSkuProductId({ id: product.id, attributes: activeAttributes });
-                            }}
-                            className="h-7 text-xs border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900 shadow-none"
-                          >
-                            <FileSpreadsheet className="h-3.5 w-3.5 mr-1 text-[#3C8B4F]" />
-                            Import SKUs
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setEditingProduct(product);
-                            }}
-                            className="h-7 text-xs border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900 shadow-none"
-                          >
-                            <Edit2 className="h-3.5 w-3.5 mr-1 text-[#024AE5]" />
-                            Edit
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleDelete(product.id)}
-                            className="h-7 w-7 text-rose-500 hover:bg-rose-50 rounded cursor-pointer"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+                          <IconAction label="Import SKUs" onClick={(e) => { e.stopPropagation(); setAppendingSkuProductId({ id: product.id, attributes: activeAttributes }); }}><FileSpreadsheet /></IconAction>
+                          <IconAction label="Edit product" tone="primary" onClick={(e) => { e.stopPropagation(); setEditingProduct(product); }}><Edit2 /></IconAction>
+                          <IconAction label="Delete product" tone="danger" onClick={() => handleDelete(product.id)}><Trash2 /></IconAction>
                         </div>
                       </TableCell>
                     </TableRow>
@@ -630,33 +602,9 @@ export function ProductManagementClient({
                                           </span>
                                         </TableCell>
                                         <TableCell className="text-right pr-4">
-                                          <Button
-                                            variant="ghost"
-                                            size="icon"
-                                            onClick={() => setViewingStockLogVariant({ variant: v, productTitle: product.title })}
-                                            className="h-6 w-6 text-slate-500 hover:text-[#024AE5] hover:bg-slate-100 rounded mr-1 cursor-pointer"
-                                            title="View Stock Audit Log"
-                                          >
-                                            <History className="h-3.5 w-3.5" />
-                                          </Button>
-                                          <Button
-                                            variant="ghost"
-                                            size="icon"
-                                            onClick={() => setEditingSku({ variant: v, attributes: (product.attributes || product.tags || []) })}
-                                            className="h-6 w-6 text-slate-500 hover:text-[#024AE5] hover:bg-slate-100 rounded mr-1 cursor-pointer"
-                                            title="Edit SKU"
-                                          >
-                                            <Edit2 className="h-3.5 w-3.5" />
-                                          </Button>
-                                          <Button
-                                            variant="ghost"
-                                            size="icon"
-                                            onClick={() => handleDeleteSku(v.id)}
-                                            className="h-6 w-6 text-rose-500 hover:bg-rose-50 rounded cursor-pointer"
-                                            title="Delete or Archive SKU"
-                                          >
-                                            <Trash2 className="h-3.5 w-3.5" />
-                                          </Button>
+                                          <IconAction label="View stock audit log" onClick={() => setViewingStockLogVariant({ variant: v, productTitle: product.title })}><History /></IconAction>
+                                          <IconAction label="Edit SKU" tone="primary" onClick={() => setEditingSku({ variant: v, attributes: (product.attributes || product.tags || []) })}><Edit2 /></IconAction>
+                                          <IconAction label="Delete or archive SKU" tone="danger" onClick={() => handleDeleteSku(v.id)}><Trash2 /></IconAction>
                                         </TableCell>
                                       </TableRow>
                                     ))

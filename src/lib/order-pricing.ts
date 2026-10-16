@@ -12,7 +12,7 @@ export type { OrderTaxSnapshot };
  *   - GST per line, at the SKU's own rate (or the Sales Settings default),
  *     charged on the line value after its share of the coupon discount;
  *   - CGST + SGST when the customer is in the seller's state, IGST otherwise;
- *   - no GST at all when GST billing is switched off in Sales Settings.
+ *   - no GST only if the basis says so (online checkout always charges GST).
  *
  * The order total is the invoice's total before its round-off to the rupee.
  * Pure: shared by checkout preview, order placement and tests.

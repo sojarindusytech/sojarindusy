@@ -6,8 +6,9 @@ import { priceOrder, type OrderTaxBasis, type PricedOrder } from "@/lib/order-pr
 import type { PricedCart } from "@/lib/server/checkout/cart";
 
 /**
- * The GST basis for a customer's order: GST on/off, default rate and seller
- * state from Sales Settings; place of supply from the customer's profile state
+ * The GST basis for a customer's order: online orders always carry GST, whether or not the
+ * customer has a GSTIN (the Sales Settings GST switch only sets the default for hand-made
+ * invoices and quotes). Default rate and seller state come from Sales Settings; place of supply from the customer's profile state
  * (the same source the invoice uses). Null when Sales Settings can't be read:
  * checkout must not guess the tax.
  */
@@ -15,7 +16,7 @@ export async function loadOrderTaxBasis(customerState: string | null | undefined
   const settings = await loadSalesSettings();
   if (!settings) return null;
   return {
-    gstEnabled: settings.gst_billing_enabled,
+    gstEnabled: true,
     defaultGstRate: Number(settings.default_gst_rate),
     sellerStateCode: settings.state_code || null,
     placeOfSupply: placeOfSupplyFor(customerState),

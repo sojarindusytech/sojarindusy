@@ -6,6 +6,7 @@ import { salesSettingsSchema, type SalesSettingsInput } from "@/lib/validations/
 import type { SalesSettings } from "@/types/database.types";
 import { financialYear } from "@/lib/invoice";
 import { loadSalesSettings } from "@/lib/sales-settings";
+import { isManufacturer } from "@/lib/server/purchase-orders";
 import { revalidatePath } from "next/cache";
 
 const ASSET_BUCKET = "invoice-assets";
@@ -34,6 +35,14 @@ export async function updateSalesSettings(
       return { success: false, error: "Please fix the highlighted fields.", fieldErrors };
     }
 
+    if (parsed.data.po_manufacturer_id && !(await isManufacturer(parsed.data.po_manufacturer_id))) {
+      return {
+        success: false,
+        error: "Please fix the highlighted fields.",
+        fieldErrors: { po_manufacturer_id: "That account is not a manufacturer." },
+      };
+    }
+
     // An edited counter is meant for the current financial year. Stamp the FY so
     // next_invoice_number() doesn't see a stale FY and reset it to 1. An
     // unchanged counter is left alone so an untouched new year still starts at 1.
@@ -50,6 +59,7 @@ export async function updateSalesSettings(
     }
     const { credit_note_next_number, ...values } = parsed.data;
     const receiptCounterEdited = current?.receipt_next_number !== parsed.data.receipt_next_number;
+    const orderCounterEdited = current?.order_next_number !== parsed.data.order_next_number;
     const poCounterEdited = current?.po_next_number !== parsed.data.po_next_number;
 
     let update = createAdminClient().from("sales_settings")
@@ -58,6 +68,7 @@ export async function updateSalesSettings(
         ...(creditCounterEdited ? { credit_note_next_number, credit_note_fy: financialYear() } : {}),
         ...(counterEdited ? { invoice_fy: financialYear() } : {}),
         ...(poCounterEdited ? { po_fy: financialYear() } : {}),
+        ...(orderCounterEdited ? { order_fy: financialYear() } : {}),
         ...(receiptCounterEdited ? { receipt_fy: financialYear() } : {}),
         ...(quoteCounterEdited ? { quote_fy: financialYear() } : {}),
         ...(rfqCounterEdited ? { rfq_fy: financialYear() } : {}),
