@@ -276,6 +276,7 @@ export function AdminInvoicesClient({ initialInvoices }: { initialInvoices: Invo
                     </TableCell>
                     <TableCell className="text-right whitespace-nowrap">
                       <IconAction label="View PDF" onClick={() => setViewing(inv)}><Eye /></IconAction>
+                      {inv.status === "issued" && <IconAction label="Create credit note" href={`/admin/credit-notes?invoice=${inv.id}`}><FilePlus2 /></IconAction>}
                       <IconAction label="Download PDF" href={`/api/invoices/${inv.id}/pdf?download=1`}><Download /></IconAction>
                       {inv.status === "issued" && (inv.balance ?? 1) > 0 && (
                         <IconAction label="Record payment" tone="success" onClick={() => setPayingInvoiceId(inv.id)}><HandCoins /></IconAction>
