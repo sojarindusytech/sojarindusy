@@ -12,6 +12,7 @@ import { debitNoteErrorMessage } from "@/lib/server/debit-notes";
 import { filterCustomerVisibleInvoices } from "@/lib/server/invoice-access";
 import { notifyAll } from "@/lib/server/notifications";
 import type { DebitNote, Invoice, SalesSettings } from "@/types/database.types";
+import type { InvoicePaymentStatus } from "@/lib/payments";
 
 /** PostgREST / Postgres codes for "this table does not exist": the migration has not been applied. */
 const isMissingTable = (e: { code?: string }) => e.code === "PGRST205" || e.code === "42P01";
@@ -26,7 +27,12 @@ export type DebitNoteListRow = Pick<
   DebitNote,
   | "id" | "debit_note_number" | "debit_note_date" | "invoice_id" | "invoice_number" | "invoice_date"
   | "bill_to" | "reason" | "reason_note" | "gst_enabled" | "total_amount" | "status" | "cancel_reason" | "created_at"
->;
+> & {
+  /** Money received against it (admin list only; from the debit_note_payment_summary view). */
+  paid?: number;
+  balance?: number;
+  payment_status?: InvoicePaymentStatus;
+};
 
 const LIST_COLUMNS =
   "id, debit_note_number, debit_note_date, invoice_id, invoice_number, invoice_date, bill_to, reason, reason_note, gst_enabled, total_amount, status, cancel_reason, created_at";
@@ -45,7 +51,22 @@ export async function listDebitNotes(): Promise<DebitNoteListRow[]> {
     if (isMissingTable(error)) throw new Error(MIGRATION_HINT);
     return [];
   }
-  return ((data as unknown as DebitNoteListRow[]) ?? []).map(toListRow);
+  const rows = ((data as unknown as DebitNoteListRow[]) ?? []).map(toListRow);
+
+  // Paid / balance / status come from the payments module (20261023). Before that migration the
+  // view is missing and the list simply shows no payment columns.
+  const { data: sums } = await createAdminClient()
+    .from("debit_note_payment_summary" as never)
+    .select("debit_note_id, paid, balance, payment_status");
+  const byId = new Map(
+    ((sums as unknown as { debit_note_id: string; paid: number | string; balance: number | string; payment_status: InvoicePaymentStatus }[] | null) ?? []).map(
+      (r) => [r.debit_note_id, r]
+    )
+  );
+  return rows.map((r) => {
+    const s = byId.get(r.id);
+    return s ? { ...r, paid: Number(s.paid), balance: Number(s.balance), payment_status: s.payment_status } : r;
+  });
 }
 
 /** An invoice a debit note can be issued against. */

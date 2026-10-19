@@ -43,7 +43,7 @@ const TEXT_FIELDS = [
   "company_name", "address", "gstin", "state_code", "state_name", "msme", "website", "phone", "email",
   "logo_url", "signature_url", "bank_name", "bank_address", "account_no", "ifsc", "account_holder",
   "terms", "quote_terms", "receipt_terms", "invoice_prefix", "po_prefix", "rfq_prefix", "quote_prefix", "quote_payment_terms", "quote_delivery_terms", "receipt_prefix", "order_prefix",
-  "debit_note_prefix",
+  "debit_note_prefix", "debit_note_terms",
 ] as const;
 
 function toForm(s: SalesSettings): Form {
@@ -379,6 +379,10 @@ export function SalesSettingsClient({ initial, manufacturers }: { initial: Sales
         </div>
         <div className="space-y-1">
           {area("quote_terms", "Quotation terms & conditions", 7)}
+        </div>
+        <div className="space-y-1">
+          {area("debit_note_terms", "Debit note terms & conditions", 5)}
+          <p className="text-[11px] text-slate-500">Leave blank to print the invoice terms on debit notes.</p>
         </div>
         <div className="space-y-1">
           {area("receipt_terms", "Payment receipt note", 4)}

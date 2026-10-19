@@ -28,14 +28,19 @@ export const recordPaymentSchema = z.object({
   manualNumber: optionalText(50),
   allocations: z
     .array(
-      z.object({
-        kind: z.enum(["invoice", "advance", "other"]),
-        invoiceId: z.uuid().optional(),
-        amount: z.number().positive(),
-        note: optionalText(200),
-      })
+      z
+        .object({
+          kind: z.enum(["invoice", "debit_note", "advance", "other"]),
+          invoiceId: z.uuid().optional(),
+          debitNoteId: z.uuid().optional(),
+          amount: z.number().positive(),
+          note: optionalText(200),
+        })
+        .refine((a) => (a.kind === "invoice") === !!a.invoiceId && (a.kind === "debit_note") === !!a.debitNoteId, {
+          message: "Each line must point at its invoice or debit note.",
+        })
     )
-    .min(1, "Allocate the payment to an invoice, advance or other.")
+    .min(1, "Allocate the payment to an invoice, debit note, advance or other.")
     .max(200),
 });
 

@@ -34,6 +34,8 @@ export function debitNoteErrorMessage(error: DbAppError): string {
       return "Administrator access required.";
     case "INVOICE_HAS_DEBIT_NOTES":
       return invoiceHasDebitNotesMessage(String(d.debit_notes ?? ""));
+    case "DEBIT_NOTE_HAS_PAYMENTS":
+      return `This debit note has ₹${(Number(d.paid) || 0).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} received against it. Cancel the receipt(s) in Payments Received first.`;
     default:
       return "Could not save the debit note. Please check the details and try again.";
   }

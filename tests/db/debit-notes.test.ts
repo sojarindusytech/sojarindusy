@@ -37,10 +37,13 @@ beforeAll(async () => {
   }
 });
 
-/** No debit notes and a fresh series. TRUNCATE skips the row trigger that makes notes undeletable. */
+/**
+ * No debit notes and a fresh series. TRUNCATE skips the row trigger that makes notes undeletable;
+ * payments go too, since a receipt can point at a debit note (20261023).
+ */
 async function reset() {
   await t.db.exec(`
-    TRUNCATE public.debit_notes;
+    TRUNCATE public.payment_allocations, public.payments, public.debit_notes;
     UPDATE public.sales_settings
        SET debit_note_prefix = 'SI/DN', debit_note_fy = NULL, debit_note_next_number = 1, debit_note_pad = 2
      WHERE id = true;

@@ -179,7 +179,7 @@ export function InvoicePdf({
     ...(quote?.paymentTerms ? [`Payment Terms: ${quote.paymentTerms}`] : []),
     ...(quote?.deliveryTerms ? [`Delivery Terms: ${quote.deliveryTerms}`] : []),
     ...(quote ? [`This quotation is valid until ${fmtDate(quote.validUntil)}.`] : []),
-    ...splitTerms(documentTerms(settings, isQuote ? "quote" : "invoice")),
+    ...splitTerms(documentTerms(settings, isQuote ? "quote" : isDebitNote ? "debit_note" : "invoice")),
   ];
 
   return (

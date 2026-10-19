@@ -1,10 +1,10 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
-import { Ban, Calendar, Download, Eye, FileUp, Search, Settings } from "lucide-react";
+import { Ban, Calendar, Download, Eye, FileUp, HandCoins, Search, Settings } from "lucide-react";
 import { cancelDebitNote, type DebitNoteListRow } from "@/actions/debit-note";
 import { debitNoteReasonLabel } from "@/lib/debit-notes";
 import { DATE_RANGE_OPTIONS, isWithinDateRange, type DateRangeKey } from "@/lib/date-range";
@@ -22,6 +22,9 @@ import { PageTitle } from "@/components/common/PageTitle";
 import { IconAction } from "@/components/common/IconAction";
 import { pdfViewerSrc } from "@/lib/pdf-viewer";
 import { DebitNoteFormModal } from "./DebitNoteFormModal";
+import { PaymentFormModal } from "./PaymentFormModal";
+import { getPaymentFormData, type PaymentFormData } from "@/actions/payment";
+import { paymentStatusLabel } from "@/lib/payments";
 
 const inr = (n: number) => `₹${n.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const fmtDate = (iso: string) => iso.split("-").reverse().join("-");
@@ -45,6 +48,15 @@ export function AdminDebitNotesClient({
   // Id of the note whose PDF has finished loading; the skeleton shows until it matches.
   const [loadedPdfId, setLoadedPdfId] = useState<string | null>(null);
   const [cancelling, setCancelling] = useState<DebitNoteListRow | null>(null);
+  // "Record payment" from a row: the form opens with that debit note preselected. Its data is fetched ahead of the click.
+  const [payingId, setPayingId] = useState<string | null>(null);
+  const [paymentData, setPaymentData] = useState<PaymentFormData | null>(null);
+  useEffect(() => {
+    if (loadError) return;
+    let cancelled = false;
+    getPaymentFormData().then((d) => { if (!cancelled) setPaymentData(d); });
+    return () => { cancelled = true; };
+  }, [loadError]);
   const [cancelReason, setCancelReason] = useState("");
   const [pending, startTransition] = useTransition();
 
@@ -66,6 +78,7 @@ export function AdminDebitNotesClient({
 
   const issued = initialDebitNotes.filter((d) => d.status === "issued");
   const debited = issued.reduce((sum, d) => sum + Number(d.total_amount || 0), 0);
+  const outstanding = issued.reduce((sum, d) => sum + (d.balance ?? Number(d.total_amount || 0)), 0);
 
   const confirmCancel = () => {
     const target = cancelling;
@@ -113,7 +126,7 @@ export function AdminDebitNotesClient({
         </div>
       )}
 
-      <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <Card className="p-3.5 bg-white border border-slate-200 shadow-none rounded-xl">
           <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1">Debit Notes Issued</div>
           <div className="text-xl font-bold text-slate-900">{issued.length}</div>
@@ -122,7 +135,11 @@ export function AdminDebitNotesClient({
           <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1">Total Debited</div>
           <div className="text-xl font-bold text-[#024AE5]">{inr(debited)}</div>
         </Card>
-        <Card className="p-3.5 bg-white border border-slate-200 shadow-none rounded-xl col-span-2 lg:col-span-1">
+        <Card className="p-3.5 bg-white border border-slate-200 shadow-none rounded-xl">
+          <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1">Outstanding</div>
+          <div className="text-xl font-bold text-amber-700">{inr(outstanding)}</div>
+        </Card>
+        <Card className="p-3.5 bg-white border border-slate-200 shadow-none rounded-xl">
           <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1">Cancelled</div>
           <div className="text-xl font-bold text-slate-900">{initialDebitNotes.length - issued.length}</div>
         </Card>
@@ -182,6 +199,8 @@ export function AdminDebitNotesClient({
                 <TableHead className="text-[11px] font-bold uppercase tracking-wider">Against Invoice</TableHead>
                 <TableHead className="text-[11px] font-bold uppercase tracking-wider">Reason</TableHead>
                 <TableHead className="text-[11px] font-bold uppercase tracking-wider text-right">Amount</TableHead>
+                <TableHead className="text-[11px] font-bold uppercase tracking-wider text-right">Balance</TableHead>
+                <TableHead className="text-[11px] font-bold uppercase tracking-wider">Payment</TableHead>
                 <TableHead className="text-[11px] font-bold uppercase tracking-wider">Status</TableHead>
                 <TableHead className="text-[11px] font-bold uppercase tracking-wider text-right">Actions</TableHead>
               </TableRow>
@@ -189,7 +208,7 @@ export function AdminDebitNotesClient({
             <TableBody>
               {filtered.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={8} className="py-14 text-center">
+                  <TableCell colSpan={10} className="py-14 text-center">
                     <FileUp className="h-8 w-8 mx-auto text-slate-300 mb-2" />
                     <p className="text-sm font-semibold text-slate-700">
                       {initialDebitNotes.length === 0 ? "No debit notes yet" : "No debit notes match your filters"}
@@ -218,6 +237,16 @@ export function AdminDebitNotesClient({
                       ) : null}
                     </TableCell>
                     <TableCell className="text-xs font-bold text-slate-900 text-right whitespace-nowrap">{inr(Number(dn.total_amount))}</TableCell>
+                    <TableCell className="text-xs text-right whitespace-nowrap">
+                      {dn.balance === undefined || dn.status === "cancelled" ? "—" : <span className={dn.balance > 0 ? "font-semibold text-amber-700" : "text-emerald-700"}>{inr(dn.balance)}</span>}
+                    </TableCell>
+                    <TableCell>
+                      {dn.payment_status && dn.status !== "cancelled" ? (
+                        <Badge variant={dn.payment_status === "paid" ? "success" : dn.payment_status === "partial" ? "warning" : "outline"} className="text-[10px] whitespace-nowrap">
+                          {paymentStatusLabel(dn.payment_status)}
+                        </Badge>
+                      ) : "—"}
+                    </TableCell>
                     <TableCell>
                       {dn.status === "issued" ? (
                         <Badge variant="success" className="text-[10px]">Issued</Badge>
@@ -233,6 +262,9 @@ export function AdminDebitNotesClient({
                         <Eye />
                       </IconAction>
                       <IconAction label="Download PDF" href={`/api/debit-notes/${dn.id}/pdf?download=1`}><Download /></IconAction>
+                      {dn.status === "issued" && (dn.balance ?? 1) > 0 && (
+                        <IconAction label="Record payment" tone="success" onClick={() => setPayingId(dn.id)}><HandCoins /></IconAction>
+                      )}
                       {dn.status === "issued" && (
                         <IconAction label="Cancel debit note" tone="danger" onClick={() => setCancelling(dn)}><Ban /></IconAction>
                       )}
@@ -245,6 +277,19 @@ export function AdminDebitNotesClient({
         </div>
         <PaginationBar state={pager} noun="debit notes" />
       </div>
+
+      {payingId && (
+        <PaymentFormModal
+          data={paymentData}
+          initialInvoiceId={payingId}
+          onOpenChange={(open) => !open && setPayingId(null)}
+          onCreated={() => {
+            setPayingId(null);
+            router.refresh();
+            getPaymentFormData().then(setPaymentData);
+          }}
+        />
+      )}
 
       {creating && (
         <DebitNoteFormModal

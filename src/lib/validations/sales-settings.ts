@@ -48,6 +48,7 @@ export const salesSettingsSchema = z.object({
   terms: optionalText,
   quote_terms: optionalText,
   receipt_terms: optionalText,
+  debit_note_terms: optionalText,
 
   gst_billing_enabled: z.boolean(),
   invoice_reduces_stock: z.boolean(),

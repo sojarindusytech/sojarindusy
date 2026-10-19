@@ -206,7 +206,13 @@ export interface RecordPaymentPayload {
   deposit_account: string | null;
   remarks: string | null;
   manual_number: string | null;
-  allocations: { kind: "invoice" | "advance" | "other"; invoice_id?: string; amount: number; note?: string | null }[];
+  allocations: {
+    kind: "invoice" | "debit_note" | "advance" | "other";
+    invoice_id?: string;
+    debit_note_id?: string;
+    amount: number;
+    note?: string | null;
+  }[];
 }
 
 /** Validates, locks the invoices, numbers and stores a receipt atomically. Returns the receipt row. */

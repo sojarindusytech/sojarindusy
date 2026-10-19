@@ -288,6 +288,8 @@ export interface SalesSettings {
   quote_terms?: string | null;
   /** Note printed on payment receipts. null = none. */
   receipt_terms?: string | null;
+  /** Terms printed on debit notes. null = use `terms`. */
+  debit_note_terms?: string | null;
   /** Hand-made invoices reduce SKU stock when issued (order invoices are unaffected). */
   invoice_reduces_stock: boolean;
   po_prefix: string;
@@ -411,10 +413,14 @@ export type PaymentMode =
 export interface PaymentAllocation {
   id: string;
   payment_id: string;
-  kind: "invoice" | "advance" | "other";
+  kind: "invoice" | "debit_note" | "advance" | "other";
   invoice_id: string | null;
   /** Snapshot of the invoice number at the time of payment. */
   invoice_number: string | null;
+  /** Set when the money went to a debit note (20261023). */
+  debit_note_id?: string | null;
+  /** Snapshot of the debit note number at the time of payment. */
+  debit_note_number?: string | null;
   amount: number;
   note: string | null;
 }
