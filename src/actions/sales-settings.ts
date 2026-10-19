@@ -61,6 +61,7 @@ export async function updateSalesSettings(
     const receiptCounterEdited = current?.receipt_next_number !== parsed.data.receipt_next_number;
     const orderCounterEdited = current?.order_next_number !== parsed.data.order_next_number;
     const poCounterEdited = current?.po_next_number !== parsed.data.po_next_number;
+    const debitNoteCounterEdited = current?.debit_note_next_number !== parsed.data.debit_note_next_number;
 
     let update = createAdminClient().from("sales_settings")
       .update({
@@ -72,6 +73,7 @@ export async function updateSalesSettings(
         ...(receiptCounterEdited ? { receipt_fy: financialYear() } : {}),
         ...(quoteCounterEdited ? { quote_fy: financialYear() } : {}),
         ...(rfqCounterEdited ? { rfq_fy: financialYear() } : {}),
+        ...(debitNoteCounterEdited ? { debit_note_fy: financialYear() } : {}),
         updated_at: new Date().toISOString(),
       } as never)
       .eq("id", true);
@@ -92,6 +94,7 @@ export async function updateSalesSettings(
     revalidatePath("/admin/settings/sales");
     revalidatePath("/admin/invoices");
     revalidatePath("/admin/credit-notes");
+    revalidatePath("/admin/debit-notes");
     return { success: true };
   } catch (err) {
     console.error("[updateSalesSettings] Exception:", err);

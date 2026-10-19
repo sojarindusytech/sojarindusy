@@ -1,5 +1,10 @@
 import { z } from "zod";
 import { INVOICE_COPIES } from "@/lib/invoice";
+import {
+  DEBIT_NOTE_PREFIX_PATTERN,
+  MAX_DEBIT_NOTE_NUMBER_LENGTH,
+  debitNoteNumberLength,
+} from "@/lib/debit-notes";
 
 const GSTIN_REGEX = /^\d{2}[A-Z]{5}\d{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/;
 
@@ -44,6 +49,7 @@ export const salesSettingsSchema = z.object({
   credit_note_terms: optionalText,
   quote_terms: optionalText,
   receipt_terms: optionalText,
+  debit_note_terms: optionalText,
 
   gst_billing_enabled: z.boolean(),
   invoice_reduces_stock: z.boolean(),
@@ -105,6 +111,15 @@ export const salesSettingsSchema = z.object({
     .regex(/^[A-Za-z0-9/\-_.]+$/, "Use letters, numbers, / - _ . only."),
   receipt_next_number: z.coerce.number().int("Must be a whole number.").min(1, "Counter must be at least 1."),
   receipt_pad: z.coerce.number().int().min(1).max(8),
+  debit_note_prefix: z
+    .string()
+    .trim()
+    .min(1, "Prefix is required.")
+    .max(12, "Prefix is too long.")
+    // GST allows only letters, digits, "-" and "/" in a debit note number.
+    .regex(DEBIT_NOTE_PREFIX_PATTERN, "Use letters, numbers, / and - only."),
+  debit_note_next_number: z.coerce.number().int("Must be a whole number.").min(1, "Counter must be at least 1."),
+  debit_note_pad: z.coerce.number().int().min(1).max(8),
   order_prefix: z
     .string()
     .trim()
@@ -117,6 +132,13 @@ export const salesSettingsSchema = z.object({
 }).superRefine((value, ctx) => {
   if (value.credit_note_prefix.length + 7 + Math.max(value.credit_note_pad, String(value.credit_note_next_number).length) > 16) {
     ctx.addIssue({ code: "custom", path: ["credit_note_prefix"], message: "The complete credit note number must fit within 16 characters. Shorten the prefix or digits." });
+  }
+  if (debitNoteNumberLength(value.debit_note_prefix, value.debit_note_pad) > MAX_DEBIT_NOTE_NUMBER_LENGTH) {
+    ctx.addIssue({
+      code: "custom",
+      path: ["debit_note_prefix"],
+      message: `GST allows at most ${MAX_DEBIT_NOTE_NUMBER_LENGTH} characters in a debit note number. Shorten the prefix or use fewer digits.`,
+    });
   }
 });
 

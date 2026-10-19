@@ -6,7 +6,7 @@ import { useEffect, useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
-import { Calendar, Download, Eye, FilePlus2, HandCoins, Pencil, Receipt, Search, Settings, Ban } from "lucide-react";
+import { Calendar, Download, Eye, FilePlus2, FileUp, HandCoins, Pencil, Receipt, Search, Settings, Ban } from "lucide-react";
 import type { InvoiceListRow } from "@/actions/invoice";
 import { cancelInvoice, getInvoice } from "@/actions/invoice";
 import type { Invoice } from "@/types/database.types";
@@ -32,6 +32,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { InvoiceFormModal } from "./InvoiceFormModal";
 import { PaymentFormModal } from "./PaymentFormModal";
+import { DebitNoteFormModal } from "./DebitNoteFormModal";
 import { getPaymentFormData, type PaymentFormData } from "@/actions/payment";
 import { paymentStatusLabel } from "@/lib/payments";
 import { PaginationBar, usePagination } from "@/components/common/Pagination";
@@ -94,6 +95,8 @@ export function AdminInvoicesClient({ initialInvoices }: { initialInvoices: Invo
   // Bumped after an edit so the iframe re-fetches the regenerated PDF.
   const [pdfVersion, setPdfVersion] = useState(0);
   const [cancelling, setCancelling] = useState<InvoiceListRow | null>(null);
+  // "Issue debit note" from a row: the form opens with that invoice preselected.
+  const [debitNoteFor, setDebitNoteFor] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
   const filtered = useMemo(() => {
@@ -282,6 +285,9 @@ export function AdminInvoicesClient({ initialInvoices }: { initialInvoices: Invo
                         <IconAction label="Record payment" tone="success" onClick={() => setPayingInvoiceId(inv.id)}><HandCoins /></IconAction>
                       )}
                       {inv.status === "issued" && (
+                        <IconAction label="Issue debit note (charge more)" tone="primary" onClick={() => setDebitNoteFor(inv.id)}><FileUp /></IconAction>
+                      )}
+                      {inv.status === "issued" && (
                         <IconAction label="Edit invoice" disabled={loadingEditId === inv.id} onClick={() => startEdit(inv)}><Pencil /></IconAction>
                       )}
                       {inv.status === "issued" && (
@@ -306,6 +312,17 @@ export function AdminInvoicesClient({ initialInvoices }: { initialInvoices: Invo
             setPayingInvoiceId(null);
             router.refresh();
             getPaymentFormData().then(setPaymentData);
+          }}
+        />
+      )}
+
+      {debitNoteFor && (
+        <DebitNoteFormModal
+          initialInvoiceId={debitNoteFor}
+          onOpenChange={(open) => !open && setDebitNoteFor(null)}
+          onIssued={() => {
+            setDebitNoteFor(null);
+            router.refresh();
           }}
         />
       )}

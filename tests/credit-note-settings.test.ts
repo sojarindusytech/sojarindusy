@@ -7,6 +7,7 @@ vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 import { updateSalesSettings } from "@/actions/sales-settings";
 import { salesSettingsSchema, type SalesSettingsInput } from "@/lib/validations/sales-settings";
 import { financialYear } from "@/lib/invoice";
+import { revalidatePath } from "next/cache";
 const valid: SalesSettingsInput = {
   company_name: "Sojar", address: "Vapi, Gujarat", gstin: null, state_code: "24", state_name: "Gujarat", email: null,
   invoice_reduces_stock: true, credit_note_restores_stock: true,
@@ -17,6 +18,7 @@ const valid: SalesSettingsInput = {
   rfq_prefix: "SI/RFQ", rfq_next_number: 1, rfq_pad: 2,
   quote_prefix: "SI/QT", quote_next_number: 1, quote_pad: 2, quote_validity_days: 30,
   credit_note_prefix: "SI/CN", credit_note_next_number: 1, credit_note_pad: 2,
+  debit_note_prefix: "SI/DN", debit_note_next_number: 1, debit_note_pad: 2,
   receipt_prefix: "SI/RCPT", receipt_next_number: 1, receipt_pad: 2, invoice_copies: ["original"],
 };
 beforeEach(() => {
@@ -27,6 +29,19 @@ beforeEach(() => {
   mocks.current.mockResolvedValue({ ...valid, credit_note_next_number: 2, credit_note_fy: financialYear() });
 });
 describe("credit note Sales Settings", () => {
+  it("saves both note terms and debit numbering while preserving an untouched credit counter", async () => {
+    expect((await updateSalesSettings({
+      ...valid, credit_note_terms: "  Credit terms  ", debit_note_terms: "  Debit terms  ",
+      debit_note_next_number: 10,
+    }, 1)).success).toBe(true);
+    expect(mocks.update.mock.calls[0][0]).toMatchObject({
+      credit_note_terms: "Credit terms", debit_note_terms: "Debit terms",
+      debit_note_next_number: 10, debit_note_fy: financialYear(),
+    });
+    expect(mocks.update.mock.calls[0][0]).not.toHaveProperty("credit_note_next_number");
+    expect(revalidatePath).toHaveBeenCalledWith("/admin/credit-notes");
+    expect(revalidatePath).toHaveBeenCalledWith("/admin/debit-notes");
+  });
   it("saves the stock restoration preference independently from invoice deduction", async () => {
     expect((await updateSalesSettings({ ...valid, credit_note_restores_stock: false }, 1)).success).toBe(true);
     expect(mocks.update.mock.calls[0][0]).toMatchObject({ credit_note_restores_stock: false, invoice_reduces_stock: true });
@@ -50,5 +65,14 @@ describe("credit note Sales Settings", () => {
     expect(salesSettingsSchema.safeParse(valid).success).toBe(true);
     expect(salesSettingsSchema.safeParse({ ...valid, credit_note_prefix: "SI_CN" }).success).toBe(false);
     expect(salesSettingsSchema.safeParse({ ...valid, credit_note_prefix: "LONG/CN", credit_note_pad: 3 }).success).toBe(false);
+  });
+  it("reports both note series errors when both generated numbers are too long", () => {
+    const result = salesSettingsSchema.safeParse({
+      ...valid, credit_note_prefix: "LONG/CN", credit_note_pad: 3, debit_note_pad: 8,
+    });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.issues.map((issue) => issue.path[0])).toEqual(["credit_note_prefix", "debit_note_prefix"]);
+    }
   });
 });

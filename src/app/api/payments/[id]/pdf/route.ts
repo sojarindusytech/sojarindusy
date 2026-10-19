@@ -51,6 +51,20 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
       invoices[r.id] = { invoice_date: r.invoice_date, total: Number(r.total_amount), balance: balance.get(r.id) ?? 0 };
     }
   }
+  // Debit notes paid by this receipt: same columns (date, total, what is still due).
+  const debitNoteIds = (payment.allocations ?? []).map((a) => a.debit_note_id).filter((v): v is string => !!v);
+  if (debitNoteIds.length > 0) {
+    const [{ data: dnRows }, { data: dnSums }] = await Promise.all([
+      db.from("debit_notes" as never).select("id, debit_note_date, total_amount").in("id", debitNoteIds),
+      db.from("debit_note_payment_summary" as never).select("debit_note_id, balance").in("debit_note_id", debitNoteIds),
+    ]);
+    const dnBalance = new Map(
+      ((dnSums as unknown as { debit_note_id: string; balance: number | string }[] | null) ?? []).map((r) => [r.debit_note_id, Number(r.balance)])
+    );
+    for (const r of (dnRows as unknown as { id: string; debit_note_date: string; total_amount: number | string }[] | null) ?? []) {
+      invoices[r.id] = { invoice_date: r.debit_note_date, total: Number(r.total_amount), balance: dnBalance.get(r.id) ?? 0 };
+    }
+  }
 
   let payer: { address?: string | null; gstin?: string | null } = {};
   if (payment.user_id) {

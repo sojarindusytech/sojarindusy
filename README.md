@@ -9,7 +9,6 @@ cutting tools (end mills, drills, oscillating blades, carbide wear parts) to Ind
 - **Admins** manage the catalogue, stock, customers, orders, returns, RFQs, quotes,
   coupons and purchase orders.
 - **The manufacturer** sees purchase orders raised automatically when stock runs low.
-
 ## Stack
 Next.js 16 (App Router) · React 19 · TypeScript · Supabase (Postgres, Auth, Storage) ·
 Tailwind CSS · shadcn/ui · Vitest

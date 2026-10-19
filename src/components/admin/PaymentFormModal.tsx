@@ -39,7 +39,7 @@ export function PaymentFormModal({
 }: {
   /** Prefetched by the parent so the dropdowns are ready on open. null while it is still loading. */
   data: PaymentFormData | null;
-  /** Preselect this invoice (the "Record payment" action on an invoice row). */
+  /** Preselect this invoice or debit note (the "Record payment" action on its row). */
   initialInvoiceId?: string | null;
   onOpenChange: (open: boolean) => void;
   onCreated: (payment: Payment) => void;
@@ -86,6 +86,7 @@ export function PaymentFormModal({
     return data.invoices.filter((i) => (isWalkIn ? i.user_id === null : i.user_id === customerId));
   }, [data, customerId, isWalkIn]);
   const balances = useMemo(() => Object.fromEntries(openInvoices.map((i) => [i.id, i.balance])), [openInvoices]);
+  const isDebitNote = (id: string) => openInvoices.find((i) => i.id === id)?.kind === "debit_note";
 
   const amountNum = Number(amount) || 0;
   const invoiceLines = openInvoices
@@ -143,7 +144,11 @@ export function PaymentFormModal({
 
     startTransition(async () => {
       const allocations = [
-        ...invoiceLines.map((l) => ({ kind: "invoice" as const, invoiceId: l.invoiceId, amount: l.amount })),
+        ...invoiceLines.map((l) =>
+          isDebitNote(l.invoiceId)
+            ? { kind: "debit_note" as const, debitNoteId: l.invoiceId, amount: l.amount }
+            : { kind: "invoice" as const, invoiceId: l.invoiceId, amount: l.amount }
+        ),
         ...(toPaise(remainder) > 0
           ? [{ kind: remainderKind, amount: remainder, note: remainderKind === "other" ? otherNote : null }]
           : []),
@@ -176,7 +181,7 @@ export function PaymentFormModal({
       <DialogContent className="max-w-4xl">
         <DialogHeader>
           <DialogTitle>Record Payment Received</DialogTitle>
-          <DialogDescription>Cash, cheque, bank transfer, UPI, card and more. Split it across invoices, or keep it as an advance.</DialogDescription>
+          <DialogDescription>Cash, cheque, bank transfer, UPI, card and more. Split it across invoices and debit notes, or keep it as an advance.</DialogDescription>
         </DialogHeader>
 
         <div className="grid md:grid-cols-2 gap-5">
@@ -253,7 +258,7 @@ export function PaymentFormModal({
         {/* Allocation */}
         <div className="space-y-2">
           <div className="flex items-center justify-between gap-2">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500">Apply to invoices</h3>
+            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500">Apply to invoices &amp; debit notes</h3>
             <Button type="button" variant="outline" size="sm" className="gap-1.5" onClick={runAutoAllocate} disabled={openInvoices.length === 0 || amountNum <= 0}>
               <Wand2 className="h-3.5 w-3.5" /> Auto-allocate (oldest first)
             </Button>
@@ -264,7 +269,7 @@ export function PaymentFormModal({
               <thead className="bg-slate-50 text-[11px] uppercase tracking-wider text-slate-500">
                 <tr>
                   <th className="w-8 p-2" />
-                  <th className="text-left p-2">Invoice</th>
+                  <th className="text-left p-2">Document</th>
                   <th className="text-left p-2">Date</th>
                   <th className="text-right p-2">Total</th>
                   <th className="text-right p-2">Balance</th>
@@ -273,16 +278,21 @@ export function PaymentFormModal({
               </thead>
               <tbody>
                 {!customerId ? (
-                  <tr><td colSpan={6} className="p-4 text-center text-slate-400">Select a customer to see their open invoices.</td></tr>
+                  <tr><td colSpan={6} className="p-4 text-center text-slate-400">Select a customer to see their open invoices and debit notes.</td></tr>
                 ) : openInvoices.length === 0 ? (
-                  <tr><td colSpan={6} className="p-4 text-center text-slate-400">No open invoices. The payment can be kept as an advance or other.</td></tr>
+                  <tr><td colSpan={6} className="p-4 text-center text-slate-400">Nothing outstanding. The payment can be kept as an advance or other.</td></tr>
                 ) : (
                   openInvoices.map((i) => {
                     const on = i.id in applied;
                     return (
                       <tr key={i.id} className="border-t border-slate-100">
                         <td className="p-2"><input type="checkbox" checked={on} onChange={(e) => toggleInvoice(i.id, i.balance, e.target.checked)} aria-label={`Apply to ${i.invoice_number}`} className="h-4 w-4 accent-[#024AE5]" /></td>
-                        <td className="p-2 font-mono font-bold text-slate-900">{i.invoice_number}</td>
+                        <td className="p-2">
+                          <span className="font-mono font-bold text-slate-900">{i.invoice_number}</span>
+                          {i.kind === "debit_note" && (
+                            <span className="ml-1.5 rounded bg-amber-50 px-1.5 py-0.5 text-[10px] font-semibold text-amber-800 ring-1 ring-amber-200">Debit note</span>
+                          )}
+                        </td>
                         <td className="p-2 text-slate-500">{fmtDate(i.invoice_date)}</td>
                         <td className="p-2 text-right text-slate-600">{inr(i.total)}</td>
                         <td className="p-2 text-right font-semibold text-slate-900">{inr(i.balance)}</td>

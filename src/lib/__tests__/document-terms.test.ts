@@ -22,9 +22,25 @@ describe("documentTerms", () => {
     assert.equal(documentTerms({ ...base, credit_note_terms: "   " }, "credit_note"), "");
   });
 
+  it("uses the debit note terms, falling back to the invoice terms while blank", () => {
+    assert.equal(documentTerms({ ...base, debit_note_terms: "Payable within 15 days." }, "debit_note"), "Payable within 15 days.");
+    assert.equal(documentTerms(base, "debit_note"), "Invoice terms");
+    assert.equal(documentTerms({ ...base, debit_note_terms: "  " }, "debit_note"), "Invoice terms");
+    // Quotation terms never leak onto a debit note.
+    assert.equal(documentTerms({ ...base, quote_terms: "Quote terms" }, "debit_note"), "Invoice terms");
+  });
+
   it("prints only a receipt's own note, never the invoice terms", () => {
     assert.equal(documentTerms(base, "receipt"), "");
     assert.equal(documentTerms({ ...base, receipt_terms: "Subject to realisation of cheque." }, "receipt"), "Subject to realisation of cheque.");
+  });
+
+  it("keeps credit and debit terms independent when both are configured", () => {
+    const settings = { ...base, credit_note_terms: "Credit terms", debit_note_terms: "Debit terms" };
+    assert.equal(documentTerms(settings, "credit_note"), "Credit terms");
+    assert.equal(documentTerms(settings, "debit_note"), "Debit terms");
+    assert.equal(documentTerms({ ...settings, credit_note_terms: "" }, "credit_note"), "");
+    assert.equal(documentTerms({ ...settings, debit_note_terms: null }, "debit_note"), "Invoice terms");
   });
 });
 
