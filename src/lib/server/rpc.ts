@@ -2,7 +2,8 @@ import "server-only";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { parseDbError, type DbAppError } from "@/lib/server/db-error";
 import type { OrderTaxSnapshot } from "@/lib/order-pricing";
-import type { CouponCheckoutContext, CouponUsageSummary, OrderStatus, Payment } from "@/types/database.types";
+import type { CouponCheckoutContext, CouponUsageSummary, DebitNote, OrderStatus, Payment } from "@/types/database.types";
+import type { InvoiceLine, InvoiceTotals } from "@/lib/invoice";
 
 /**
  * Typed wrappers around the transactional database functions created by the
@@ -205,7 +206,13 @@ export interface RecordPaymentPayload {
   deposit_account: string | null;
   remarks: string | null;
   manual_number: string | null;
-  allocations: { kind: "invoice" | "advance" | "other"; invoice_id?: string; amount: number; note?: string | null }[];
+  allocations: {
+    kind: "invoice" | "debit_note" | "advance" | "other";
+    invoice_id?: string;
+    debit_note_id?: string;
+    amount: number;
+    note?: string | null;
+  }[];
 }
 
 /** Validates, locks the invoices, numbers and stores a receipt atomically. Returns the receipt row. */
@@ -218,6 +225,32 @@ export const cancelPayment = (paymentId: string, reason: string, actorId: string
     p_reason: reason,
     p_actor: actorId,
   });
+
+// ---- Debit notes (20261019_02_debit_notes) ------------------------------------------------
+
+export interface IssueDebitNotePayload {
+  request_id: string;
+  invoice_id: string;
+  debit_note_date: string;
+  reason: string;
+  reason_note: string | null;
+  manual_number: string | null;
+  /** Computed by the server with the invoice maths (src/lib/invoice.ts). */
+  items: InvoiceLine[];
+  totals: InvoiceTotals;
+  total_amount: number;
+  amount_in_words: string;
+}
+
+/** Validates against the invoice, numbers and stores a debit note atomically. Returns the row. */
+export const issueDebitNote = (payload: IssueDebitNotePayload, actorId: string) =>
+  callRpc<DebitNote>("issue_debit_note", { p_input: payload, p_actor: actorId });
+
+export const cancelDebitNote = (debitNoteId: string, reason: string, actorId: string) =>
+  callRpc<{ already_cancelled: boolean; debit_note_number: string; user_id?: string | null; total_amount?: number }>(
+    "cancel_debit_note",
+    { p_debit_note_id: debitNoteId, p_reason: reason, p_actor: actorId }
+  );
 
 /** An admin gives an order a typed number (20261019_order_numbering). The counter is not touched. */
 export const renameOrder = (orderId: string, newNumber: string, actorId: string) =>

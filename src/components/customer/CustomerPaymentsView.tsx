@@ -4,7 +4,7 @@ import { pdfViewerSrc } from "@/lib/pdf-viewer";
 import { useState } from "react";
 import { Download, Eye, Wallet } from "lucide-react";
 import type { Payment } from "@/types/database.types";
-import { modeLabel } from "@/lib/payments";
+import { allocationLabel, modeLabel } from "@/lib/payments";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { IconAction } from "@/components/common/IconAction";
@@ -16,7 +16,8 @@ const inr = (n: number) => `₹${n.toLocaleString("en-IN", { minimumFractionDigi
 const fmtDate = (iso: string) => iso.split("-").reverse().join("-");
 
 function appliedTo(p: Payment): string {
-  const parts = (p.allocations ?? []).map((a) => (a.kind === "invoice" ? a.invoice_number ?? "Invoice" : a.kind === "advance" ? "Advance" : "Other"));
+  // The admin's note on an "other" line is internal; customers just see "Other".
+  const parts = (p.allocations ?? []).map((a) => allocationLabel({ ...a, note: null }));
   return parts.length ? parts.join(", ") : "—";
 }
 
