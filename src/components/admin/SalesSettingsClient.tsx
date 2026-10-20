@@ -42,7 +42,7 @@ type Form = Record<string, string | boolean>;
 const TEXT_FIELDS = [
   "company_name", "address", "gstin", "state_code", "state_name", "msme", "website", "phone", "email",
   "logo_url", "signature_url", "bank_name", "bank_address", "account_no", "ifsc", "account_holder",
-  "terms", "quote_terms", "receipt_terms", "invoice_prefix", "po_prefix", "rfq_prefix", "quote_prefix", "quote_payment_terms", "quote_delivery_terms", "receipt_prefix", "order_prefix",
+  "terms", "quote_terms", "receipt_terms", "credit_note_terms", "invoice_prefix", "po_prefix", "rfq_prefix", "quote_prefix", "credit_note_prefix", "quote_payment_terms", "quote_delivery_terms", "receipt_prefix", "order_prefix",
   "debit_note_prefix", "debit_note_terms",
 ] as const;
 
@@ -50,6 +50,7 @@ function toForm(s: SalesSettings): Form {
   const form: Form = {
     gst_billing_enabled: s.gst_billing_enabled,
     invoice_reduces_stock: s.invoice_reduces_stock !== false,
+    credit_note_restores_stock: s.credit_note_restores_stock !== false,
     default_gst_rate: String(s.default_gst_rate),
     invoice_next_number: String(s.invoice_next_number),
     invoice_pad: String(s.invoice_pad),
@@ -59,6 +60,8 @@ function toForm(s: SalesSettings): Form {
     rfq_pad: String(s.rfq_pad ?? 2),
     quote_next_number: String(s.quote_next_number ?? 1),
     quote_pad: String(s.quote_pad ?? 2),
+    credit_note_next_number: String(s.credit_note_next_number ?? 1),
+    credit_note_pad: String(s.credit_note_pad ?? 2),
     quote_validity_days: String(s.quote_validity_days ?? 30),
     receipt_next_number: String(s.receipt_next_number ?? 1),
     receipt_pad: String(s.receipt_pad ?? 2),
@@ -71,6 +74,7 @@ function toForm(s: SalesSettings): Form {
   for (const k of TEXT_FIELDS) form[k] = (s[k] as string | null) ?? "";
   form.po_prefix = s.po_prefix ?? "SI/PO";
   form.rfq_prefix = s.rfq_prefix ?? "SI/RFQ";
+  form.credit_note_prefix = s.credit_note_prefix ?? "SI/CN";
   form.quote_prefix = s.quote_prefix ?? "SI/QT";
   form.receipt_prefix = s.receipt_prefix ?? "SI/RCPT";
   form.debit_note_prefix = s.debit_note_prefix ?? "SI/DN";
@@ -115,6 +119,10 @@ export function SalesSettingsClient({ initial, manufacturers }: { initial: Sales
     const seq = initialRec[`${key}_fy`] === fy || edited ? counter : 1;
     return formatInvoiceNumber(text(`${key}_prefix`) || fallback, fy, seq, Number(form[`${key}_pad`]) || 2);
   };
+
+  const creditCounter = Math.max(1, Number(form.credit_note_next_number) || 1);
+  const creditNext = initial.credit_note_fy === fy || creditCounter !== initial.credit_note_next_number ? creditCounter : 1;
+  const creditPreview = formatInvoiceNumber(text("credit_note_prefix") || "SI/CN", fy, creditNext, Number(form.credit_note_pad) || 2);
 
   const upload = async (kind: "logo" | "signature", file: File | undefined) => {
     if (!file) return;
@@ -169,8 +177,9 @@ export function SalesSettingsClient({ initial, manufacturers }: { initial: Sales
         ...form,
         gst_billing_enabled: Boolean(form.gst_billing_enabled),
         invoice_reduces_stock: Boolean(form.invoice_reduces_stock),
+        credit_note_restores_stock: Boolean(form.credit_note_restores_stock),
         invoice_copies: copies,
-      } as never);
+      } as never, initial.credit_note_next_number);
       if (res.success) {
         setErrors({});
         toast.success("Sales settings saved.");
@@ -215,6 +224,19 @@ export function SalesSettingsClient({ initial, manufacturers }: { initial: Sales
           />
           <span>
             <span className="block text-sm font-semibold text-slate-900">Reduce stock when an invoice is issued</span>
+          </span>
+        </label>
+        <label className="flex items-start gap-3 cursor-pointer">
+          <input type="checkbox" checked={Boolean(form.credit_note_restores_stock)}
+            onChange={(e) => set("credit_note_restores_stock", e.target.checked)}
+            className="mt-0.5 h-4 w-4 accent-[#024AE5]" />
+          <span>
+            <span className="block text-sm font-semibold text-slate-900">Restore stock when a credit note is issued</span>
+            <span className="block text-xs text-slate-500">
+              New credit notes return credited SKU units to stock only when the invoice or linked order previously
+              deducted them. Units already returned are skipped. Turn off for financial-only credits or goods that
+              cannot be put back in stock. Existing credit notes are unchanged.
+            </span>
           </span>
         </label>
         <div className="grid sm:grid-cols-2 gap-4">
@@ -313,6 +335,18 @@ export function SalesSettingsClient({ initial, manufacturers }: { initial: Sales
           {field("quote_payment_terms", "Default payment terms")}
           {field("quote_delivery_terms", "Default delivery terms")}
         </div>
+        <p className="text-[11px] text-slate-500">These prefill every new quotation and can be changed on each one.</p>
+      </Card>
+
+      <Card className="p-5 space-y-4 shadow-none border-slate-200 rounded-xl">
+        <h2 className="text-sm font-bold text-slate-900">Credit Note Numbering</h2>
+        <div className="grid sm:grid-cols-3 gap-4">
+          {field("credit_note_prefix", "Prefix", { maxLength: 7 })}
+          {field("credit_note_next_number", "Next number", { type: "number", min: 1, max: 99999999, step: 1 })}
+          {field("credit_note_pad", "Digits", { type: "number", min: 1, max: 8, step: 1 })}
+        </div>
+        <p className="text-xs text-slate-600">Next credit note: <span className="font-mono font-bold text-slate-900">{creditPreview}</span> · Restarts at 1 each April.</p>
+        <p className="text-[11px] text-slate-500">Choose Auto or Manual on each credit note. A manual number does not move this counter. Numbers use letters, numbers, / and - and must fit within 16 characters. Auto numbering skips numbers already used manually.</p>
       </Card>
 
       <Card className="p-5 space-y-3 shadow-none border-slate-200 rounded-xl">
@@ -379,6 +413,10 @@ export function SalesSettingsClient({ initial, manufacturers }: { initial: Sales
         </div>
         <div className="space-y-1">
           {area("quote_terms", "Quotation terms & conditions", 7)}
+        </div>
+        <div className="space-y-1">
+          {area("credit_note_terms", "Credit note terms & conditions", 7)}
+          <p className="text-xs text-slate-500">Applies to newly issued credit notes. Leave blank for no additional terms. GST treatment and credit acknowledgement are included automatically.</p>
         </div>
         <div className="space-y-1">
           {area("debit_note_terms", "Debit note terms & conditions", 5)}

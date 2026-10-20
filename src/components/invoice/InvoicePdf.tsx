@@ -54,6 +54,13 @@ export interface QuoteExtras {
   deliveryTerms?: string | null;
 }
 
+export interface CreditNoteExtras {
+  invoiceNumber: string;
+  invoiceDate: string;
+  reason: string;
+  treatment: "gst" | "commercial";
+}
+
 /**
  * Present when rendering a GST debit note: same layout, plus the original invoice's
  * number and date (required by Rule 53(1A)) and the reason.
@@ -69,11 +76,13 @@ export function InvoicePdf({
   invoice,
   settings,
   quote,
+  creditNote,
   debitNote,
 }: {
   invoice: Invoice;
   settings: SalesSettings;
   quote?: QuoteExtras;
+  creditNote?: CreditNoteExtras;
   debitNote?: DebitNoteExtras;
 }) {
   const isQuote = !!quote;
@@ -81,9 +90,8 @@ export function InvoicePdf({
   const { items, totals, bill_to: billTo } = invoice;
   const gst = invoice.gst_enabled;
   const interState = gst && items.some((l) => l.igst > 0);
-  const title = isQuote ? "Quotation" : isDebitNote ? "Debit Note" : gst ? "Tax Invoice" : "Invoice";
-  // "Invoice No.", "Quotation Details", "Debit Note Amount In Words"...
-  const docName = isQuote ? "Quotation" : isDebitNote ? "Debit Note" : "Invoice";
+  const documentLabel = creditNote ? "Credit Note" : isQuote ? "Quotation" : isDebitNote ? "Debit Note" : "Invoice";
+  const title = creditNote ? (creditNote.treatment === "gst" ? "Credit Note" : "Commercial Credit Note") : isQuote ? "Quotation" : isDebitNote ? "Debit Note" : gst ? "Tax Invoice" : "Invoice";
 
   const cols: Col[] = [
     { key: "idx", label: "#", flex: 0.5, align: "left" },
@@ -173,13 +181,14 @@ export function InvoicePdf({
           ]
     );
 
-  // Quotations and debit notes are a single page set with no ORIGINAL/DUPLICATE marking.
-  const copies = isQuote || isDebitNote ? [""] : normalizeCopies(settings.invoice_copies);
+  // Quotations, credit notes and debit notes have no ORIGINAL/DUPLICATE marking.
+  const copies = isQuote || creditNote || isDebitNote ? [""] : normalizeCopies(settings.invoice_copies);
   const termsParagraphs = [
     ...(quote?.paymentTerms ? [`Payment Terms: ${quote.paymentTerms}`] : []),
     ...(quote?.deliveryTerms ? [`Delivery Terms: ${quote.deliveryTerms}`] : []),
     ...(quote ? [`This quotation is valid until ${fmtDate(quote.validUntil)}.`] : []),
-    ...splitTerms(documentTerms(settings, isQuote ? "quote" : isDebitNote ? "debit_note" : "invoice")),
+    ...(creditNote ? [creditNote.treatment === "commercial" ? "Commercial credit only. No adjustment to GST liability." : "GST adjustment against the referenced invoice.", "This document records a credit. It is not a payment or refund receipt."] : []),
+    ...splitTerms(documentTerms(settings, creditNote ? "credit_note" : isQuote ? "quote" : isDebitNote ? "debit_note" : "invoice")),
   ];
 
   return (
@@ -202,10 +211,11 @@ export function InvoicePdf({
             </View>
           </View>
           <View style={s.half}>
-            <Text style={[s.bar, { textAlign: "right" }]}>{docName} Details</Text>
+            <Text style={[s.bar, { textAlign: "right" }]}>{documentLabel} Details</Text>
             <View style={[s.halfPad, { alignItems: "flex-end" }]}>
-              <Text style={{ marginBottom: 3 }}>{docName} No.: {invoice.invoice_number}</Text>
+              <Text style={{ marginBottom: 3 }}>{documentLabel} No.: {invoice.invoice_number}</Text>
               <Text style={{ marginBottom: 3 }}>Date: {fmtDate(invoice.invoice_date)}</Text>
+              {creditNote ? <><Text style={{ marginBottom: 3 }}>Original Invoice: {creditNote.invoiceNumber}</Text><Text style={{ marginBottom: 3 }}>Invoice Date: {fmtDate(creditNote.invoiceDate)}</Text></> : null}
               {quote ? <Text style={{ marginBottom: 3 }}>Valid Until: {fmtDate(quote.validUntil)}</Text> : null}
               {debitNote ? (
                 <>
@@ -236,6 +246,11 @@ export function InvoicePdf({
         {/* Tax summary + amounts */}
         <View style={s.bottom} wrap={false}>
           <View style={s.left}>
+            {creditNote ? (
+              <Text style={{ padding: 4, lineHeight: 1.35 }}>
+                <Text style={s.bold}>Reason: </Text>{creditNote.reason}
+              </Text>
+            ) : null}
             {gst ? (
               <>
                 <View style={s.row}>
@@ -259,15 +274,15 @@ export function InvoicePdf({
             <Text style={[s.bar, { textAlign: "left" }]}>Amounts</Text>
             <View style={s.amountRow}><Text>Sub Total</Text><Money value={totals.subTotal} /></View>
             <View style={[s.amountRow, s.rowBorder]}><Text>Round off</Text><Money value={totals.roundOff} /></View>
-            <View style={[s.amountRow, s.rowBorder, s.bold]}><Text style={s.bold}>Total</Text><Text style={s.bold}><Money value={totals.total} /></Text></View>
-            {totals.youSaved > 0 ? (
+            <View style={[s.amountRow, s.rowBorder, s.bold]}><Text style={s.bold}>{creditNote ? "Total Credit" : "Total"}</Text><Text style={s.bold}><Money value={totals.total} /></Text></View>
+            {!creditNote && totals.youSaved > 0 ? (
               <View style={s.amountRow}><Text>You Saved</Text><Money value={totals.youSaved} /></View>
             ) : null}
           </View>
         </View>
 
         <View style={[s.box, { borderTopWidth: 0 }]} wrap={false}>
-          <Text style={[s.bar, { textAlign: "center" }]}>{docName} Amount In Words</Text>
+          <Text style={[s.bar, { textAlign: "center" }]}>{documentLabel} Amount In Words</Text>
           <Text style={{ padding: 4 }}>{invoice.amount_in_words}</Text>
         </View>
 

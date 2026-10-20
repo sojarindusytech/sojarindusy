@@ -278,6 +278,8 @@ export interface SalesSettings {
   ifsc: string | null;
   account_holder: string | null;
   terms: string | null;
+  /** Additional terms saved with each newly issued credit note. */
+  credit_note_terms?: string | null;
   gst_billing_enabled: boolean;
   default_gst_rate: number;
   invoice_prefix: string;
@@ -292,6 +294,7 @@ export interface SalesSettings {
   debit_note_terms?: string | null;
   /** Hand-made invoices reduce SKU stock when issued (order invoices are unaffected). */
   invoice_reduces_stock: boolean;
+  credit_note_restores_stock: boolean;
   po_prefix: string;
   po_fy: string | null;
   po_next_number: number;
@@ -306,6 +309,10 @@ export interface SalesSettings {
   quote_fy: string | null;
   quote_next_number: number;
   quote_pad: number;
+  credit_note_prefix: string;
+  credit_note_fy: string | null;
+  credit_note_next_number: number;
+  credit_note_pad: number;
   receipt_prefix: string;
   receipt_fy: string | null;
   receipt_next_number: number;
@@ -540,6 +547,7 @@ export type InventoryMovementType =
   | 'BULK_UPDATE'
   | 'ORDER_RESERVATION'
   | 'ORDER_FULFILLED'
+  | 'CREDIT_NOTE_RESTOCK'
   | 'INVOICE_ISSUED'
   | 'INVOICE_EDITED'
   | 'INVOICE_CANCELLED'
@@ -759,6 +767,24 @@ export interface CouponRedemption {
 export interface Database {
   public: {
     Tables: {
+      credit_notes: {
+        Row: import("@/lib/credit-note").CreditNote;
+        Insert: never;
+        Update: never;
+        Relationships: [];
+      };
+      invoices: {
+        Row: Invoice;
+        Insert: Partial<Invoice>;
+        Update: Partial<Invoice>;
+        Relationships: [];
+      };
+      sales_settings: {
+        Row: SalesSettings;
+        Insert: Partial<SalesSettings>;
+        Update: Partial<SalesSettings>;
+        Relationships: [];
+      };
       profiles: {
         Row: Profile;
         Insert: Profile;
@@ -842,6 +868,10 @@ export interface Database {
       [_ in never]: never;
     };
     Functions: {
+      issue_credit_note: {
+        Args: { p_input: import("@/lib/credit-note").CreditNoteInput; p_actor: string };
+        Returns: import("@/lib/credit-note").CreditNote;
+      };
       is_platform_owner: {
         Args: Record<PropertyKey, never>;
         Returns: boolean;

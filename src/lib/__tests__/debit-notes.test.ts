@@ -191,6 +191,7 @@ describe("salesSettingsSchema: debit note series", () => {
     email: "",
     gst_billing_enabled: true,
     invoice_reduces_stock: true,
+    credit_note_restores_stock: true,
     default_gst_rate: 18,
     invoice_prefix: "SI/INV", invoice_next_number: 1, invoice_pad: 2,
     po_prefix: "SI/PO", po_next_number: 1, po_pad: 2,
@@ -198,6 +199,7 @@ describe("salesSettingsSchema: debit note series", () => {
     quote_prefix: "SI/QT", quote_next_number: 1, quote_pad: 2, quote_validity_days: 30,
     receipt_prefix: "SI/RCPT", receipt_next_number: 1, receipt_pad: 2,
     debit_note_prefix: "SI/DN", debit_note_next_number: 1, debit_note_pad: 2,
+    credit_note_prefix: "SI/CN", credit_note_next_number: 1, credit_note_pad: 2,
     order_prefix: "SI/ORD", order_next_number: 1, order_pad: 2,
     invoice_copies: ["original"],
   };
