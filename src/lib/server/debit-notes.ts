@@ -1,6 +1,7 @@
 import "server-only";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { DbAppError } from "@/lib/server/db-error";
+import { ledgerErrorMessage } from "@/lib/server/ledger-errors";
 
 const fmtDate = (v: unknown) => String(v ?? "").split("-").reverse().join("-");
 
@@ -37,7 +38,7 @@ export function debitNoteErrorMessage(error: DbAppError): string {
     case "DEBIT_NOTE_HAS_PAYMENTS":
       return `This debit note has ₹${(Number(d.paid) || 0).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} received against it. Cancel the receipt(s) in Payments Received first.`;
     default:
-      return "Could not save the debit note. Please check the details and try again.";
+      return ledgerErrorMessage(error) ?? "Could not save the debit note. Please check the details and try again.";
   }
 }
 

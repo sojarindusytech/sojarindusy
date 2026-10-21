@@ -9,6 +9,7 @@ import { paymentErrorMessage } from "@/lib/server/payment-errors";
 import { notifyAll } from "@/lib/server/notifications";
 import { modeLabel, type OpenInvoice } from "@/lib/payments";
 import type { Payment, SalesSettings } from "@/types/database.types";
+import { loadMoneyAccounts, type MoneyAccount } from "@/lib/server/ledger";
 import { revalidatePath } from "next/cache";
 
 /** PostgREST / Postgres codes for "this table does not exist": the payments migration has not been applied. */
@@ -52,13 +53,15 @@ export interface PaymentFormData {
   customers: PaymentFormCustomer[];
   /** Issued invoices and debit notes that still have a balance (kind tells them apart). */
   invoices: PaymentFormInvoice[];
+  /** Bank and cash accounts (Sales Settings) for "Deposited in". Empty before the ledger migration. */
+  accounts: MoneyAccount[];
 }
 
 /** Everything the Record Payment form needs; the page fetches it ahead of the click. */
 export async function getPaymentFormData(): Promise<PaymentFormData> {
   await requireAdmin();
   const db = createAdminClient();
-  const [settings, customersRes, invoicesRes, summaryRes, debitNotesRes, dnSummaryRes] = await Promise.all([
+  const [settings, customersRes, invoicesRes, summaryRes, debitNotesRes, dnSummaryRes, accounts] = await Promise.all([
     loadSalesSettings(),
     (db.from("profiles") as any)
       .select("id, company_name, channel")
@@ -77,6 +80,7 @@ export async function getPaymentFormData(): Promise<PaymentFormData> {
       .eq("status", "issued")
       .order("debit_note_date", { ascending: true }),
     db.from("debit_note_payment_summary" as never).select("debit_note_id, balance"),
+    loadMoneyAccounts(),
   ]);
 
   const balance = new Map<string, number>(
@@ -139,6 +143,7 @@ export async function getPaymentFormData(): Promise<PaymentFormData> {
       channel: c.channel ?? null,
     })),
     invoices: [...invoices.map((i) => ({ ...i, kind: "invoice" as const })), ...debitNotes],
+    accounts,
   };
 }
 
@@ -202,6 +207,8 @@ export async function recordPayment(input: RecordPaymentInput): Promise<Result<{
   }
 
   revalidatePath("/admin/payments-received");
+  revalidatePath("/admin/party-ledger", "layout");
+  revalidatePath("/admin/general-ledger");
   revalidatePath("/admin/invoices");
   revalidatePath("/admin/debit-notes");
   revalidatePath("/dashboard/payments");
@@ -219,6 +226,8 @@ export async function cancelPayment(paymentId: string, reason: string): Promise<
   if (error) return { success: false, error: paymentErrorMessage(error) };
 
   revalidatePath("/admin/payments-received");
+  revalidatePath("/admin/party-ledger", "layout");
+  revalidatePath("/admin/general-ledger");
   revalidatePath("/admin/invoices");
   revalidatePath("/admin/debit-notes");
   revalidatePath("/dashboard/payments");

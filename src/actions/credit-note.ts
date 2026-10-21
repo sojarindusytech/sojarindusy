@@ -6,6 +6,8 @@ import { loadSalesSettings } from "@/lib/sales-settings";
 import { creditNoteInputSchema, type CreditNote, type CreditNoteInput } from "@/lib/credit-note";
 import type { Invoice } from "@/types/database.types";
 import { revalidatePath } from "next/cache";
+import { parseDbError } from "@/lib/server/db-error";
+import { ledgerErrorMessage } from "@/lib/server/ledger-errors";
 
 export async function listCreditNotes(customer = false): Promise<CreditNote[]> {
   const auth = customer ? await requireUser() : await requireAdmin();
@@ -39,10 +41,13 @@ export async function issueCreditNote(input: CreditNoteInput): Promise<{ success
     const client = createAdminClient();
     const rpc = client.rpc.bind(client) as unknown as (
       name: "issue_credit_note", args: { p_input: CreditNoteInput; p_actor: string }
-    ) => PromiseLike<{ data: CreditNote | null; error: { code: string; message: string } | null }>;
+    ) => PromiseLike<{ data: CreditNote | null; error: { code: string; message: string; details?: string | null } | null }>;
     const { data, error } = await rpc("issue_credit_note", { p_input: parsed.data, p_actor: auth.userId });
     if (error) {
       console.error("[issueCreditNote]", error);
+      // The credit note date is in a closed period (Sales Settings > Books locked up to).
+      const ledger = ledgerErrorMessage(parseDbError(error));
+      if (ledger) return { success: false, error: ledger };
       return { success: false, error: error.code === "23505" ? "That credit note number or submission has already been used." : error.code === "P0001" ? error.message : "Credit note could not be issued. Check the migration and submitted details." };
     }
     if (!data) return { success: false, error: "The credit note response was empty. Retry the same submission." };

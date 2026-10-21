@@ -57,11 +57,24 @@ export async function updateSalesSettings(
     if (creditCounterEdited && originalCreditCounter !== undefined && current?.credit_note_next_number !== originalCreditCounter) {
       return { success: false, error: "The credit note counter changed. Reload Sales Settings before editing it." };
     }
-    const { credit_note_next_number, ...values } = parsed.data;
+    const { credit_note_next_number, ...allValues } = parsed.data;
+    // Before the ledger migration (20261024) these columns don't exist yet: leave them out.
+    const ledgerReady = "journal_prefix" in current;
+    const values = ledgerReady
+      ? allValues
+      : Object.fromEntries(
+          Object.entries(allValues).filter(([k]) => !/^(journal_|supplier_payment_|books_locked_until|tally_company_name)/.test(k))
+        );
     const receiptCounterEdited = current?.receipt_next_number !== parsed.data.receipt_next_number;
     const orderCounterEdited = current?.order_next_number !== parsed.data.order_next_number;
     const poCounterEdited = current?.po_next_number !== parsed.data.po_next_number;
     const debitNoteCounterEdited = current?.debit_note_next_number !== parsed.data.debit_note_next_number;
+    const journalCounterEdited =
+      ledgerReady && parsed.data.journal_next_number !== undefined && current.journal_next_number !== parsed.data.journal_next_number;
+    const supplierPaymentCounterEdited =
+      ledgerReady &&
+      parsed.data.supplier_payment_next_number !== undefined &&
+      current.supplier_payment_next_number !== parsed.data.supplier_payment_next_number;
 
     let update = createAdminClient().from("sales_settings")
       .update({
@@ -74,6 +87,8 @@ export async function updateSalesSettings(
         ...(quoteCounterEdited ? { quote_fy: financialYear() } : {}),
         ...(rfqCounterEdited ? { rfq_fy: financialYear() } : {}),
         ...(debitNoteCounterEdited ? { debit_note_fy: financialYear() } : {}),
+        ...(journalCounterEdited ? { journal_fy: financialYear() } : {}),
+        ...(supplierPaymentCounterEdited ? { supplier_payment_fy: financialYear() } : {}),
         updated_at: new Date().toISOString(),
       } as never)
       .eq("id", true);
@@ -95,6 +110,8 @@ export async function updateSalesSettings(
     revalidatePath("/admin/invoices");
     revalidatePath("/admin/credit-notes");
     revalidatePath("/admin/debit-notes");
+    revalidatePath("/admin/general-ledger");
+    revalidatePath("/admin/payments-made");
     return { success: true };
   } catch (err) {
     console.error("[updateSalesSettings] Exception:", err);

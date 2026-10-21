@@ -18,6 +18,7 @@ import {
   Layers,
   X,
   LogOut,
+  BookOpenText,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
@@ -93,6 +94,13 @@ export function CustomerSidebar({
       title: "Payments & Receipts",
       href: "/dashboard/payments",
       icon: Wallet,
+      matchExact: false,
+    },
+    {
+      id: "statement",
+      title: "Account Statement",
+      href: "/dashboard/statement",
+      icon: BookOpenText,
       matchExact: false,
     },
     {
