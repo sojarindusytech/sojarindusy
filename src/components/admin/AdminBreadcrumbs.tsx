@@ -98,6 +98,10 @@ const routeMap: Record<string, RouteMeta> = {
     section: "Sales",
     title: "Payments Received",
   },
+  "/admin/payments-made": {
+    section: "Sales",
+    title: "Payments Made",
+  },
   "/admin/settings/sales": {
     section: "Sales",
     title: "Sales Settings",
@@ -148,9 +152,13 @@ export function AdminBreadcrumbs() {
     return null;
   }
 
-  const current = routeMap[pathname] || {
-    title: pathname.split("/").filter(Boolean).pop()?.replace(/-/g, " ") || "Page",
-  };
+  const current = routeMap[pathname] ||
+    // One party's statement: /admin/party-ledger/<id>
+    (pathname.startsWith("/admin/party-ledger/")
+      ? { section: "Ledger", subSection: "Party Ledger", subSectionHref: "/admin/party-ledger", title: "Statement" }
+      : null) || {
+      title: pathname.split("/").filter(Boolean).pop()?.replace(/-/g, " ") || "Page",
+    };
 
   return (
     <div className="w-full bg-transparent px-4 sm:px-6 lg:px-8 pt-3 pb-1">

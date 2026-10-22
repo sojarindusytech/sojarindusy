@@ -55,7 +55,8 @@ export function PaymentFormModal({
   const [mode, setMode] = useState<string>("bank_transfer");
   const [channelOverride, setChannelOverride] = useState<PaymentChannel | null>(null);
   const [reference, setReference] = useState("");
-  const [deposit, setDeposit] = useState("");
+  // Where the money went: the default bank account (or cash account for a cash payment) until picked.
+  const [depositPick, setDepositPick] = useState<string | null>(null);
   const [remarks, setRemarks] = useState("");
   const [manual, setManual] = useState(false);
   const [manualNumber, setManualNumber] = useState("");
@@ -80,6 +81,13 @@ export function PaymentFormModal({
 
   const isWalkIn = customerId === WALK_IN;
   const customer = data?.customers.find((c) => c.id === customerId);
+
+  // Bank / cash accounts from Sales Settings. Cash payments default to the cash account.
+  const accounts = data?.accounts ?? [];
+  const wantKind = mode === "cash" ? "cash" : "bank";
+  const defaultDeposit =
+    (accounts.find((a) => a.kind === wantKind && a.is_default) ?? accounts.find((a) => a.kind === wantKind) ?? accounts[0])?.name ?? "";
+  const deposit = depositPick ?? defaultDeposit;
 
   const openInvoices = useMemo(() => {
     if (!data || !customerId) return [];
@@ -162,7 +170,7 @@ export function PaymentFormModal({
         mode,
         channel,
         reference,
-        depositAccount: deposit,
+        depositAccount: deposit || null,
         remarks,
         manualNumber: manual ? manualNumber : null,
         allocations,
@@ -239,7 +247,20 @@ export function PaymentFormModal({
             </div>
             <div className="grid grid-cols-2 gap-2">
               <Input placeholder="UTR / cheque no. / txn id" value={reference} onChange={(e) => setReference(e.target.value)} className="h-9 text-xs" />
-              <Input placeholder="Deposited in (bank / cash book)" value={deposit} onChange={(e) => setDeposit(e.target.value)} className="h-9 text-xs" />
+              {accounts.length > 0 ? (
+                <Select value={deposit} onValueChange={setDepositPick}>
+                  <SelectTrigger className="h-9 text-xs" aria-label="Deposited in"><SelectValue placeholder="Deposited in" /></SelectTrigger>
+                  <SelectContent className="bg-white">
+                    {accounts.map((a) => (
+                      <SelectItem key={a.id} value={a.name} className="text-xs">
+                        {a.name}{a.kind === "bank" && a.account_no ? ` (…${a.account_no.slice(-4)})` : ""}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ) : (
+                <Input placeholder="Deposited in (bank / cash book)" value={depositPick ?? ""} onChange={(e) => setDepositPick(e.target.value)} className="h-9 text-xs" />
+              )}
             </div>
             <div className="space-y-1.5">
               <label className="flex items-center gap-2 text-xs font-semibold text-slate-800 cursor-pointer">

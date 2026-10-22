@@ -5,7 +5,8 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
 import { Save, Upload, Settings } from "lucide-react";
-import type { SalesSettings } from "@/types/database.types";
+import type { LedgerAccount, SalesSettings } from "@/types/database.types";
+import { BankAccountsCard } from "./BankAccountsCard";
 import { updateSalesSettings, uploadInvoiceAsset } from "@/actions/sales-settings";
 import { financialYear, formatInvoiceNumber, GST_RATE_OPTIONS, INVOICE_COPIES, normalizeCopies, type InvoiceCopy } from "@/lib/invoice";
 import { MAX_DEBIT_NOTE_NUMBER_LENGTH } from "@/lib/debit-notes";
@@ -22,7 +23,7 @@ const COPY_OPTIONS: Record<InvoiceCopy, { label: string }> = {
   triplicate: { label: "Triplicate" },
 };
 
-type NumberingKey = "invoice" | "quote" | "rfq" | "po" | "receipt" | "order" | "debit_note";
+type NumberingKey = "invoice" | "quote" | "rfq" | "po" | "receipt" | "order" | "debit_note" | "journal" | "supplier_payment";
 
 /** One row per numbered document in the Document Numbering table. */
 const NUMBERING_ROWS: { key: NumberingKey; label: string; fallback: string; maxLength?: number }[] = [
@@ -34,6 +35,8 @@ const NUMBERING_ROWS: { key: NumberingKey; label: string; fallback: string; maxL
   { key: "order", label: "Order", fallback: "ORD" },
   // GST Rule 53: a debit note number is at most 16 characters.
   { key: "debit_note", label: "Debit Note", fallback: "DN", maxLength: MAX_DEBIT_NOTE_NUMBER_LENGTH },
+  { key: "supplier_payment", label: "Payment Made", fallback: "PAY" },
+  { key: "journal", label: "Journal Voucher", fallback: "JV" },
 ];
 
 // Form values are strings so empty inputs stay empty; the server schema coerces.
@@ -43,7 +46,8 @@ const TEXT_FIELDS = [
   "company_name", "address", "gstin", "state_code", "state_name", "msme", "website", "phone", "email",
   "logo_url", "signature_url", "bank_name", "bank_address", "account_no", "ifsc", "account_holder",
   "terms", "quote_terms", "receipt_terms", "credit_note_terms", "invoice_prefix", "po_prefix", "rfq_prefix", "quote_prefix", "credit_note_prefix", "quote_payment_terms", "quote_delivery_terms", "receipt_prefix", "order_prefix",
-  "debit_note_prefix", "debit_note_terms",
+  "debit_note_prefix", "debit_note_terms", "journal_prefix", "supplier_payment_prefix", "tally_company_name",
+  "books_locked_until",
 ] as const;
 
 function toForm(s: SalesSettings): Form {
@@ -69,6 +73,10 @@ function toForm(s: SalesSettings): Form {
     debit_note_pad: String(s.debit_note_pad ?? 2),
     order_next_number: String(s.order_next_number ?? 1),
     order_pad: String(s.order_pad ?? 2),
+    journal_next_number: String(s.journal_next_number ?? 1),
+    journal_pad: String(s.journal_pad ?? 2),
+    supplier_payment_next_number: String(s.supplier_payment_next_number ?? 1),
+    supplier_payment_pad: String(s.supplier_payment_pad ?? 2),
     po_manufacturer_id: s.po_manufacturer_id ?? "",
   };
   for (const k of TEXT_FIELDS) form[k] = (s[k] as string | null) ?? "";
@@ -79,10 +87,21 @@ function toForm(s: SalesSettings): Form {
   form.receipt_prefix = s.receipt_prefix ?? "SI/RCPT";
   form.debit_note_prefix = s.debit_note_prefix ?? "SI/DN";
   form.order_prefix = s.order_prefix ?? "SI/ORD";
+  form.journal_prefix = s.journal_prefix ?? "SI/JV";
+  form.supplier_payment_prefix = s.supplier_payment_prefix ?? "SI/PAY";
   return form;
 }
 
-export function SalesSettingsClient({ initial, manufacturers }: { initial: SalesSettings; manufacturers: { id: string; name: string }[] }) {
+export function SalesSettingsClient({
+  initial,
+  manufacturers,
+  moneyAccounts,
+}: {
+  initial: SalesSettings;
+  manufacturers: { id: string; name: string }[];
+  /** Bank and cash accounts (ledger). null before the ledger migration is applied. */
+  moneyAccounts: LedgerAccount[] | null;
+}) {
   const router = useRouter();
   const [form, setForm] = useState<Form>(() => toForm(initial));
   const [copies, setCopies] = useState<InvoiceCopy[]>(() => normalizeCopies(initial.invoice_copies));
@@ -404,6 +423,26 @@ export function SalesSettingsClient({ initial, manufacturers }: { initial: Sales
           {field("ifsc", "IFSC")}
         </div>
         {area("bank_address", "Bank address", 2)}
+        <p className="text-[11px] text-slate-500">Printed on invoices. Add every bank account money goes into under Bank &amp; Cash Accounts below.</p>
+      </Card>
+
+      {moneyAccounts && <BankAccountsCard accounts={moneyAccounts} />}
+
+      <Card className="p-5 space-y-4 shadow-none border-slate-200 rounded-xl">
+        <h2 className="text-sm font-bold text-slate-900">Accounts &amp; Ledger</h2>
+        <div className="grid sm:grid-cols-2 gap-4">
+          <div className="space-y-1">
+            {field("books_locked_until", "Books locked up to", { type: "date" })}
+            <p className="text-[11px] text-slate-500">
+              Nothing dated on or before this date can be added, edited or cancelled (invoices, notes, payments, journals).
+              Set it after the accountant closes a month or year. Leave blank to keep the books open.
+            </p>
+          </div>
+          <div className="space-y-1">
+            {field("tally_company_name", "Company name in Tally")}
+            <p className="text-[11px] text-slate-500">Used by the Tally export so the data goes into this company. Leave blank to use the company open in Tally.</p>
+          </div>
+        </div>
       </Card>
 
       <Card className="p-5 space-y-4 shadow-none border-slate-200 rounded-xl">

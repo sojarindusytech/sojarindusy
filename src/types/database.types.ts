@@ -330,6 +330,18 @@ export interface SalesSettings {
   quote_delivery_terms: string | null;
   /** Copies printed on the invoice PDF, one page set each. */
   invoice_copies: import("@/lib/invoice").InvoiceCopy[];
+  /** Books closed up to and including this date (20261024_ledger). null = open. */
+  books_locked_until?: string | null;
+  /** Company name in Tally for the Tally export. null = the company open in Tally. */
+  tally_company_name?: string | null;
+  journal_prefix?: string;
+  journal_fy?: string | null;
+  journal_next_number?: number;
+  journal_pad?: number;
+  supplier_payment_prefix?: string;
+  supplier_payment_fy?: string | null;
+  supplier_payment_next_number?: number;
+  supplier_payment_pad?: number;
   updated_at: string;
 }
 
@@ -455,6 +467,56 @@ export interface Payment {
   created_by: string | null;
   created_at: string;
   allocations?: PaymentAllocation[];
+}
+
+export type LedgerAccountType = "asset" | "liability" | "equity" | "income" | "expense";
+export type LedgerAccountKind = "general" | "receivable" | "payable" | "bank" | "cash";
+
+/** Chart of accounts (20261024_ledger). Bank / cash accounts carry their bank details. */
+export interface LedgerAccount {
+  id: string;
+  code: string;
+  name: string;
+  type: LedgerAccountType;
+  kind: LedgerAccountKind;
+  /** Set on accounts the app posts to by itself; they can be renamed but not removed. */
+  system_key: string | null;
+  /** Ledger name in Tally. null = same as name. */
+  tally_name: string | null;
+  tally_group: string;
+  bank_name: string | null;
+  account_no: string | null;
+  ifsc: string | null;
+  branch: string | null;
+  account_holder: string | null;
+  /** The bank / cash account used when a receipt doesn't say where the money went. */
+  is_default: boolean;
+  active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+/** A payment made to a manufacturer (Payments Made). */
+export interface SupplierPayment {
+  id: string;
+  voucher_number: string;
+  voucher_fy: string | null;
+  seq: number | null;
+  payment_date: string;
+  manufacturer_id: string;
+  payee_name: string;
+  amount: number;
+  mode: PaymentMode;
+  reference: string | null;
+  paid_from_account_id: string;
+  paid_from_name: string;
+  bill_reference: string | null;
+  remarks: string | null;
+  status: "paid" | "cancelled";
+  cancelled_at: string | null;
+  cancel_reason: string | null;
+  created_by: string | null;
+  created_at: string;
 }
 
 /** Row of the invoice_payment_summary view. */

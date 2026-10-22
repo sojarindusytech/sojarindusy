@@ -1,25 +1,24 @@
-import { AdminComingSoon } from "@/components/admin/AdminComingSoon";
-import { BookOpen } from "lucide-react";
+import { getGeneralLedger, getJournalFormData, listJournals } from "@/actions/ledger";
+import { GeneralLedgerClient } from "@/components/admin/ledger/GeneralLedgerClient";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
   title: "General Ledger | Sojar Solutions Admin",
-  description: "Company accounting general ledger and balance sheet accounts.",
+  description: "Chart of accounts, account ledgers, day book, trial balance, profit & loss, balance sheet, journals and Tally export.",
 };
 
-export default function GeneralLedgerAdminPage() {
-  return (
-    <AdminComingSoon
-      section="Ledger"
-      title="General Ledger"
-      description="View double-entry bookkeeping ledgers, journal entries, trial balance accounts, and fiscal year statements."
-      icon={BookOpen}
-      features={[
-        "Automated journal entry posting for sales, purchases, and payments",
-        "Interactive Chart of Accounts (Assets, Liabilities, Equity, Revenue, Expense)",
-        "Real-time Trial Balance and Balance Sheet calculation",
-        "Exportable ledgers for chartered accountants and tax auditors",
-      ]}
-    />
-  );
+export const dynamic = "force-dynamic";
+
+export default async function GeneralLedgerAdminPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ from?: string; to?: string; tab?: string; account?: string }>;
+}) {
+  const { from, to, tab, account } = await searchParams;
+  const [data, journals, formData] = await Promise.all([
+    getGeneralLedger({ from, to }),
+    listJournals({ from, to }),
+    getJournalFormData(),
+  ]);
+  return <GeneralLedgerClient data={data} journals={journals} formData={formData} initialTab={tab} initialAccountId={account} />;
 }

@@ -1,6 +1,7 @@
 import { SalesSettingsClient } from "@/components/admin/SalesSettingsClient";
 import { getSalesSettings } from "@/actions/sales-settings";
 import { getPoManufacturerOptions } from "@/actions/purchase-order";
+import { listLedgerAccounts } from "@/actions/ledger";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
@@ -11,7 +12,9 @@ export const metadata: Metadata = {
 export const dynamic = "force-dynamic";
 
 export default async function SalesSettingsPage() {
-  const [settings, { manufacturers }] = await Promise.all([getSalesSettings(), getPoManufacturerOptions()]);
+  const [settings, { manufacturers }, ledger] = await Promise.all([getSalesSettings(), getPoManufacturerOptions(), listLedgerAccounts()]);
+  // Before the ledger migration there are no accounts to manage: the card is hidden.
+  const moneyAccounts = ledger.error ? null : ledger.accounts.filter((a) => a.kind === "bank" || a.kind === "cash");
 
   if (!settings) {
     return (
@@ -21,5 +24,5 @@ export default async function SalesSettingsPage() {
     );
   }
 
-  return <SalesSettingsClient key={settings.updated_at} initial={settings} manufacturers={manufacturers} />;
+  return <SalesSettingsClient key={settings.updated_at} initial={settings} manufacturers={manufacturers} moneyAccounts={moneyAccounts} />;
 }
