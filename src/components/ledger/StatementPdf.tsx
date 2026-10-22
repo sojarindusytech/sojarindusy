@@ -1,7 +1,15 @@
 import { Document, Page, Text, View } from "@react-pdf/renderer";
 import type { SalesSettings } from "@/types/database.types";
 import { VOUCHER_LABELS, drCrText, round2, type ReportLine } from "@/lib/ledger";
-import { Money, SellerHeader, fmt, fmtDate, s } from "@/components/invoice/pdf-shared";
+import { ACCENT, Money, SellerHeader, fmt, fmtDate, s } from "@/components/invoice/pdf-shared";
+
+/**
+ * Column widths as percentages. Every row (header, opening, entries, closing) uses all six columns
+ * with these exact widths, so each column line runs straight down the table. (Flex widths drift when
+ * a row merges cells, because padding and borders are counted per cell.)
+ */
+const W = { date: "10.5%", particulars: "33%", vch: "17.5%", debit: "12.5%", credit: "12.5%", balance: "14%" } as const;
+const left = { textAlign: "left" as const, alignItems: "flex-start" as const, justifyContent: "flex-start" as const };
 
 export interface StatementPdfParty {
   name: string;
@@ -35,7 +43,6 @@ export function StatementPdf({
   const debit = round2(lines.reduce((t, l) => t + l.debit, 0));
   const credit = round2(lines.reduce((t, l) => t + l.credit, 0));
   const closing = round2(opening + debit - credit);
-  const col = { date: 0.9, particulars: 3.4, vch: 1.6, amt: 1.15, bal: 1.35 };
 
   return (
     <Document title={`Statement ${party.name} ${from} to ${to}`} author={settings.company_name}>
@@ -64,42 +71,48 @@ export function StatementPdf({
         </View>
 
         <View style={{ marginTop: 8 }}>
-          <View style={s.row} fixed>
-            <Text style={[s.th, { flex: col.date, textAlign: "left" }]}>Date</Text>
-            <Text style={[s.th, { flex: col.particulars, textAlign: "left" }]}>Particulars</Text>
-            <Text style={[s.th, { flex: col.vch, textAlign: "left" }]}>Voucher</Text>
-            <Text style={[s.th, { flex: col.amt }]}>Debit</Text>
-            <Text style={[s.th, { flex: col.amt }]}>Credit</Text>
-            <Text style={[s.th, { flex: col.bal }]}>Balance</Text>
+          {/* Same side borders as the body, so the header columns line up with it. */}
+          <View style={[s.row, { borderLeftWidth: 1, borderRightWidth: 1, borderColor: ACCENT }]} fixed>
+            <Text style={[s.th, { width: W.date, textAlign: "left" }]}>Date</Text>
+            <Text style={[s.th, { width: W.particulars, textAlign: "left" }]}>Particulars</Text>
+            <Text style={[s.th, { width: W.vch, textAlign: "left" }]}>Voucher</Text>
+            <Text style={[s.th, { width: W.debit }]}>Debit</Text>
+            <Text style={[s.th, { width: W.credit }]}>Credit</Text>
+            <Text style={[s.th, { width: W.balance }]}>Balance</Text>
           </View>
           <View style={s.tableBody}>
             <View style={[s.row, s.rowBorder]} wrap={false}>
-              <Text style={[s.td, { flex: col.date, textAlign: "left" }, s.cellBorder]}>{fmtDate(from)}</Text>
-              <Text style={[s.td, { flex: col.particulars + col.vch + col.amt * 2, textAlign: "left" }, s.bold, s.cellBorder]}>Opening balance</Text>
-              <Text style={[s.td, { flex: col.bal }, s.bold]}>{drCrText(opening)}</Text>
+              <Text style={[s.td, { width: W.date, textAlign: "left" }, s.cellBorder]}>{fmtDate(from)}</Text>
+              <Text style={[s.td, { width: W.particulars, textAlign: "left" }, s.bold, s.cellBorder]}>Opening balance</Text>
+              <Text style={[s.td, { width: W.vch }, s.cellBorder]} />
+              <Text style={[s.td, { width: W.debit }, s.cellBorder]} />
+              <Text style={[s.td, { width: W.credit }, s.cellBorder]} />
+              <Text style={[s.td, { width: W.balance }, s.bold]}>{drCrText(opening)}</Text>
             </View>
             {lines.map((l) => (
               <View key={l.line_id} style={[s.row, s.rowBorder]} wrap={false}>
-                <Text style={[s.td, { flex: col.date, textAlign: "left" }, s.cellBorder]}>{fmtDate(l.entry_date)}</Text>
-                <View style={[s.td, { flex: col.particulars, alignItems: "flex-start", textAlign: "left" }, s.cellBorder]}>
+                <Text style={[s.td, { width: W.date, textAlign: "left" }, s.cellBorder]}>{fmtDate(l.entry_date)}</Text>
+                <View style={[s.td, { width: W.particulars, ...left }, s.cellBorder]}>
                   <Text>{l.narration ?? ""}</Text>
                   {l.voucher_type === "receipt" && l.bill_ref ? <Text style={{ color: "#4B5563" }}>Against {l.bill_ref}</Text> : null}
                   {l.line_narration ? <Text style={{ color: "#4B5563" }}>{l.line_narration}</Text> : null}
                 </View>
-                <View style={[s.td, { flex: col.vch, alignItems: "flex-start", textAlign: "left" }, s.cellBorder]}>
+                <View style={[s.td, { width: W.vch, ...left }, s.cellBorder]}>
                   <Text>{VOUCHER_LABELS[l.voucher_type]}{l.is_reversal ? " (reversal)" : ""}</Text>
                   <Text style={{ color: "#4B5563" }}>{l.voucher_number}</Text>
                 </View>
-                <Text style={[s.td, { flex: col.amt }, s.cellBorder]}>{l.debit ? fmt(l.debit) : ""}</Text>
-                <Text style={[s.td, { flex: col.amt }, s.cellBorder]}>{l.credit ? fmt(l.credit) : ""}</Text>
-                <Text style={[s.td, { flex: col.bal }]}>{drCrText(l.balance)}</Text>
+                <Text style={[s.td, { width: W.debit }, s.cellBorder]}>{l.debit ? fmt(l.debit) : ""}</Text>
+                <Text style={[s.td, { width: W.credit }, s.cellBorder]}>{l.credit ? fmt(l.credit) : ""}</Text>
+                <Text style={[s.td, { width: W.balance }]}>{drCrText(l.balance)}</Text>
               </View>
             ))}
             <View style={s.row} wrap={false}>
-              <Text style={[s.td, { flex: col.date + col.particulars + col.vch, textAlign: "left" }, s.bold, s.cellBorder]}>Closing balance</Text>
-              <Text style={[s.td, { flex: col.amt }, s.bold, s.cellBorder]}>{fmt(debit)}</Text>
-              <Text style={[s.td, { flex: col.amt }, s.bold, s.cellBorder]}>{fmt(credit)}</Text>
-              <Text style={[s.td, { flex: col.bal }, s.bold]}>{drCrText(closing)}</Text>
+              <Text style={[s.td, { width: W.date }, s.cellBorder]} />
+              <Text style={[s.td, { width: W.particulars, textAlign: "left" }, s.bold, s.cellBorder]}>Closing balance</Text>
+              <Text style={[s.td, { width: W.vch }, s.cellBorder]} />
+              <Text style={[s.td, { width: W.debit }, s.bold, s.cellBorder]}>{fmt(debit)}</Text>
+              <Text style={[s.td, { width: W.credit }, s.bold, s.cellBorder]}>{fmt(credit)}</Text>
+              <Text style={[s.td, { width: W.balance }, s.bold]}>{drCrText(closing)}</Text>
             </View>
           </View>
         </View>
