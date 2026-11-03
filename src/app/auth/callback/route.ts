@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { type EmailOtpType } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
+import { RECOVERY_COOKIE } from "@/lib/server/recovery-cookie";
 
 // Only the flows this app actually issues links for. Accepting an arbitrary
 // `type` from the query string would let a caller redeem a token through an
@@ -39,11 +40,27 @@ export async function GET(request: Request) {
   const supabase = await createClient();
   const redirectUrl = `${origin}${next}${next === "/pending-approval" ? "?verified=true" : ""}`;
 
+  // A redeemed recovery link opens the one session allowed to set a new password (see
+  // updateUserPassword). The marker expires after 15 minutes and is cleared on use.
+  const success = () => {
+    const res = NextResponse.redirect(redirectUrl);
+    if (next === "/reset-password") {
+      res.cookies.set(RECOVERY_COOKIE, "1", {
+        httpOnly: true,
+        sameSite: "lax",
+        secure: process.env.NODE_ENV === "production",
+        path: "/",
+        maxAge: 15 * 60,
+      });
+    }
+    return res;
+  };
+
   // 1. Flow via PKCE auth code
   if (code) {
     const { error } = await supabase.auth.exchangeCodeForSession(code);
     if (!error) {
-      return NextResponse.redirect(redirectUrl);
+      return success();
     }
     console.error("[AUTH CALLBACK] exchangeCodeForSession failed:", error.message);
   }
@@ -55,7 +72,7 @@ export async function GET(request: Request) {
       token_hash,
     });
     if (!error) {
-      return NextResponse.redirect(redirectUrl);
+      return success();
     }
     console.error("[AUTH CALLBACK] verifyOtp failed:", error.message);
   }

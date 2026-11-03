@@ -33,6 +33,8 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 
+const STEP1_FIELDS = ["title", "first_name", "last_name", "department", "designation", "mobile", "landline", "email", "password", "confirm_password"];
+
 export function SignUpForm() {
   const [step, setStep] = useState<1 | 2>(1);
   const [loading, setLoading] = useState(false);
@@ -182,13 +184,16 @@ export function SignUpForm() {
 
       if (res.error) {
         setError(res.error);
+        // A server-side error on a step-1 field would otherwise sit unseen on step 2.
+        if (res.field && STEP1_FIELDS.includes(res.field)) {
+          setFieldErrors({ [res.field]: res.error });
+          setStep(1);
+        }
       } else if (res.success) {
         setVerificationSentFor(formData.email);
       }
-    } catch (err: unknown) {
-      setError(
-        err instanceof Error ? err.message : "An unexpected error occurred during signup."
-      );
+    } catch {
+      setError("An unexpected error occurred during signup.");
     } finally {
       setLoading(false);
     }

@@ -222,6 +222,9 @@ export async function uploadProductDocument(formData: FormData): Promise<{
   if (!file || file.size === 0) {
     return { error: "No document file provided." };
   }
+  if (file.size > 20 * 1024 * 1024) {
+    return { error: "Document must be 20 MB or smaller." };
+  }
 
   const rawName = file.name;
   const fileExt = rawName.split(".").pop()?.toLowerCase() || "";

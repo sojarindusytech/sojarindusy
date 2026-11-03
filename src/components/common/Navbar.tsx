@@ -125,6 +125,7 @@ export function Navbar({
     pathname.startsWith("/dashboard") ||
     pathname.startsWith("/admin") ||
     pathname.startsWith("/pending-approval") ||
+    pathname.startsWith("/application-rejected") ||
     pathname.startsWith("/auth");
 
   if (isDashboardRoute) {

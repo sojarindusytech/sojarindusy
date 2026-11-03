@@ -39,10 +39,8 @@ export default function ForgotPasswordPage() {
             "If an account exists with this email, a password recovery link has been sent. Please check your inbox and spam folders."
         );
       }
-    } catch (err: unknown) {
-      setError(
-        err instanceof Error ? err.message : "An unexpected error occurred while requesting password reset."
-      );
+    } catch {
+      setError("An unexpected error occurred while requesting password reset.");
     } finally {
       setLoading(false);
     }

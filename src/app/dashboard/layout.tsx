@@ -1,7 +1,7 @@
 import { getCurrentUserProfile } from "@/actions/auth";
 import { redirect } from "next/navigation";
 import { CustomerLayoutClient } from "@/components/customer/CustomerLayoutClient";
-import { APPROVAL_STATUSES } from "@/lib/constants";
+import { accountHome } from "@/lib/account-home";
 
 export const dynamic = "force-dynamic";
 
@@ -16,21 +16,9 @@ export default async function CustomerDashboardLayout({
     redirect("/login");
   }
 
-  // If user is Admin, route directly to Admin Dashboard
-  const userRole = profile?.role;
-  if (userRole === "admin" || userRole === "platform_owner") {
-    redirect("/admin/dashboard");
-  }
-
-  // If user is Manufacturer, route to Manufacturer Dashboard
-  if (userRole === "manufacturer") {
-    redirect("/manufacturer");
-  }
-
-  // Enforce customer account approval status
-  if (profile?.approval_status !== APPROVAL_STATUSES.APPROVED) {
-    redirect("/pending-approval");
-  }
+  // Admins and manufacturers go to their portals; pending and rejected accounts to their holding screens.
+  const home = accountHome(profile?.role, profile?.approval_status);
+  if (home !== "/dashboard") redirect(home);
 
   const fullName = profile ? `${profile.title || "Mr"} ${profile.first_name} ${profile.last_name}` : "Valued Client";
 

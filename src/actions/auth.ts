@@ -13,11 +13,16 @@ import {
 } from "@/lib/constants";
 import { fullSignUpSchema, loginSchema, forgotPasswordSchema, resetPasswordSchema } from "@/lib/validations/auth";
 import { createNotification } from "@/lib/server/notifications";
+import { allowAuthAttempt, TOO_MANY_ATTEMPTS } from "@/lib/server/auth-rate-limit";
+import { cookies } from "next/headers";
+import { RECOVERY_COOKIE } from "@/lib/server/recovery-cookie";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 export interface SignUpState {
   error?: string;
+  /** The form field the error belongs to, so a multi-step form can return to the right step. */
+  field?: string;
   success?: boolean;
   message?: string;
   needsEmailVerification?: boolean;
@@ -25,6 +30,7 @@ export interface SignUpState {
 }
 
 export async function signUpUser(formData: FormData): Promise<SignUpState> {
+  if (!(await allowAuthAttempt("signup"))) return { error: TOO_MANY_ATTEMPTS };
   const supabase = await createClient();
 
   // Extract raw fields
@@ -56,12 +62,23 @@ export async function signUpUser(formData: FormData): Promise<SignUpState> {
   // Zod Server Validation
   const validationResult = fullSignUpSchema.safeParse(rawData);
   if (!validationResult.success) {
+    const issue = validationResult.error.issues[0];
     return {
-      error: validationResult.error.issues[0]?.message || "Validation failed.",
+      error: issue?.message || "Validation failed.",
+      field: issue?.path[0]?.toString(),
     };
   }
 
   const validated = validationResult.data;
+
+  // Same reply whether or not the address is already registered: a different answer would let anyone
+  // test which emails have an account.
+  const acceptedReply: SignUpState = {
+    success: true,
+    needsEmailVerification: true,
+    email: validated.email,
+    message: "Registration initiated! We have sent a confirmation email to verify your email address.",
+  };
 
   const userMetadata = {
     role,
@@ -97,18 +114,18 @@ export async function signUpUser(formData: FormData): Promise<SignUpState> {
   });
 
   if (authError) {
-    return { error: authError.message };
+    console.error("[auth] signUp failed:", authError.message);
+    return { error: "Signup could not be completed. Please check your details and try again." };
   }
 
   if (!authData.user) {
     return { error: "Signup could not be completed. Please try again." };
   }
 
-  // Supabase identity check: if identities is empty array, account exists
+  // Supabase returns an empty identities list for an already-registered address. Do not touch the
+  // existing account or its profile; answer exactly as for a new signup.
   if (authData.user.identities && authData.user.identities.length === 0) {
-    return {
-      error: "An account with this email address already exists. Please sign in or reset your password.",
-    };
+    return acceptedReply;
   }
 
   // 2. Insert profile record in database using Admin client to ensure RLS bypass on creation
@@ -139,6 +156,18 @@ export async function signUpUser(formData: FormData): Promise<SignUpState> {
     credit_limit: COMMERCIAL_DEFAULTS.DEFAULT_CREDIT_LIMIT,
     credit_days: COMMERCIAL_DEFAULTS.DEFAULT_CREDIT_DAYS,
   };
+
+  // Signing up again with an address that already has an unconfirmed login must not rewrite a profile
+  // an admin has since approved or rejected (the caller could be someone other than its owner).
+  const { data: existingProfile } = await adminDb
+    .from("profiles")
+    .select("approval_status")
+    .eq("id", authData.user.id)
+    .maybeSingle();
+  const existingStatus = (existingProfile as { approval_status?: string } | null)?.approval_status;
+  if (existingStatus && existingStatus !== APPROVAL_STATUSES.PENDING) {
+    return acceptedReply;
+  }
 
   const { error: profileError } = await adminDb
     .from("profiles")
@@ -182,12 +211,7 @@ export async function signUpUser(formData: FormData): Promise<SignUpState> {
   }
 
   revalidatePath("/", "layout");
-  return {
-    success: true,
-    needsEmailVerification: true,
-    email: validated.email,
-    message: "Registration initiated! We have sent a confirmation email to verify your email address.",
-  };
+  return acceptedReply;
 }
 
 export async function signInUser(
@@ -202,6 +226,8 @@ export async function signInUser(
   unconfirmedEmail?: string;
 }> {
   const supabase = await createClient();
+
+  if (!(await allowAuthAttempt("login", emailInput?.trim()))) return { error: TOO_MANY_ATTEMPTS };
 
   const validationResult = loginSchema.safeParse({
     email: emailInput?.trim().toLowerCase(),
@@ -264,11 +290,10 @@ export async function signInUser(
   }
 
   if (approvalStatus !== APPROVAL_STATUSES.APPROVED) {
+    // A rejected account stays signed in so it can see the "application not approved" screen. It can
+    // use nothing there: every customer action checks approval. Like a pending one it gets no role.
     if (approvalStatus === APPROVAL_STATUSES.REJECTED) {
-      await supabase.auth.signOut();
-      return {
-        error: "Your enterprise account application has been rejected. Please contact support@sojarsolutions.com for assistance.",
-      };
+      return { redirectUrl: "/application-rejected" };
     }
     // Pending accounts must land on the holding page, never on a ?redirect= target.
     return { redirectUrl: "/pending-approval" };
@@ -291,6 +316,7 @@ export async function sendPasswordResetEmail(emailInput: string): Promise<{
   }
 
   const { email } = validation.data;
+  if (!(await allowAuthAttempt("email", email))) return { error: TOO_MANY_ATTEMPTS };
   const supabase = await createClient();
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
 
@@ -298,9 +324,9 @@ export async function sendPasswordResetEmail(emailInput: string): Promise<{
     redirectTo: `${siteUrl}/auth/callback?next=/reset-password`,
   });
 
-  if (error) {
-    return { error: error.message };
-  }
+  // Never echo the provider's message: it can say whether the address exists or how the mail
+  // provider is limited. The reply is the same either way; the failure is logged for us instead.
+  if (error) console.error("[auth] resetPasswordForEmail failed:", error.message);
 
   return {
     success: true,
@@ -329,6 +355,15 @@ export async function updateUserPassword(
   }
 
   const { password } = validation.data;
+
+  // Only a session opened by a password-recovery link may set a new password here. Without this,
+  // any signed-in session (a shared computer, a stolen cookie) could change the password without
+  // knowing the old one. The marker is set by /auth/callback and is single-use.
+  const jar = await cookies();
+  if (jar.get(RECOVERY_COOKIE)?.value !== "1") {
+    return { error: "This password reset link is invalid or has expired. Please request a new one." };
+  }
+
   const supabase = await createClient();
 
   const { error } = await supabase.auth.updateUser({
@@ -336,11 +371,16 @@ export async function updateUserPassword(
   });
 
   if (error) {
-    return { error: error.message };
+    console.error("[auth] updateUser(password) failed:", error.message);
+    return { error: "Could not update your password. The link may have expired; please request a new one." };
   }
 
-  // Sign out the recovery session so user can log in fresh
-  await supabase.auth.signOut();
+  // Single use: spent only once the password really changed, so a rejected attempt (for example the
+  // new password equals the old one) can be retried with the same link.
+  jar.delete(RECOVERY_COOKIE);
+
+  // Ends every session of this user, so sessions opened with the old password stop working too.
+  await supabase.auth.signOut({ scope: "global" });
   revalidatePath("/", "layout");
 
   return {
@@ -363,6 +403,7 @@ export async function resendVerificationEmail(emailInput: string): Promise<{
   }
 
   const { email } = validation.data;
+  if (!(await allowAuthAttempt("email", email))) return { error: TOO_MANY_ATTEMPTS };
   const supabase = await createClient();
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
 
@@ -374,13 +415,13 @@ export async function resendVerificationEmail(emailInput: string): Promise<{
     },
   });
 
-  if (error) {
-    return { error: error.message };
-  }
+  // Same answer whether or not the address needs a confirmation: the provider's error text says
+  // whether the account exists and what state it is in.
+  if (error) console.error("[auth] resend failed:", error.message);
 
   return {
     success: true,
-    message: "Verification email sent. Please check your inbox.",
+    message: "If this address is awaiting confirmation, a verification email has been sent. Please check your inbox.",
   };
 }
 

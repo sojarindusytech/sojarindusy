@@ -21,7 +21,8 @@ const nextConfig: NextConfig = {
   },
   experimental: {
     serverActions: {
-      bodySizeLimit: "500mb",
+      // Largest upload is a product datasheet (capped at 20 MB in the action); 500 MB let anyone post huge bodies.
+      bodySizeLimit: "25mb",
     },
   },
   async rewrites() {

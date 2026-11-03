@@ -1,5 +1,6 @@
 "use client";
 
+import { downloadCsv } from "@/lib/csv";
 import { PageTitle } from "@/components/common/PageTitle";
 import { useState, useTransition, useMemo } from "react";
 import { Profile } from "@/types/database.types";
@@ -427,23 +428,22 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
             variant="outline"
             size="sm"
             onClick={() => {
-              const csvContent =
-                "data:text/csv;charset=utf-8," +
-                ["Company,Name,Email,Mobile,GSTIN,City,State,Registered Date,Type,Status"]
-                  .concat(
-                    filteredAndSortedCustomers.map(
-                      (c) =>
-                        `"${c.company_name}","${c.title} ${c.first_name} ${c.last_name}","${c.email}","${c.mobile}","${c.gstin || "-"}","${c.city}","${c.state}","${formatDate(c.created_at)}","${c.user_type || USER_TYPES.PLATFORM_USER}","${c.approval_status || APPROVAL_STATUSES.PENDING}"`
-                    )
-                  )
-                  .join("\n");
-              const encodedUri = encodeURI(csvContent);
-              const link = document.createElement("a");
-              link.setAttribute("href", encodedUri);
-              link.setAttribute("download", `customers_export_${new Date().toISOString().slice(0, 10)}.csv`);
-              document.body.appendChild(link);
-              link.click();
-              document.body.removeChild(link);
+              downloadCsv(
+                `customers_export_${new Date().toISOString().slice(0, 10)}.csv`,
+                ["Company", "Name", "Email", "Mobile", "GSTIN", "City", "State", "Registered Date", "Type", "Status"],
+                filteredAndSortedCustomers.map((c) => [
+                  c.company_name,
+                  `${c.title} ${c.first_name} ${c.last_name}`,
+                  c.email,
+                  c.mobile,
+                  c.gstin || "-",
+                  c.city,
+                  c.state,
+                  formatDate(c.created_at),
+                  c.user_type || USER_TYPES.PLATFORM_USER,
+                  c.approval_status || APPROVAL_STATUSES.PENDING,
+                ])
+              );
             }}
             className="w-full sm:w-auto justify-center gap-1.5 text-xs border-slate-200 text-slate-700 hover:bg-slate-50 shadow-none cursor-pointer h-9 sm:h-8"
           >

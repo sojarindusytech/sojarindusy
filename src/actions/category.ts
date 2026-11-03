@@ -206,6 +206,9 @@ export async function uploadCategoryImage(formData: FormData): Promise<{
   if (!file || file.size === 0) {
     return { error: "No image file provided." };
   }
+  if (file.size > 10 * 1024 * 1024) {
+    return { error: "Image must be 10 MB or smaller." };
+  }
 
   const fileExt = file.name.split(".").pop()?.toLowerCase() || "jpg";
   const fileName = `category_${Date.now()}_${Math.random().toString(36).substring(2, 7)}.${fileExt}`;

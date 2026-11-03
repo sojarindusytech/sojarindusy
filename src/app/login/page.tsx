@@ -84,10 +84,8 @@ function LoginForm() {
         }
         router.refresh();
       }
-    } catch (err: unknown) {
-      setError(
-        err instanceof Error ? err.message : "An unexpected error occurred during sign-in."
-      );
+    } catch {
+      setError("An unexpected error occurred during sign-in.");
     } finally {
       setLoading(false);
     }
