@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
 import { Ban, Calendar, Download, Eye, HandCoins, Search, Wallet } from "lucide-react";
 import { cancelPayment, getPaymentFormData, type PaymentFormData } from "@/actions/payment";
-import { PAYMENT_CHANNELS, PAYMENT_MODES, modeLabel } from "@/lib/payments";
+import { PAYMENT_CHANNELS, PAYMENT_MODES, allocationLabel, modeLabel } from "@/lib/payments";
 import { DATE_RANGE_OPTIONS, isWithinDateRange, type DateRangeKey } from "@/lib/date-range";
 import type { Payment } from "@/types/database.types";
 import { Card } from "@/components/ui/card";
@@ -37,7 +37,7 @@ const fmtDate = (iso: string) => iso.split("-").reverse().join("-");
 const channelLabel = (c: string) => PAYMENT_CHANNELS.find((x) => x.value === c)?.label ?? c;
 
 function appliedTo(p: Payment): string {
-  const parts = (p.allocations ?? []).map((a) => (a.kind === "invoice" ? a.invoice_number ?? "Invoice" : a.kind === "advance" ? "Advance" : a.note ? `Other (${a.note})` : "Other"));
+  const parts = (p.allocations ?? []).map(allocationLabel);
   return parts.length ? parts.join(", ") : "—";
 }
 

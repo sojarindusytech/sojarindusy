@@ -1,25 +1,11 @@
-import { AdminComingSoon } from "@/components/admin/AdminComingSoon";
-import { FilePlus } from "lucide-react";
+import { getCreditNoteFormData, listCreditNotes } from "@/actions/credit-note";
+import { AdminCreditNotesClient } from "@/components/admin/AdminCreditNotesClient";
 import type { Metadata } from "next";
 
-export const metadata: Metadata = {
-  title: "Credit Notes | Sojar Solutions Admin",
-  description: "Credit Note registry and customer balance adjustments.",
-};
-
-export default function CreditNotesAdminPage() {
-  return (
-    <AdminComingSoon
-      section="Sales"
-      title="Credit Note"
-      description="Issue credit notes for customer order returns, post-sale volume rebates, or pricing error rectifications."
-      icon={FilePlus}
-      features={[
-        "Direct connection to Sales Invoices and Order Returns (RMA)",
-        "Automatic GST tax credit computation and GSTR-1 sync",
-        "Customer wallet/credit balance updates for future purchases",
-        "Audit trail for managerial approvals and cancellations",
-      ]}
-    />
-  );
+export const metadata: Metadata = { title: "Credit Notes | Sojar Solutions Admin", description: "Invoice-linked credit notes and numbering." };
+export const dynamic = "force-dynamic";
+export default async function CreditNotesAdminPage({ searchParams }: { searchParams: Promise<{ invoice?: string }> }) {
+  const params = await searchParams;
+  const [notes, formData] = await Promise.all([listCreditNotes(), params.invoice ? getCreditNoteFormData() : Promise.resolve(null)]);
+  return <AdminCreditNotesClient key={params.invoice ?? "registry"} notes={notes} invoiceId={params.invoice} initialFormData={formData} />;
 }

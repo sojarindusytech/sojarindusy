@@ -170,8 +170,9 @@ const storedOrder = async (orderId: string) =>
 
 beforeAll(async () => {
   t = await createTestDb({ applyNew: true });
-  // Apply the new migrations a second time: they must be idempotent.
-  for (const f of migrationFiles((name) => name.startsWith("20261015_") || name.startsWith("20261017_") || name.startsWith("20261018_") || name.startsWith("20261019_"))) {
+  // Replay migrations designed to be idempotent. Credit-note stock setup is a
+  // one-time migration on the same date as payments; it is already applied above.
+  for (const f of migrationFiles((name) => name.startsWith("20261015_") || name.startsWith("20261017_") || name === "20261018_payments.sql" || name.startsWith("20261019_"))) {
     await t.db.exec(readMigration(f));
   }
   await seed(t);

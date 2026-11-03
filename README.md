@@ -3,12 +3,12 @@
 B2B storefront and back office for Sojar Indusy / Sojar Solutions, a supplier of carbide
 cutting tools (end mills, drills, oscillating blades, carbide wear parts) to Indian industry.
 
+
 - **Customers** register, are approved by an admin, then see prices, order, track shipments,
   request returns and submit RFQs.
 - **Admins** manage the catalogue, stock, customers, orders, returns, RFQs, quotes,
   coupons and purchase orders.
 - **The manufacturer** sees purchase orders raised automatically when stock runs low.
-
 ## Stack
 Next.js 16 (App Router) · React 19 · TypeScript · Supabase (Postgres, Auth, Storage) ·
 Tailwind CSS · shadcn/ui · Vitest
@@ -20,6 +20,7 @@ cp .env.example .env      # fill in the Supabase URL and keys
 npm ci
 npm run dev               # http://localhost:3000
 ```
+
 
 | Script | What it does |
 | --- | --- |

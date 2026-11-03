@@ -278,6 +278,8 @@ export interface SalesSettings {
   ifsc: string | null;
   account_holder: string | null;
   terms: string | null;
+  /** Additional terms saved with each newly issued credit note. */
+  credit_note_terms?: string | null;
   gst_billing_enabled: boolean;
   default_gst_rate: number;
   invoice_prefix: string;
@@ -288,8 +290,11 @@ export interface SalesSettings {
   quote_terms?: string | null;
   /** Note printed on payment receipts. null = none. */
   receipt_terms?: string | null;
+  /** Terms printed on debit notes. null = use `terms`. */
+  debit_note_terms?: string | null;
   /** Hand-made invoices reduce SKU stock when issued (order invoices are unaffected). */
   invoice_reduces_stock: boolean;
+  credit_note_restores_stock: boolean;
   po_prefix: string;
   po_fy: string | null;
   po_next_number: number;
@@ -304,10 +309,18 @@ export interface SalesSettings {
   quote_fy: string | null;
   quote_next_number: number;
   quote_pad: number;
+  credit_note_prefix: string;
+  credit_note_fy: string | null;
+  credit_note_next_number: number;
+  credit_note_pad: number;
   receipt_prefix: string;
   receipt_fy: string | null;
   receipt_next_number: number;
   receipt_pad: number;
+  debit_note_prefix: string;
+  debit_note_fy: string | null;
+  debit_note_next_number: number;
+  debit_note_pad: number;
   order_prefix: string;
   order_fy: string | null;
   order_next_number: number;
@@ -358,6 +371,48 @@ export interface Invoice {
   updated_at: string;
 }
 
+/** Why an invoice under-charged (CGST Act s.34(3)). Labels live in src/lib/debit-notes.ts. */
+export type DebitNoteReason =
+  | "price_increase"
+  | "quantity_short_billed"
+  | "additional_charges"
+  | "tax_rate_correction"
+  | "other";
+
+/**
+ * A GST debit note issued to a customer against one of our invoices. Immutable once
+ * issued (cancel with a reason). items / totals have the invoice's shape; bill_to,
+ * place_of_supply, gst_enabled and the invoice number/date are copied from the invoice.
+ */
+export interface DebitNote {
+  id: string;
+  request_id: string;
+  debit_note_number: string;
+  debit_note_fy: string | null;
+  seq: number | null;
+  numbering_mode: "auto" | "manual";
+  debit_note_date: string;
+  invoice_id: string;
+  invoice_number: string;
+  invoice_date: string;
+  user_id: string | null;
+  reason: DebitNoteReason;
+  reason_note: string | null;
+  bill_to: InvoiceBillTo;
+  place_of_supply: string | null;
+  gst_enabled: boolean;
+  items: import("@/lib/invoice").InvoiceLine[];
+  totals: import("@/lib/invoice").InvoiceTotals;
+  total_amount: number;
+  amount_in_words: string | null;
+  status: "issued" | "cancelled";
+  cancelled_at: string | null;
+  cancel_reason: string | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export type PaymentMode =
   | "cash" | "cheque" | "bank_transfer" | "upi" | "card" | "net_banking"
   | "demand_draft" | "wallet" | "payment_gateway" | "other";
@@ -365,10 +420,14 @@ export type PaymentMode =
 export interface PaymentAllocation {
   id: string;
   payment_id: string;
-  kind: "invoice" | "advance" | "other";
+  kind: "invoice" | "debit_note" | "advance" | "other";
   invoice_id: string | null;
   /** Snapshot of the invoice number at the time of payment. */
   invoice_number: string | null;
+  /** Set when the money went to a debit note (20261023). */
+  debit_note_id?: string | null;
+  /** Snapshot of the debit note number at the time of payment. */
+  debit_note_number?: string | null;
   amount: number;
   note: string | null;
 }
@@ -488,6 +547,7 @@ export type InventoryMovementType =
   | 'BULK_UPDATE'
   | 'ORDER_RESERVATION'
   | 'ORDER_FULFILLED'
+  | 'CREDIT_NOTE_RESTOCK'
   | 'INVOICE_ISSUED'
   | 'INVOICE_EDITED'
   | 'INVOICE_CANCELLED'
@@ -707,6 +767,24 @@ export interface CouponRedemption {
 export interface Database {
   public: {
     Tables: {
+      credit_notes: {
+        Row: import("@/lib/credit-note").CreditNote;
+        Insert: never;
+        Update: never;
+        Relationships: [];
+      };
+      invoices: {
+        Row: Invoice;
+        Insert: Partial<Invoice>;
+        Update: Partial<Invoice>;
+        Relationships: [];
+      };
+      sales_settings: {
+        Row: SalesSettings;
+        Insert: Partial<SalesSettings>;
+        Update: Partial<SalesSettings>;
+        Relationships: [];
+      };
       profiles: {
         Row: Profile;
         Insert: Profile;
@@ -790,6 +868,10 @@ export interface Database {
       [_ in never]: never;
     };
     Functions: {
+      issue_credit_note: {
+        Args: { p_input: import("@/lib/credit-note").CreditNoteInput; p_actor: string };
+        Returns: import("@/lib/credit-note").CreditNote;
+      };
       is_platform_owner: {
         Args: Record<PropertyKey, never>;
         Returns: boolean;

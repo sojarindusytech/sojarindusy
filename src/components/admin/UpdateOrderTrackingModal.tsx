@@ -221,7 +221,7 @@ export function UpdateOrderTrackingModal({
                 <span>Process Customer Return & Restock</span>
               </div>
               <p className="text-[11px] text-purple-700 leading-relaxed">
-                Confirming return will restore all <strong>{order.items?.length || 0} line item(s)</strong> back into SKU inventory and record an official <code>RETURN_RESTOCK</code> audit log.
+                Confirming return restores the remaining units across <strong>{order.items?.length || 0} line item(s)</strong> and records the stock change. Units already restored by credit notes are not added again.
               </p>
               <div className="space-y-1">
                 <Label className="text-[11px] font-semibold text-purple-900">
