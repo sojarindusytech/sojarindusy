@@ -84,19 +84,27 @@ export function ReceiptPdf({
         <View style={{ marginTop: 8 }} wrap={false}>
           <View style={s.row}>
             <Text style={[s.th, { flex: 3, textAlign: "left" }]}>Applied to</Text>
-            <Text style={[s.th, { flex: 1.3 }]}>Invoice date</Text>
-            <Text style={[s.th, { flex: 1.5 }]}>Invoice total</Text>
+            <Text style={[s.th, { flex: 1.3 }]}>Date</Text>
+            <Text style={[s.th, { flex: 1.5 }]}>Total</Text>
             <Text style={[s.th, { flex: 1.5 }]}>Amount applied</Text>
             <Text style={[s.th, { flex: 1.5 }]}>Balance due</Text>
           </View>
           <View style={s.tableBody}>
             {allocations.map((a) => {
-              const inv = a.invoice_id ? invoices[a.invoice_id] : undefined;
+              // invoices holds both invoices and debit notes, keyed by their id.
+              const doc = a.invoice_id ?? a.debit_note_id ?? null;
+              const inv = doc ? invoices[doc] : undefined;
               return (
                 <View key={a.id} style={[s.row, s.rowBorder]} wrap={false}>
                   <View style={[s.td, { flex: 3, alignItems: "flex-start" }, s.cellBorder]}>
                     <Text style={s.bold}>
-                      {a.kind === "invoice" ? `Invoice ${a.invoice_number ?? ""}` : a.kind === "advance" ? "Advance payment" : `Other${a.note ? `: ${a.note}` : ""}`}
+                      {a.kind === "invoice"
+                        ? `Invoice ${a.invoice_number ?? ""}`
+                        : a.kind === "debit_note"
+                          ? `Debit note ${a.debit_note_number ?? ""}`
+                          : a.kind === "advance"
+                            ? "Advance payment"
+                            : `Other${a.note ? `: ${a.note}` : ""}`}
                     </Text>
                   </View>
                   <View style={[s.td, { flex: 1.3 }, s.cellBorder]}><Text>{inv ? fmtDate(inv.invoice_date) : ""}</Text></View>

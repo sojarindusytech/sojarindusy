@@ -50,7 +50,7 @@ export interface PaymentFormInvoice extends OpenInvoice {
 export interface PaymentFormData {
   settings: Pick<SalesSettings, "receipt_prefix" | "receipt_fy" | "receipt_next_number" | "receipt_pad"> | null;
   customers: PaymentFormCustomer[];
-  /** Issued invoices that still have a balance. */
+  /** Issued invoices and debit notes that still have a balance (kind tells them apart). */
   invoices: PaymentFormInvoice[];
 }
 
@@ -58,7 +58,7 @@ export interface PaymentFormData {
 export async function getPaymentFormData(): Promise<PaymentFormData> {
   await requireAdmin();
   const db = createAdminClient();
-  const [settings, customersRes, invoicesRes, summaryRes] = await Promise.all([
+  const [settings, customersRes, invoicesRes, summaryRes, debitNotesRes, dnSummaryRes] = await Promise.all([
     loadSalesSettings(),
     (db.from("profiles") as any)
       .select("id, company_name, channel")
@@ -69,6 +69,14 @@ export async function getPaymentFormData(): Promise<PaymentFormData> {
       .eq("status", "issued")
       .order("invoice_date", { ascending: true }),
     (db.from("invoice_payment_summary" as never) as any).select("invoice_id, balance, payment_status"),
+    // Debit notes are paid like invoices. Before the 20261019/20261023 migrations these queries fail
+    // and simply return no rows.
+    db
+      .from("debit_notes" as never)
+      .select("id, debit_note_number, debit_note_date, total_amount, user_id, bill_to")
+      .eq("status", "issued")
+      .order("debit_note_date", { ascending: true }),
+    db.from("debit_note_payment_summary" as never).select("debit_note_id, balance"),
   ]);
 
   const balance = new Map<string, number>(
@@ -87,6 +95,35 @@ export async function getPaymentFormData(): Promise<PaymentFormData> {
     }))
     .filter((i) => i.balance > 0);
 
+  const dnBalance = new Map<string, number>(
+    ((dnSummaryRes.data as unknown as { debit_note_id: string; balance: number | string }[] | null) ?? []).map((s) => [
+      s.debit_note_id,
+      Number(s.balance),
+    ])
+  );
+  const debitNotes: PaymentFormInvoice[] = (
+    (debitNotesRes.data as unknown as {
+      id: string;
+      debit_note_number: string;
+      debit_note_date: string;
+      total_amount: number | string;
+      user_id: string | null;
+      bill_to: { name?: string } | null;
+    }[] | null) ?? []
+  )
+    .map((d) => ({
+      id: d.id,
+      kind: "debit_note" as const,
+      invoice_number: d.debit_note_number,
+      invoice_date: d.debit_note_date,
+      total: Number(d.total_amount),
+      balance: dnBalance.get(d.id) ?? Number(d.total_amount),
+      order_id: null,
+      user_id: d.user_id ?? null,
+      bill_to_name: d.bill_to?.name ?? "",
+    }))
+    .filter((d) => d.balance > 0);
+
   return {
     settings: settings
       ? {
@@ -101,7 +138,7 @@ export async function getPaymentFormData(): Promise<PaymentFormData> {
       company_name: c.company_name,
       channel: c.channel ?? null,
     })),
-    invoices,
+    invoices: [...invoices.map((i) => ({ ...i, kind: "invoice" as const })), ...debitNotes],
   };
 }
 
@@ -139,6 +176,7 @@ export async function recordPayment(input: RecordPaymentInput): Promise<Result<{
       allocations: p.allocations.map((a) => ({
         kind: a.kind,
         ...(a.invoiceId ? { invoice_id: a.invoiceId } : {}),
+        ...(a.debitNoteId ? { debit_note_id: a.debitNoteId } : {}),
         amount: a.amount,
         note: a.note,
       })),
@@ -165,6 +203,7 @@ export async function recordPayment(input: RecordPaymentInput): Promise<Result<{
 
   revalidatePath("/admin/payments-received");
   revalidatePath("/admin/invoices");
+  revalidatePath("/admin/debit-notes");
   revalidatePath("/dashboard/payments");
   return { success: true, payment: { ...data, amount: Number(data.amount) } };
 }
@@ -181,6 +220,7 @@ export async function cancelPayment(paymentId: string, reason: string): Promise<
 
   revalidatePath("/admin/payments-received");
   revalidatePath("/admin/invoices");
+  revalidatePath("/admin/debit-notes");
   revalidatePath("/dashboard/payments");
   return { success: true };
 }

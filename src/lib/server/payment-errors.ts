@@ -8,13 +8,19 @@ export function paymentErrorMessage(error: DbAppError): string {
   const d = error.detail;
   switch (error.code) {
     case "OVER_ALLOCATED":
-      return `Invoice ${String(d.invoice_number ?? "")} has only ${inr(d.balance)} outstanding, but ${inr(d.applied)} was applied to it.`;
+      return d.debit_note_number
+        ? `Debit note ${String(d.debit_note_number)} has only ${inr(d.balance)} outstanding, but ${inr(d.applied)} was applied to it.`
+        : `Invoice ${String(d.invoice_number ?? "")} has only ${inr(d.balance)} outstanding, but ${inr(d.applied)} was applied to it.`;
     case "ALLOCATION_MISMATCH":
       return `The allocations total ${inr(d.allocated)} but the amount received is ${inr(d.amount)}.`;
     case "INVOICE_NOT_PAYABLE":
       return `Invoice ${String(d.invoice_number ?? "")} cannot receive this payment: it is cancelled or belongs to another customer.`;
     case "INVOICE_NOT_FOUND":
       return "One of the invoices could not be found. Refresh and try again.";
+    case "DEBIT_NOTE_NOT_PAYABLE":
+      return `Debit note ${String(d.debit_note_number ?? "")} cannot receive this payment: it is cancelled or belongs to another customer.`;
+    case "DEBIT_NOTE_NOT_FOUND":
+      return "One of the debit notes could not be found. Refresh and try again.";
     case "DUPLICATE_RECEIPT_NUMBER":
       return "That receipt number already exists.";
     case "PAYMENT_DATE_INVALID":

@@ -1,6 +1,6 @@
 import { Document, Image, Page, Text, View } from "@react-pdf/renderer";
 import type { Invoice, SalesSettings } from "@/types/database.types";
-import { normalizeCopies } from "@/lib/invoice";
+import { normalizeCopies, round2, type InvoiceLine, type TaxSummaryRow } from "@/lib/invoice";
 import { documentTerms, termsParagraphs as splitTerms } from "@/lib/document-terms";
 import { Money, SellerHeader, fmtDate, fmtPct, s } from "@/components/invoice/pdf-shared";
 
@@ -21,6 +21,25 @@ function MoneyPct({ value, pct }: { value: number; pct: number }) {
   );
 }
 
+/**
+ * Tax rows by the rate actually applied. A debit note's "GST charged too low" line
+ * is shown as the value its missing rate was charged on (e.g. ₹1,000 at 3% = ₹30),
+ * not as a ₹0 taxable value that wouldn't explain the tax.
+ */
+function taxSummaryByAppliedRate(items: InvoiceLine[]): TaxSummaryRow[] {
+  const byRate = new Map<number, TaxSummaryRow>();
+  for (const l of items) {
+    const rate = l.taxOnly ? round2(l.gstRate - l.taxOnly.chargedRate) : l.gstRate;
+    const row = byRate.get(rate) ?? { rate, taxable: 0, cgst: 0, sgst: 0, igst: 0 };
+    row.taxable = round2(row.taxable + (l.taxOnly ? l.taxOnly.base : l.taxable));
+    row.cgst = round2(row.cgst + l.cgst);
+    row.sgst = round2(row.sgst + l.sgst);
+    row.igst = round2(row.igst + l.igst);
+    byRate.set(rate, row);
+  }
+  return [...byRate.values()].sort((a, b) => a.rate - b.rate);
+}
+
 interface Col {
   key: string;
   label: string;
@@ -35,20 +54,44 @@ export interface QuoteExtras {
   deliveryTerms?: string | null;
 }
 
+export interface CreditNoteExtras {
+  invoiceNumber: string;
+  invoiceDate: string;
+  reason: string;
+  treatment: "gst" | "commercial";
+}
+
+/**
+ * Present when rendering a GST debit note: same layout, plus the original invoice's
+ * number and date (required by Rule 53(1A)) and the reason.
+ */
+export interface DebitNoteExtras {
+  invoiceNumber: string;
+  invoiceDate: string;
+  reason: string;
+  note?: string | null;
+}
+
 export function InvoicePdf({
   invoice,
   settings,
   quote,
+  creditNote,
+  debitNote,
 }: {
   invoice: Invoice;
   settings: SalesSettings;
   quote?: QuoteExtras;
+  creditNote?: CreditNoteExtras;
+  debitNote?: DebitNoteExtras;
 }) {
   const isQuote = !!quote;
+  const isDebitNote = !!debitNote;
   const { items, totals, bill_to: billTo } = invoice;
   const gst = invoice.gst_enabled;
   const interState = gst && items.some((l) => l.igst > 0);
-  const title = isQuote ? "Quotation" : gst ? "Tax Invoice" : "Invoice";
+  const documentLabel = creditNote ? "Credit Note" : isQuote ? "Quotation" : isDebitNote ? "Debit Note" : "Invoice";
+  const title = creditNote ? (creditNote.treatment === "gst" ? "Credit Note" : "Commercial Credit Note") : isQuote ? "Quotation" : isDebitNote ? "Debit Note" : gst ? "Tax Invoice" : "Invoice";
 
   const cols: Col[] = [
     { key: "idx", label: "#", flex: 0.5, align: "left" },
@@ -57,7 +100,8 @@ export function InvoicePdf({
     { key: "qty", label: "Quantity", flex: 1 },
     { key: "unit", label: "Unit", flex: 0.8 },
     { key: "price", label: "Price/ unit", flex: 1.4 },
-    { key: "disc", label: "Discount", flex: 1.5 },
+    // A debit note adds an amount; it never carries a discount.
+    ...(isDebitNote ? [] : [{ key: "disc", label: "Discount", flex: 1.5 }]),
     { key: "taxable", label: gst ? "Taxable amount" : "Amount", flex: 1.5 },
     ...(gst
       ? interState
@@ -86,6 +130,8 @@ export function InvoicePdf({
   );
 
   const lineCell = (key: string, l: (typeof items)[number], idx: number): React.ReactNode => {
+    // A debit note's "GST charged too low" line adds no value: only the missing rate is taxed.
+    const taxPct = l.taxOnly ? l.gstRate - l.taxOnly.chargedRate : l.gstRate;
     switch (key) {
       case "idx": return String(idx + 1);
       case "name":
@@ -98,12 +144,12 @@ export function InvoicePdf({
       case "hsn": return l.hsn ?? "";
       case "qty": return String(l.quantity);
       case "unit": return l.unit;
-      case "price": return <Money value={l.unitPrice} />;
+      case "price": return l.taxOnly ? "—" : <Money value={l.unitPrice} />;
       case "disc": return <MoneyPct value={l.discountAmount} pct={l.discountPct} />;
       case "taxable": return <Money value={l.taxable} />;
-      case "cgst": return <MoneyPct value={l.cgst} pct={l.gstRate / 2} />;
-      case "sgst": return <MoneyPct value={l.sgst} pct={l.gstRate / 2} />;
-      case "igst": return <MoneyPct value={l.igst} pct={l.gstRate} />;
+      case "cgst": return <MoneyPct value={l.cgst} pct={taxPct / 2} />;
+      case "sgst": return <MoneyPct value={l.sgst} pct={taxPct / 2} />;
+      case "igst": return <MoneyPct value={l.igst} pct={taxPct} />;
       case "amount": return <Money value={l.amount} />;
       default: return "";
     }
@@ -123,7 +169,8 @@ export function InvoicePdf({
     }
   };
 
-  const taxRows = (totals.taxSummary ?? [])
+  const summary = items.some((l) => l.taxOnly) ? taxSummaryByAppliedRate(items) : totals.taxSummary ?? [];
+  const taxRows = summary
     .filter((r) => r.rate > 0)
     .flatMap((r) =>
       interState
@@ -134,19 +181,20 @@ export function InvoicePdf({
           ]
     );
 
-  // A quotation is a single page set with no ORIGINAL/DUPLICATE marking.
-  const copies = isQuote ? [""] : normalizeCopies(settings.invoice_copies);
+  // Quotations, credit notes and debit notes have no ORIGINAL/DUPLICATE marking.
+  const copies = isQuote || creditNote || isDebitNote ? [""] : normalizeCopies(settings.invoice_copies);
   const termsParagraphs = [
     ...(quote?.paymentTerms ? [`Payment Terms: ${quote.paymentTerms}`] : []),
     ...(quote?.deliveryTerms ? [`Delivery Terms: ${quote.deliveryTerms}`] : []),
     ...(quote ? [`This quotation is valid until ${fmtDate(quote.validUntil)}.`] : []),
-    ...splitTerms(documentTerms(settings, isQuote ? "quote" : "invoice")),
+    ...(creditNote ? [creditNote.treatment === "commercial" ? "Commercial credit only. No adjustment to GST liability." : "GST adjustment against the referenced invoice.", "This document records a credit. It is not a payment or refund receipt."] : []),
+    ...splitTerms(documentTerms(settings, creditNote ? "credit_note" : isQuote ? "quote" : isDebitNote ? "debit_note" : "invoice")),
   ];
 
   return (
     <Document title={`${title} ${invoice.invoice_number}`} author={settings.company_name}>
       {copies.map((copy) => (
-      <Page key={copy || "quote"} size="A4" style={s.page}>
+      <Page key={copy || "single"} size="A4" style={s.page}>
         <View fixed>
           <SellerHeader settings={settings} tag={title} copy={copy} />
         </View>
@@ -163,11 +211,21 @@ export function InvoicePdf({
             </View>
           </View>
           <View style={s.half}>
-            <Text style={[s.bar, { textAlign: "right" }]}>{isQuote ? "Quotation Details" : "Invoice Details"}</Text>
+            <Text style={[s.bar, { textAlign: "right" }]}>{documentLabel} Details</Text>
             <View style={[s.halfPad, { alignItems: "flex-end" }]}>
-              <Text style={{ marginBottom: 3 }}>{isQuote ? "Quotation" : "Invoice"} No.: {invoice.invoice_number}</Text>
+              <Text style={{ marginBottom: 3 }}>{documentLabel} No.: {invoice.invoice_number}</Text>
               <Text style={{ marginBottom: 3 }}>Date: {fmtDate(invoice.invoice_date)}</Text>
+              {creditNote ? <><Text style={{ marginBottom: 3 }}>Original Invoice: {creditNote.invoiceNumber}</Text><Text style={{ marginBottom: 3 }}>Invoice Date: {fmtDate(creditNote.invoiceDate)}</Text></> : null}
               {quote ? <Text style={{ marginBottom: 3 }}>Valid Until: {fmtDate(quote.validUntil)}</Text> : null}
+              {debitNote ? (
+                <>
+                  <Text style={{ marginBottom: 3 }}>Against Invoice No.: {debitNote.invoiceNumber}</Text>
+                  <Text style={{ marginBottom: 3 }}>Invoice Date: {fmtDate(debitNote.invoiceDate)}</Text>
+                  <Text style={{ marginBottom: 3, textAlign: "right" }}>
+                    Reason: {debitNote.reason}{debitNote.note ? ` (${debitNote.note})` : ""}
+                  </Text>
+                </>
+              ) : null}
               {invoice.place_of_supply ? <Text style={{ marginBottom: 3 }}>Place of Supply: {invoice.place_of_supply}</Text> : null}
               {invoice.po_number ? <Text>PO number: {invoice.po_number}</Text> : null}
             </View>
@@ -188,6 +246,11 @@ export function InvoicePdf({
         {/* Tax summary + amounts */}
         <View style={s.bottom} wrap={false}>
           <View style={s.left}>
+            {creditNote ? (
+              <Text style={{ padding: 4, lineHeight: 1.35 }}>
+                <Text style={s.bold}>Reason: </Text>{creditNote.reason}
+              </Text>
+            ) : null}
             {gst ? (
               <>
                 <View style={s.row}>
@@ -211,15 +274,15 @@ export function InvoicePdf({
             <Text style={[s.bar, { textAlign: "left" }]}>Amounts</Text>
             <View style={s.amountRow}><Text>Sub Total</Text><Money value={totals.subTotal} /></View>
             <View style={[s.amountRow, s.rowBorder]}><Text>Round off</Text><Money value={totals.roundOff} /></View>
-            <View style={[s.amountRow, s.rowBorder, s.bold]}><Text style={s.bold}>Total</Text><Text style={s.bold}><Money value={totals.total} /></Text></View>
-            {totals.youSaved > 0 ? (
+            <View style={[s.amountRow, s.rowBorder, s.bold]}><Text style={s.bold}>{creditNote ? "Total Credit" : "Total"}</Text><Text style={s.bold}><Money value={totals.total} /></Text></View>
+            {!creditNote && totals.youSaved > 0 ? (
               <View style={s.amountRow}><Text>You Saved</Text><Money value={totals.youSaved} /></View>
             ) : null}
           </View>
         </View>
 
         <View style={[s.box, { borderTopWidth: 0 }]} wrap={false}>
-          <Text style={[s.bar, { textAlign: "center" }]}>{isQuote ? "Quotation" : "Invoice"} Amount In Words</Text>
+          <Text style={[s.bar, { textAlign: "center" }]}>{documentLabel} Amount In Words</Text>
           <Text style={{ padding: 4 }}>{invoice.amount_in_words}</Text>
         </View>
 

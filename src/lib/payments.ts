@@ -32,6 +32,11 @@ export const modeLabel = (mode: string): string => PAYMENT_MODES.find((m) => m.v
 export const toPaise = (rupees: number): number => Math.round((Number(rupees) || 0) * 100);
 export const fromPaise = (paise: number): number => paise / 100;
 
+/**
+ * A document that still has money due: an invoice, or a debit note (which adds to what the
+ * customer owes on an invoice). For a debit note, invoice_number / invoice_date hold the
+ * debit note's own number and date.
+ */
 export interface OpenInvoice {
   id: string;
   invoice_number: string;
@@ -39,6 +44,21 @@ export interface OpenInvoice {
   total: number;
   balance: number;
   order_id: string | null;
+  /** Absent = invoice. */
+  kind?: "invoice" | "debit_note";
+}
+
+/** How an allocation is shown in lists and on the receipt. */
+export function allocationLabel(a: {
+  kind: string;
+  invoice_number?: string | null;
+  debit_note_number?: string | null;
+  note?: string | null;
+}): string {
+  if (a.kind === "invoice") return a.invoice_number ?? "Invoice";
+  if (a.kind === "debit_note") return `Debit note ${a.debit_note_number ?? ""}`.trim();
+  if (a.kind === "advance") return "Advance";
+  return a.note ? `Other (${a.note})` : "Other";
 }
 
 export interface AllocationInput {
