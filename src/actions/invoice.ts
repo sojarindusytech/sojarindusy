@@ -17,6 +17,7 @@ import {
 import { shortageMessage, stockErrorMessage } from "@/lib/server/stock-errors";
 import { parseDbError } from "@/lib/server/db-error";
 import { paymentErrorMessage } from "@/lib/server/payment-errors";
+import { ledgerErrorMessage } from "@/lib/server/ledger-errors";
 import { filterCustomerVisibleInvoices } from "@/lib/server/invoice-access";
 import { debitNoteErrorMessage, invoiceHasDebitNotesMessage, liveDebitNoteNumbers } from "@/lib/server/debit-notes";
 
@@ -37,6 +38,8 @@ export type InvoiceListRow = Pick<
 function invoiceGuardMessage(error: { message?: string; details?: string | null; code?: string }): string | null {
   const parsed = parseDbError(error);
   if (parsed.code === "INVOICE_HAS_DEBIT_NOTES") return debitNoteErrorMessage(parsed);
+  // The invoice's date is in a closed period (Sales Settings > Books locked up to).
+  if (parsed.code === "BOOKS_LOCKED") return ledgerErrorMessage(parsed);
   return parsed.code === "INVOICE_HAS_PAYMENTS" || parsed.code === "TOTAL_BELOW_PAID" ? paymentErrorMessage(parsed) : null;
 }
 
@@ -165,6 +168,8 @@ async function insertInvoice(args: {
       }
       return { success: false, error: `Invoice number "${invoiceNumber}" already exists.` };
     }
+    const guard = invoiceGuardMessage(error);
+    if (guard) return { success: false, error: guard };
     console.error("[insertInvoice] insert failed:", error);
     return { success: false, error: error.message };
   }

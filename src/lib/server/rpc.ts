@@ -2,7 +2,8 @@ import "server-only";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { parseDbError, type DbAppError } from "@/lib/server/db-error";
 import type { OrderTaxSnapshot } from "@/lib/order-pricing";
-import type { CouponCheckoutContext, CouponUsageSummary, DebitNote, OrderStatus, Payment } from "@/types/database.types";
+import type { CouponCheckoutContext, CouponUsageSummary, DebitNote, OrderStatus, Payment, SupplierPayment } from "@/types/database.types";
+import type { BalanceRow, ReportLine } from "@/lib/ledger";
 import type { InvoiceLine, InvoiceTotals } from "@/lib/invoice";
 
 /**
@@ -294,3 +295,121 @@ export const removeCoupon = (couponId: string) =>
 
 export const getCouponUsageSummary = (couponIds: string[]) =>
   callRpc<CouponUsageSummary[]>("coupon_usage_summary", { p_coupon_ids: couponIds });
+
+// ---- Ledger (20261024_ledger) --------------------------------------------------------------
+
+/** Rows per request: Supabase returns at most 1000 rows from one call. */
+const PAGE = 1000;
+/** Safety cap so a runaway range can't load unbounded data into memory. */
+const MAX_ROWS = 100_000;
+
+/** Calls a set-returning function and reads every page of its result. */
+async function callRpcAll<T>(fn: string, args: Record<string, unknown>): Promise<RpcResult<T[]>> {
+  const client = createAdminClient();
+  const rows: T[] = [];
+  for (let from = 0; from < MAX_ROWS; from += PAGE) {
+    const rpc = client.rpc.bind(client) as unknown as (
+      fn: string,
+      args: Record<string, unknown>
+    ) => { range: (from: number, to: number) => PromiseLike<{ data: unknown; error: { message: string; details?: string | null; code?: string } | null }> };
+    const { data, error } = await rpc(fn, args).range(from, from + PAGE - 1);
+    if (error) {
+      const parsed = parseDbError(error);
+      if (parsed.code === "DATABASE_ERROR") console.error(`[rpc:${fn}]`, parsed.raw);
+      return { data: null, error: parsed };
+    }
+    const page = (data as T[] | null) ?? [];
+    rows.push(...page);
+    if (page.length < PAGE) break;
+  }
+  return { data: rows, error: null };
+}
+
+const num = (v: unknown) => Number(v ?? 0);
+
+export const ledgerBalances = async (from: string, to: string) => {
+  const res = await callRpcAll<BalanceRow>("ledger_balances", { p_from: from, p_to: to });
+  return res.error ? res : { data: res.data.map((r) => ({ ...r, opening: num(r.opening), debit: num(r.debit), credit: num(r.credit) })), error: null };
+};
+
+export const ledgerReportLines = async (args: {
+  from: string;
+  to: string;
+  accountId?: string | null;
+  partyId?: string | null;
+  unlinked?: boolean;
+  showReversed?: boolean;
+}) => {
+  const res = await callRpcAll<ReportLine>("ledger_report_lines", {
+    p_from: args.from,
+    p_to: args.to,
+    p_account: args.accountId ?? null,
+    p_party: args.partyId ?? null,
+    p_unlinked: args.unlinked ?? false,
+    p_show_reversed: args.showReversed ?? false,
+  });
+  return res.error
+    ? res
+    : { data: res.data.map((r) => ({ ...r, entry_seq: num(r.entry_seq), debit: num(r.debit), credit: num(r.credit), balance: num(r.balance) })), error: null };
+};
+
+export interface AgeingRow {
+  party_id: string;
+  due: number;
+  d0_30: number;
+  d31_60: number;
+  d61_90: number;
+  d90_plus: number;
+  overdue: number;
+}
+
+export const ledgerReceivableAgeing = async (asOf: string) => {
+  const res = await callRpcAll<AgeingRow>("ledger_receivable_ageing", { p_as_of: asOf });
+  return res.error
+    ? res
+    : {
+        data: res.data.map((r) => ({
+          party_id: r.party_id, due: num(r.due), d0_30: num(r.d0_30), d31_60: num(r.d31_60),
+          d61_90: num(r.d61_90), d90_plus: num(r.d90_plus), overdue: num(r.overdue),
+        })),
+        error: null,
+      };
+};
+
+export interface PostJournalPayload {
+  request_id: string;
+  kind: "journal" | "opening";
+  entry_date: string;
+  narration: string | null;
+  lines: { account_id: string; party_id: string | null; debit: number; credit: number; bill_ref: string | null; narration: string | null }[];
+}
+
+export const postJournal = (payload: PostJournalPayload, actorId: string) =>
+  callRpc<{ id: string; voucher_number: string; replayed: boolean }>("post_journal", { p_input: payload, p_actor: actorId });
+
+export const cancelJournal = (entryId: string, reason: string, actorId: string) =>
+  callRpc<{ already_cancelled: boolean; voucher_number: string }>("cancel_journal", { p_entry: entryId, p_reason: reason, p_actor: actorId });
+
+export const setDefaultMoneyAccount = (accountId: string) => callRpc<null>("set_default_money_account", { p_id: accountId });
+
+export interface RecordSupplierPaymentPayload {
+  request_id: string;
+  manufacturer_id: string;
+  payment_date: string;
+  amount: number;
+  mode: string;
+  account_id: string;
+  reference: string | null;
+  bill_reference: string | null;
+  remarks: string | null;
+}
+
+export const recordSupplierPayment = (payload: RecordSupplierPaymentPayload, actorId: string) =>
+  callRpc<SupplierPayment>("record_supplier_payment", { p_input: payload, p_actor: actorId });
+
+export const cancelSupplierPayment = (id: string, reason: string, actorId: string) =>
+  callRpc<{ already_cancelled: boolean; voucher_number: string; amount?: number }>("cancel_supplier_payment", {
+    p_id: id,
+    p_reason: reason,
+    p_actor: actorId,
+  });
