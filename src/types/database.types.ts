@@ -661,6 +661,8 @@ export interface Product {
   images: ProductImage[];
   documents?: ProductDocument[];
   is_active: boolean;
+  /** Set when an admin "deleted" a product that has history; restoring clears it. */
+  archived_at?: string | null;
   created_at?: string;
   updated_at?: string;
   variants?: ProductVariant[];

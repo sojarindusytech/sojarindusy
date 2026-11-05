@@ -42,7 +42,7 @@ export async function createTestDb(options: { applyNew: boolean; skipFrom?: stri
 
   const applied: string[] = [];
   const skipped: string[] = [];
-  const isNew = (f: string) => f.startsWith("20261015_") || f.startsWith("20261017_") || f.startsWith("20261018_") || f.startsWith("20261019_") || f.startsWith("20261020_") || f.startsWith("20261021_") || f.startsWith("20261022_");
+  const isNew = (f: string) => f.startsWith("20261015_") || f.startsWith("20261017_") || f.startsWith("20261018_") || f.startsWith("20261019_") || f.startsWith("20261020_") || f.startsWith("20261021_") || f.startsWith("20261022_") || f.startsWith("20261024_");
 
   for (const file of migrationFiles((f) => (!isNew(f) || options.applyNew) && (!options.skipFrom || f < options.skipFrom))) {
     try {

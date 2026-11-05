@@ -3,7 +3,7 @@
 import { PageTitle } from "@/components/common/PageTitle";
 import React, { useState, useTransition } from "react";
 import { Product, ProductVariant, CategoryNode, Attribute, Tag } from "@/types/database.types";
-import { deleteProduct, fetchProductsList } from "@/actions/product";
+import { deleteProduct, fetchProductsList, restoreArchivedProduct } from "@/actions/product";
 import { deleteSku } from "@/actions/product-management";
 import { ProductUploadModal } from "@/components/admin/ProductUploadModal";
 import { ProductEditModal } from "@/components/admin/ProductEditModal";
@@ -46,6 +46,7 @@ import {
   Layers,
   Sparkles,
   History,
+  RotateCcw,
 } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
@@ -97,12 +98,37 @@ export function ProductManagementClient({
   };
 
   const handleDelete = (id: string) => {
-    if (!confirm("Are you sure you want to delete this product family and all its SKUs?")) return;
+    if (
+      !confirm(
+        "Delete this product family and all its SKUs?\n\nIf it has orders, invoices, quotes or stock history it is archived instead: hidden from the store and new documents, history kept, and you can restore it later."
+      )
+    )
+      return;
     startTransition(async () => {
       const res = await deleteProduct(id);
-      if (!res.error) {
+      if (res.error) {
+        toast.error(res.error);
+        return;
+      }
+      if (res.archived) {
+        toast.success("Product archived. Order and invoice history is preserved.");
+        await refreshProducts();
+      } else {
+        toast.success("Product deleted.");
         setProducts((prev) => prev.filter((p) => p.id !== id));
       }
+    });
+  };
+
+  const handleRestore = (id: string) => {
+    startTransition(async () => {
+      const res = await restoreArchivedProduct(id);
+      if (res.error) {
+        toast.error(res.error);
+        return;
+      }
+      toast.success("Product restored.");
+      await refreshProducts();
     });
   };
 
@@ -195,7 +221,7 @@ export function ProductManagementClient({
   });
 
   // KPI cards follow the search and category filters.
-  const totalFamilies = filteredProducts.length;
+  const totalFamilies = filteredProducts.filter((p) => !p.archived_at).length;
   const totalSkus = filteredProducts.reduce((acc, p) => acc + (p.variants?.filter(v => !v.is_archived).length || 0), 0);
   const totalStock = filteredProducts.reduce(
     (acc, p) => acc + (p.variants?.filter(v => !v.is_archived).reduce((vAcc, v) => vAcc + (v.stock_quantity || 0), 0) || 0),
@@ -324,6 +350,7 @@ export function ProductManagementClient({
             ) : (
               filteredProducts.map((product) => {
                 const isExpanded = expandedProductIds[product.id] ?? false;
+                const archived = !!product.archived_at;
 
                 return (
                   <React.Fragment key={product.id}>
@@ -338,7 +365,14 @@ export function ProductManagementClient({
                           {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
                         </Button>
                       </TableCell>
-                      <TableCell className="font-bold text-slate-900 py-3">{product.title}</TableCell>
+                      <TableCell className="font-bold text-slate-900 py-3">
+                        <span className={cn(archived && "text-slate-400")}>{product.title}</span>
+                        {archived && (
+                          <Badge variant="outline" className="ml-2 text-[10px] text-amber-700 bg-amber-50 border-amber-200 font-semibold shadow-none">
+                            Archived
+                          </Badge>
+                        )}
+                      </TableCell>
                       <TableCell className="font-mono text-slate-500 py-3">/{product.slug}</TableCell>
                       <TableCell className="text-center py-3">
                         <Badge className="bg-blue-50 text-[#024AE5] border-blue-200 hover:bg-blue-100 shadow-none font-bold">
@@ -361,9 +395,15 @@ export function ProductManagementClient({
                       </TableCell>
                       <TableCell className="text-right py-3 pr-4" onClick={(e) => e.stopPropagation()}>
                         <div className="flex items-center justify-end gap-2">
-                          <IconAction label="Import SKUs" onClick={(e) => { e.stopPropagation(); setAppendingSkuProductId({ id: product.id, attributes: activeAttributes }); }}><FileSpreadsheet /></IconAction>
-                          <IconAction label="Edit product" tone="primary" onClick={(e) => { e.stopPropagation(); setEditingProduct(product); }}><Edit2 /></IconAction>
-                          <IconAction label="Delete product" tone="danger" onClick={() => handleDelete(product.id)}><Trash2 /></IconAction>
+                          {archived ? (
+                            <IconAction label="Restore product" tone="primary" onClick={() => handleRestore(product.id)}><RotateCcw /></IconAction>
+                          ) : (
+                            <>
+                              <IconAction label="Import SKUs" onClick={(e) => { e.stopPropagation(); setAppendingSkuProductId({ id: product.id, attributes: activeAttributes }); }}><FileSpreadsheet /></IconAction>
+                              <IconAction label="Edit product" tone="primary" onClick={(e) => { e.stopPropagation(); setEditingProduct(product); }}><Edit2 /></IconAction>
+                              <IconAction label="Delete or archive product" tone="danger" onClick={() => handleDelete(product.id)}><Trash2 /></IconAction>
+                            </>
+                          )}
                         </div>
                       </TableCell>
                     </TableRow>

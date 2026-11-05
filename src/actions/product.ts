@@ -5,6 +5,7 @@ import { requireAdmin } from "@/lib/auth-guard";
 import { Product, ProductVariant, ProductImage, ProductDocument } from "@/types/database.types";
 import { generateSlug, uploadCategoryImage } from "@/actions/category";
 import { getAllProducts } from "@/lib/server/catalog";
+import { removeProduct, restoreProduct } from "@/lib/server/rpc";
 import { revalidatePath } from "next/cache";
 
 export interface CreateProductPayload {
@@ -178,19 +179,37 @@ export async function createFullProduct(payload: CreateProductPayload): Promise<
   }
 }
 
-export async function deleteProduct(productId: string): Promise<{ success?: boolean; error?: string }> {
-  await requireAdmin();
-  const supabase = createAdminClient();
+/**
+ * A product that was ever ordered, quoted, invoiced, credited, purchased or moved in the stock
+ * ledger is archived (hidden, SKU rows kept so returns and credit notes still work); one with no
+ * history is deleted. `archived` tells the UI which happened.
+ */
+export async function deleteProduct(
+  productId: string
+): Promise<{ success?: boolean; archived?: boolean; error?: string }> {
+  const { userId } = await requireAdmin();
 
-  try {
-    const { error } = await supabase.from("products").delete().eq("id", productId);
-    if (error) return { error: error.message };
-
-    revalidatePath("/admin/products");
-    return { success: true };
-  } catch (err) {
-    return { error: err instanceof Error ? err.message : "Failed to delete product." };
+  const res = await removeProduct(productId, userId);
+  if (res.error) {
+    return { error: res.error.code === "PRODUCT_NOT_FOUND" ? "Product not found." : "Could not delete the product. Please try again." };
   }
+
+  revalidatePath("/admin/products");
+  revalidatePath("/products");
+  return { success: true, archived: res.data === "archived" };
+}
+
+export async function restoreArchivedProduct(productId: string): Promise<{ success?: boolean; error?: string }> {
+  const { userId } = await requireAdmin();
+
+  const res = await restoreProduct(productId, userId);
+  if (res.error) {
+    return { error: res.error.code === "PRODUCT_NOT_FOUND" ? "Product not found." : "Could not restore the product. Please try again." };
+  }
+
+  revalidatePath("/admin/products");
+  revalidatePath("/products");
+  return { success: true };
 }
 
 /**

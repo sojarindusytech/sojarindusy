@@ -88,6 +88,7 @@ CREATE TABLE public.products (
   created_at timestamp with time zone NOT NULL DEFAULT now(),
   updated_at timestamp with time zone NOT NULL DEFAULT now(),
   documents jsonb DEFAULT '[]'::jsonb,
+  archived_at timestamp with time zone,
   CONSTRAINT products_pkey PRIMARY KEY (id)
 );
 CREATE TABLE public.product_variants (

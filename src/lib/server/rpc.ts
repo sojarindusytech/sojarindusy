@@ -289,6 +289,16 @@ export const saveCoupon = (params: {
     p_actor: params.actorId,
   });
 
+// ---- Products (20261024_product_delete_safety) ----------------------------------------
+
+/** Archives a product that has history, really deletes one that has none. */
+export const removeProduct = (productId: string, actorId: string) =>
+  callRpc<"deleted" | "archived">("remove_product", { p_product_id: productId, p_actor: actorId });
+
+/** Brings an archived product and the SKUs that archive hid back. */
+export const restoreProduct = (productId: string, actorId: string) =>
+  callRpc<null>("restore_product", { p_product_id: productId, p_actor: actorId });
+
 export const removeCoupon = (couponId: string) =>
   callRpc<"deleted" | "archived">("remove_coupon", { p_coupon_id: couponId });
 
