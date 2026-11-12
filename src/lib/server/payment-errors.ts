@@ -1,5 +1,6 @@
 import "server-only";
 import type { DbAppError } from "@/lib/server/db-error";
+import { ledgerErrorMessage } from "@/lib/server/ledger-errors";
 
 const inr = (n: unknown) => `₹${(Number(n) || 0).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
@@ -40,6 +41,7 @@ export function paymentErrorMessage(error: DbAppError): string {
     case "TOTAL_BELOW_PAID":
       return `The invoice total (${inr(d.total)}) cannot be lower than the ${inr(d.paid)} already received.`;
     default:
-      return "Could not save the payment. Please check the details and try again.";
+      // e.g. BOOKS_LOCKED: the receipt's date is in a closed period.
+      return ledgerErrorMessage(error) ?? "Could not save the payment. Please check the details and try again.";
   }
 }

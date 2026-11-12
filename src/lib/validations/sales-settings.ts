@@ -128,6 +128,33 @@ export const salesSettingsSchema = z.object({
     .regex(/^[A-Za-z0-9/\-_.]+$/, "Use letters, numbers, / - _ . only."),
   order_next_number: z.coerce.number().int("Must be a whole number.").min(1, "Counter must be at least 1."),
   order_pad: z.coerce.number().int().min(1).max(8),
+  journal_prefix: z
+    .string()
+    .trim()
+    .min(1, "Prefix is required.")
+    .max(20, "Prefix is too long.")
+    .regex(/^[A-Za-z0-9/\-_.]+$/, "Use letters, numbers, / - _ . only.")
+    .optional(),
+  journal_next_number: z.coerce.number().int("Must be a whole number.").min(1, "Counter must be at least 1.").optional(),
+  journal_pad: z.coerce.number().int().min(1).max(8).optional(),
+  supplier_payment_prefix: z
+    .string()
+    .trim()
+    .min(1, "Prefix is required.")
+    .max(20, "Prefix is too long.")
+    .regex(/^[A-Za-z0-9/\-_.]+$/, "Use letters, numbers, / - _ . only.")
+    .optional(),
+  supplier_payment_next_number: z.coerce.number().int("Must be a whole number.").min(1, "Counter must be at least 1.").optional(),
+  supplier_payment_pad: z.coerce.number().int().min(1).max(8).optional(),
+  /** Books closed up to and including this date. Blank = open. */
+  books_locked_until: z
+    .string()
+    .trim()
+    .transform((v) => (v === "" ? null : v))
+    .nullable()
+    .refine((v) => v === null || (/^\d{4}-\d{2}-\d{2}$/.test(v) && !Number.isNaN(Date.parse(v))), "Pick a valid date.")
+    .optional(),
+  tally_company_name: optionalText,
   invoice_copies: z.array(z.enum(INVOICE_COPIES)).min(1, "Select at least one copy to print."),
 }).superRefine((value, ctx) => {
   if (value.credit_note_prefix.length + 7 + Math.max(value.credit_note_pad, String(value.credit_note_next_number).length) > 16) {
