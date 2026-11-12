@@ -21,6 +21,8 @@ interface CsvDataPreviewTableProps {
   onUpdateCell: (rowIndex: number, header: string, newValue: string) => void;
   onToggleRow: (rowIndex: number) => void;
   onToggleAllRows: (selectAll: boolean) => void;
+  /** Tick / untick a column heading to import or skip that column. */
+  onToggleColumn?: (header: string, include: boolean) => void;
 }
 
 export function CsvDataPreviewTable({
@@ -30,6 +32,7 @@ export function CsvDataPreviewTable({
   onUpdateCell,
   onToggleRow,
   onToggleAllRows,
+  onToggleColumn,
 }: CsvDataPreviewTableProps) {
   // State to track which cell is currently being edited
   const [editingCell, setEditingCell] = useState<{ rowIdx: number; header: string } | null>(null);
@@ -84,7 +87,7 @@ export function CsvDataPreviewTable({
             Data Preview & Edit ({csvData.rows.length} Rows)
           </span>
           <span className="text-[10px] text-slate-500 hidden sm:inline-block">
-            Click any cell to edit. Checked rows will be imported.
+            Click any cell to edit. Only checked rows and checked columns are imported.
           </span>
         </div>
         <button
@@ -114,16 +117,33 @@ export function CsvDataPreviewTable({
                 </TableHead>
                 <TableHead className="w-12 text-center text-white font-bold px-2">#</TableHead>
                 
-                {csvData.headers.filter(h => h.trim()).map((header, idx) => (
-                  <TableHead key={idx} className="text-white font-bold px-3 whitespace-nowrap">
-                    {header}
-                    {columnMapping[header] && columnMapping[header] !== "ignore" && (
-                      <span className="ml-1 text-[9px] text-blue-200 font-normal uppercase tracking-wider block">
-                        ({columnMapping[header]})
-                      </span>
-                    )}
-                  </TableHead>
-                ))}
+                {csvData.headers.filter(h => h.trim()).map((header, idx) => {
+                  const skipped = columnMapping[header] === "ignore";
+                  return (
+                    <TableHead key={idx} className={cn("text-white font-bold px-3 whitespace-nowrap", skipped && "opacity-50")}>
+                      <label className="flex items-center gap-1.5 cursor-pointer" title={skipped ? "Skipped. Tick to import this column" : "Untick to skip this column"}>
+                        {onToggleColumn && (
+                          <input
+                            type="checkbox"
+                            checked={!skipped}
+                            onChange={(e) => onToggleColumn(header, e.target.checked)}
+                            className="cursor-pointer"
+                          />
+                        )}
+                        <span className={cn(skipped && "line-through")}>{header}</span>
+                      </label>
+                      {skipped ? (
+                        <span className="text-[9px] text-blue-200 font-normal uppercase tracking-wider block">(skipped)</span>
+                      ) : (
+                        columnMapping[header] && (
+                          <span className="text-[9px] text-blue-200 font-normal uppercase tracking-wider block">
+                            ({columnMapping[header]})
+                          </span>
+                        )
+                      )}
+                    </TableHead>
+                  );
+                })}
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -147,7 +167,7 @@ export function CsvDataPreviewTable({
                       />
                     </TableCell>
                     <TableCell className="text-center font-medium text-slate-500 px-2 py-2">
-                      {rowIdx + 1}
+                      {csvData.rowNumbers?.[rowIdx] ?? rowIdx + 1}
                     </TableCell>
 
                     {csvData.headers.filter(h => h.trim()).map((header, colIdx) => {
@@ -155,11 +175,12 @@ export function CsvDataPreviewTable({
                       const val = row[header] !== undefined ? String(row[header]) : "";
 
                       return (
-                        <TableCell 
-                          key={colIdx} 
+                        <TableCell
+                          key={colIdx}
                           className={cn(
                             "px-3 py-1 whitespace-nowrap cursor-pointer border-l border-slate-100",
-                            !isEditing && "hover:bg-blue-50/50"
+                            !isEditing && "hover:bg-blue-50/50",
+                            columnMapping[header] === "ignore" && "opacity-40 bg-slate-50"
                           )}
                           onClick={() => {
                             if (!isEditing) handleEditClick(rowIdx, header, val);

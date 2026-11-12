@@ -28,7 +28,7 @@ CREATE TABLE public.profiles (
   credit_days integer DEFAULT 0,
   channel text DEFAULT 'online'::text CHECK (channel = ANY (ARRAY['online'::text, 'offline'::text])),
   CONSTRAINT profiles_pkey PRIMARY KEY (id),
-  CONSTRAINT profiles_id_fkey FOREIGN KEY (id) REFERENCES auth.users(id)
+  CONSTRAINT profiles_id_fkey FOREIGN KEY (id) REFERENCES auth.users(id) ON DELETE CASCADE
 );
 CREATE TABLE public.orders (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
@@ -88,6 +88,7 @@ CREATE TABLE public.products (
   created_at timestamp with time zone NOT NULL DEFAULT now(),
   updated_at timestamp with time zone NOT NULL DEFAULT now(),
   documents jsonb DEFAULT '[]'::jsonb,
+  archived_at timestamp with time zone,
   CONSTRAINT products_pkey PRIMARY KEY (id)
 );
 CREATE TABLE public.product_variants (

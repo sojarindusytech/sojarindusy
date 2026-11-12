@@ -75,7 +75,12 @@ export default async function CatchAllProductPage({
       .filter((c) => c.parent_id === category.id && c.is_active)
       .sort((a, b) => a.display_order - b.display_order);
 
-    const products = toStorefrontProducts(await getProductsByCategory(targetSlug), viewer);
+    // Categories with subcategories show the subcategory cards plus only products linked directly to them;
+    // the full product list appears at the leaf level.
+    const products = toStorefrontProducts(
+      await getProductsByCategory(targetSlug, subCategories.length > 0),
+      viewer
+    );
 
     // Build breadcrumb
     let breadcrumb: typeof category[] = [];

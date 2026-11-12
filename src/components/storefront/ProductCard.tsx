@@ -2,6 +2,7 @@ import React from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight, Package } from "lucide-react";
+import { ImagePlaceholder } from "@/components/common/ImagePlaceholder";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Product } from "@/types/database.types";
@@ -12,7 +13,6 @@ interface ProductCardProps {
 }
 
 export function ProductCard({ product, categoryPath }: ProductCardProps) {
-  const firstVariant = product.variants && product.variants.length > 0 ? product.variants[0] : null;
   const variantCount = product.variants?.length || 0;
 
   // 1. Clean description parser (handles JSON stringified maps or plain text)
@@ -50,28 +50,6 @@ export function ProductCard({ product, categoryPath }: ProductCardProps) {
       if (name && !chipSet.has(name.toLowerCase())) {
         chipSet.add(name.toLowerCase());
         chips.push(name);
-      }
-    });
-  }
-
-  // Add from firstVariant specifications if chips are still sparse
-  if (firstVariant?.specifications && typeof firstVariant.specifications === "object") {
-    Object.entries(firstVariant.specifications).forEach(([key, val]) => {
-      if (chips.length >= 3) return;
-      const lowerKey = key.toLowerCase();
-      // Skip raw keys that were previously duplicated like 'tag' or 'attribute'
-      if (lowerKey === "tag" || lowerKey === "attribute") {
-        const valStr = String(val).trim();
-        if (valStr && !chipSet.has(valStr.toLowerCase())) {
-          chipSet.add(valStr.toLowerCase());
-          chips.push(valStr);
-        }
-        return;
-      }
-      const valStr = String(val).trim();
-      if (valStr && !chipSet.has(valStr.toLowerCase())) {
-        chipSet.add(valStr.toLowerCase());
-        chips.push(valStr);
       }
     });
   }
@@ -127,12 +105,7 @@ export function ProductCard({ product, categoryPath }: ProductCardProps) {
               />
             </div>
           ) : (
-            <div className="flex flex-col items-center justify-center text-slate-400 group-hover:text-[#024AE5] transition-colors">
-              <Package className="h-12 w-12 mb-2 opacity-40" />
-              <span className="text-[10px] uppercase font-bold tracking-widest text-slate-400">
-                No Image Available
-              </span>
-            </div>
+            <ImagePlaceholder icon={Package} label="No Image" />
           )}
         </div>
 

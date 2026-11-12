@@ -127,8 +127,12 @@ export async function getProductBySlug(slug: string): Promise<Product | null> {
   }
 }
 
-/** Products in a category or any of its sub-categories. */
-export async function getProductsByCategory(categorySlug: string): Promise<Product[]> {
+/**
+ * Products in a category or any of its sub-categories.
+ * `directOnly`: only products linked to this exact category and to none of its sub-categories
+ * (no parent fallback).
+ */
+export async function getProductsByCategory(categorySlug: string, directOnly = false): Promise<Product[]> {
   try {
     const db = createAdminClient();
     const { data: category } = await db.from("categories").select("id, parent_id").eq("slug", categorySlug).maybeSingle();
@@ -148,6 +152,14 @@ export async function getProductsByCategory(categorySlug: string): Promise<Produ
           grew = true;
         }
       }
+    }
+
+    if (directOnly) {
+      const { data: rows } = await db.from("product_categories").select("product_id, category_id").in("category_id", [...ids]);
+      const all = (rows ?? []) as { product_id: string; category_id: string }[];
+      const inSub = new Set(all.filter((l) => l.category_id !== target.id).map((l) => l.product_id));
+      const directIds = [...new Set(all.filter((l) => l.category_id === target.id && !inSub.has(l.product_id)).map((l) => l.product_id))];
+      return directIds.length === 0 ? [] : await loadProducts(directIds);
     }
 
     let { data: links } = await db.from("product_categories").select("product_id").in("category_id", [...ids]);

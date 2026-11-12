@@ -7,6 +7,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { Category, Product } from "@/types/database.types";
 import { ProductCard } from "@/components/storefront/ProductCard";
+import { ImagePlaceholder } from "@/components/common/ImagePlaceholder";
 
 interface CategoryViewProps {
   category: Category;
@@ -87,10 +88,7 @@ export function CategoryView({ category, subCategories, products, breadcrumb }: 
                             className="object-cover group-hover:scale-105 transition-transform duration-500"
                           />
                         ) : (
-                          <div className="flex flex-col items-center justify-center text-slate-400 group-hover:text-[#024AE5] transition-colors">
-                            <Folder className="h-8 w-8 mb-1 opacity-50" />
-                            <span className="text-[9px] uppercase font-semibold tracking-wider">No Image</span>
-                          </div>
+                          <ImagePlaceholder icon={Folder} label="No Image" />
                         )}
                       </div>
                       

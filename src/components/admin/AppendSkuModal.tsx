@@ -22,6 +22,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { CsvDataPreviewTable } from "./CsvDataPreviewTable";
+import { CsvRangePicker } from "./CsvRangePicker";
+import { buildCsvTable, defaultCsvRange, guessColumnMapping, guessFieldForHeader, parseCsvGrid, type CsvRange } from "@/lib/csv-grid";
 import { Loader2, Upload, FileSpreadsheet, AlertCircle } from "lucide-react";
 import toast from "react-hot-toast";
 
@@ -30,6 +32,9 @@ interface ParsedCsvData {
   fileSize: string;
   headers: string[];
   rows: Record<string, any>[];
+  grid?: string[][];
+  range?: CsvRange;
+  rowNumbers?: number[];
 }
 
 interface TargetColumn {
@@ -83,54 +88,6 @@ export function AppendSkuModal({ isOpen, onClose, productId, availableAttributes
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const parseCsvContent = (text: string) => {
-    const lines = text.split(/\r\n|\n/).filter((l) => l.trim() !== "");
-    if (lines.length === 0) return null;
-
-    let delimiter = ",";
-    if (lines[0].includes("\t")) delimiter = "\t";
-    else if (lines[0].includes(";") && !lines[0].includes(",")) delimiter = ";";
-
-    const parseLine = (line: string): string[] => {
-      const tokens: string[] = [];
-      let currentToken = "";
-      let insideQuotes = false;
-      for (let i = 0; i < line.length; i++) {
-        const char = line[i];
-        if (char === '"') {
-          if (insideQuotes && line[i + 1] === '"') {
-            currentToken += '"';
-            i++;
-          } else {
-            insideQuotes = !insideQuotes;
-          }
-        } else if (char === delimiter && !insideQuotes) {
-          tokens.push(currentToken.trim());
-          currentToken = "";
-        } else {
-          currentToken += char;
-        }
-      }
-      tokens.push(currentToken.trim());
-      return tokens;
-    };
-
-    const rawHeaders = parseLine(lines[0]).filter((h) => h !== "");
-    if (rawHeaders.length === 0) return null;
-
-    const parsedRows: Record<string, any>[] = [];
-    for (let i = 1; i < lines.length; i++) {
-      const values = parseLine(lines[i]);
-      if (values.length === 0 || (values.length === 1 && !values[0])) continue;
-      const rowObj: Record<string, any> = {};
-      rawHeaders.forEach((h, idx) => {
-        rowObj[h] = values[idx] !== undefined ? values[idx] : "";
-      });
-      parsedRows.push(rowObj);
-    }
-    return { headers: rawHeaders, rows: parsedRows };
-  };
-
   const handleFileSelected = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -140,40 +97,42 @@ export function AppendSkuModal({ isOpen, onClose, productId, availableAttributes
       const text = evt.target?.result as string;
       if (!text) return;
 
-      const parsed = parseCsvContent(text);
-      if (!parsed || parsed.headers.length === 0) {
+      const grid = parseCsvGrid(text);
+      if (grid.length === 0) {
         setSubmitError("Failed to parse CSV file.");
         return;
       }
       setSubmitError(null);
-
-      const initialMap: Record<string, string> = {};
-      parsed.headers.forEach((h) => {
-        const lower = h.toLowerCase().trim();
-        if (lower.includes("code") || lower.includes("sku")) initialMap[h] = "sku";
-        else if (lower === "d" || lower === "dia" || lower.includes("diameter")) initialMap[h] = "diameter";
-        else if (lower === "h" || lower.includes("flute")) initialMap[h] = "fluteLength";
-        else if (lower === "l" || lower.includes("overall")) initialMap[h] = "overallLength";
-        else if (lower === "d2" || lower.includes("shank")) initialMap[h] = "shankDia";
-        else if (lower.includes("price")) initialMap[h] = "listPrice";
-        else if (lower.includes("trigger") || lower.includes("reorder")) initialMap[h] = "triggerQuantity";
-        else if (lower.includes("target") || /min.*(sku|stock|level)/.test(lower)) initialMap[h] = "minQuantity";
-        else if (lower.includes("moq") || lower.includes("min")) initialMap[h] = "minOrderQuantity";
-        else if (lower.includes("stock") || lower.includes("qty")) initialMap[h] = "stockQuantity";
-        else initialMap[h] = h;
-      });
+      const range = defaultCsvRange(grid);
+      const parsed = buildCsvTable(grid, range);
 
       setCsvData({
         fileName: file.name,
         fileSize: (file.size / 1024).toFixed(1) + " KB",
         headers: parsed.headers,
         rows: parsed.rows,
+        grid,
+        range,
+        rowNumbers: parsed.rowNumbers,
       });
-      setColumnMapping(initialMap);
+      setColumnMapping(guessColumnMapping(parsed.headers));
       setSelectedRowIndices(parsed.rows.map((_, i) => i)); // Select all by default
     };
     reader.readAsText(file);
     if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  /** Untick a column heading to skip it, tick it to import it again (with its guessed field). */
+  const handleToggleColumn = (header: string, include: boolean) =>
+    setColumnMapping((prev) => ({ ...prev, [header]: include ? guessFieldForHeader(header) : "ignore" }));
+
+  /** The admin picked a different heading / data range: rebuild the table (cell edits are dropped). */
+  const handleRangeChange = (range: CsvRange) => {
+    if (!csvData?.grid) return;
+    const table = buildCsvTable(csvData.grid, range);
+    setCsvData({ ...csvData, headers: table.headers, rows: table.rows, rowNumbers: table.rowNumbers, range });
+    setColumnMapping(guessColumnMapping(table.headers));
+    setSelectedRowIndices(table.rows.map((_, i) => i));
   };
 
   const handleUpdateCell = (rowIndex: number, header: string, newValue: string) => {
@@ -221,7 +180,7 @@ export function AppendSkuModal({ isOpen, onClose, productId, availableAttributes
       const minOrderQtyStr = getMappedVal("minOrderQuantity");
 
       if (!sku) {
-        rowErrors.push(`Row ${rowIndex + 1}: Missing SKU Code`);
+        rowErrors.push(`Row ${csvData.rowNumbers?.[rowIndex] ?? rowIndex + 1}: Missing SKU Code`);
         return;
       }
       const listPrice = listPriceStr ? parseFloat(listPriceStr.toString().replace(/[^0-9.]/g, "")) : 0;
@@ -357,6 +316,15 @@ export function AppendSkuModal({ isOpen, onClose, productId, availableAttributes
                 <span>{csvData.rows.length} rows</span>
               </div>
               
+              {csvData.grid && csvData.range && (
+                <CsvRangePicker
+                  grid={csvData.grid}
+                  range={csvData.range}
+                  dataRowCount={csvData.rows.length}
+                  onChange={handleRangeChange}
+                />
+              )}
+
               <div className="border border-slate-200 rounded-xl overflow-hidden mt-4">
                 <div className="bg-slate-50/80 px-4 py-2 border-b border-slate-200 flex items-center justify-between">
                   <span className="text-xs font-bold text-slate-700">Column Mapping ({csvData.headers.filter(h => h.trim()).length} Columns)</span>
@@ -406,6 +374,7 @@ export function AppendSkuModal({ isOpen, onClose, productId, availableAttributes
                   selectedRowIndices={selectedRowIndices}
                   onUpdateCell={handleUpdateCell}
                   onToggleRow={handleToggleRow}
+                  onToggleColumn={handleToggleColumn}
                   onToggleAllRows={handleToggleAllRows}
                 />
               </div>

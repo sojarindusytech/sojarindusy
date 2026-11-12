@@ -118,10 +118,8 @@ export default function ResetPasswordPage() {
       } else {
         router.push("/login?reset=success");
       }
-    } catch (err: unknown) {
-      setError(
-        err instanceof Error ? err.message : "An unexpected error occurred while resetting your password."
-      );
+    } catch {
+      setError("An unexpected error occurred while resetting your password.");
       setLoading(false);
     }
   };
