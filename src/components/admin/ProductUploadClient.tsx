@@ -4,6 +4,8 @@ import { PageTitle } from "@/components/common/PageTitle";
 import { useState, useRef, useTransition, useEffect } from "react";
 import { CategoryNode, Attribute, Tag, Product, ProductImage, ProductDocument } from "@/types/database.types";
 import { CsvDataPreviewTable } from "./CsvDataPreviewTable";
+import { CsvRangePicker } from "./CsvRangePicker";
+import { buildCsvTable, defaultCsvRange, guessColumnMapping, guessFieldForHeader, parseCsvGrid, type CsvRange } from "@/lib/csv-grid";
 import { CategoryCheckboxTree } from "@/components/common/CategoryCheckboxTree";
 import { createFullProduct, uploadProductImage, uploadProductDocument } from "@/actions/product";
 import { updateFullProduct } from "@/actions/product-management";
@@ -53,6 +55,11 @@ export interface ParsedCsvData {
   fileSize: string;
   headers: string[];
   rows: Record<string, any>[];
+  /** Every line of the file, so the heading / data rows can be re-picked. */
+  grid?: string[][];
+  range?: CsvRange;
+  /** File line number of each row (the preview shows these). */
+  rowNumbers?: number[];
 }
 
 export interface AttributeUploadState {
@@ -382,58 +389,6 @@ export function ProductUploadClient({
     if (newDocs.length > 0) setDocuments((prev) => [...prev, ...newDocs]);
   };
 
-  // Robust CSV parser supporting quotes, comma/semicolon/tab delimiters
-  const parseCsvContent = (text: string) => {
-    const lines = text.split(/\r\n|\n/).filter((l) => l.trim() !== "");
-    if (lines.length === 0) return null;
-
-    const firstLine = lines[0];
-    let delimiter = ",";
-    if (firstLine.includes("\t")) delimiter = "\t";
-    else if (firstLine.includes(";") && !firstLine.includes(",")) delimiter = ";";
-
-    const parseLine = (line: string): string[] => {
-      const tokens: string[] = [];
-      let currentToken = "";
-      let insideQuotes = false;
-
-      for (let i = 0; i < line.length; i++) {
-        const char = line[i];
-        if (char === '"') {
-          if (insideQuotes && line[i + 1] === '"') {
-            currentToken += '"';
-            i++;
-          } else {
-            insideQuotes = !insideQuotes;
-          }
-        } else if (char === delimiter && !insideQuotes) {
-          tokens.push(currentToken.trim());
-          currentToken = "";
-        } else {
-          currentToken += char;
-        }
-      }
-      tokens.push(currentToken.trim());
-      return tokens;
-    };
-
-    const rawHeaders = parseLine(lines[0]).filter((h) => h !== "");
-    if (rawHeaders.length === 0) return null;
-
-    const parsedRows: Record<string, any>[] = [];
-    for (let i = 1; i < lines.length; i++) {
-      const values = parseLine(lines[i]);
-      if (values.length === 0 || (values.length === 1 && !values[0])) continue;
-      const rowObj: Record<string, any> = {};
-      rawHeaders.forEach((h, idx) => {
-        rowObj[h] = values[idx] !== undefined ? values[idx] : "";
-      });
-      parsedRows.push(rowObj);
-    }
-
-    return { headers: rawHeaders, rows: parsedRows };
-  };
-
   const handleAttributeCsvFileSelected = (attributeId: string, file: File) => {
     if (!file) return;
 
@@ -442,28 +397,14 @@ export function ProductUploadClient({
       const text = evt.target?.result as string;
       if (!text) return;
 
-      const parsed = parseCsvContent(text);
-      if (!parsed || parsed.headers.length === 0) {
+      const grid = parseCsvGrid(text);
+      if (grid.length === 0) {
         setSubmitError(`Failed to parse CSV file.`);
         return;
       }
       setSubmitError(null);
-
-      const initialMap: Record<string, string> = {};
-      parsed.headers.forEach((h) => {
-        const lower = h.toLowerCase().trim();
-        if (lower.includes("code") || lower.includes("sku")) initialMap[h] = "sku";
-        else if (lower === "d" || lower === "dia" || lower.includes("diameter")) initialMap[h] = "diameter";
-        else if (lower === "h" || lower.includes("flute")) initialMap[h] = "fluteLength";
-        else if (lower === "l" || lower.includes("overall")) initialMap[h] = "overallLength";
-        else if (lower === "d2" || lower.includes("shank")) initialMap[h] = "shankDia";
-        else if (lower.includes("price")) initialMap[h] = "listPrice";
-        else if (lower.includes("trigger") || lower.includes("reorder")) initialMap[h] = "triggerQuantity";
-        else if (lower.includes("target") || /min.*(sku|stock|level)/.test(lower)) initialMap[h] = "minQuantity";
-        else if (lower.includes("moq") || lower.includes("min")) initialMap[h] = "minOrderQuantity";
-        else if (lower.includes("stock") || lower.includes("qty")) initialMap[h] = "stockQuantity";
-        else initialMap[h] = h;
-      });
+      const range = defaultCsvRange(grid);
+      const parsed = buildCsvTable(grid, range);
 
       setAttributeUploads((prev) => ({
         ...prev,
@@ -475,14 +416,51 @@ export function ProductUploadClient({
             fileSize: `${(file.size / 1024).toFixed(1)} KB`,
             headers: parsed.headers,
             rows: parsed.rows,
+            grid,
+            range,
+            rowNumbers: parsed.rowNumbers,
           },
-          columnMapping: initialMap,
+          columnMapping: guessColumnMapping(parsed.headers),
           selectedRowIndices: parsed.rows.map((_, idx) => idx),
         },
       }));
     };
 
     reader.readAsText(file);
+  };
+
+  /** Untick a column heading to skip it, tick it to import it again (with its guessed field). */
+  const handleToggleColumn = (attributeId: string, header: string, include: boolean) => {
+    setAttributeUploads((prev) => {
+      const upload = prev[attributeId];
+      if (!upload) return prev;
+      return {
+        ...prev,
+        [attributeId]: {
+          ...upload,
+          columnMapping: { ...upload.columnMapping, [header]: include ? guessFieldForHeader(header) : "ignore" },
+        },
+      };
+    });
+  };
+
+  /** The admin picked a different heading / data range: rebuild the table (cell edits are dropped). */
+  const handleCsvRangeChange = (attributeId: string, range: CsvRange) => {
+    setAttributeUploads((prev) => {
+      const upload = prev[attributeId];
+      const grid = upload?.csvData?.grid;
+      if (!upload || !upload.csvData || !grid) return prev;
+      const table = buildCsvTable(grid, range);
+      return {
+        ...prev,
+        [attributeId]: {
+          ...upload,
+          csvData: { ...upload.csvData, headers: table.headers, rows: table.rows, rowNumbers: table.rowNumbers, range },
+          columnMapping: guessColumnMapping(table.headers),
+          selectedRowIndices: table.rows.map((_, i) => i),
+        },
+      };
+    });
   };
 
   const handleUpdateCsvCell = (attributeId: string, rowIdx: number, header: string, newValue: string) => {
@@ -693,7 +671,7 @@ export function ProductUploadClient({
               trigger_quantity = val ? parseInt(val.toString().replace(/[^0-9]/g, ""), 10) || 0 : 0;
             else if (sysField === "minOrderQuantity")
               min_order_quantity = Math.max(1, val ? parseInt(val.toString().replace(/[^0-9]/g, ""), 10) || 1 : 1);
-            else specifications[sysField || header] = val;
+            else if (sysField !== "ignore") specifications[sysField || header] = val;
           });
 
           variantsToInsert.push({
@@ -1598,6 +1576,15 @@ export function ProductUploadClient({
                       </div>
                     ) : (
                       <div className="space-y-4">
+                        {upload.csvData.grid && upload.csvData.range && (
+                          <CsvRangePicker
+                            grid={upload.csvData.grid}
+                            range={upload.csvData.range}
+                            dataRowCount={upload.csvData.rows.length}
+                            onChange={(range) => handleCsvRangeChange(attrId, range)}
+                          />
+                        )}
+
                         {/* Column Mapping Toolbar */}
                         <div className="p-3.5 bg-slate-50 rounded-lg border border-slate-200">
                           <div className="text-xs font-bold text-slate-800 mb-2">
@@ -1650,6 +1637,7 @@ export function ProductUploadClient({
                             handleUpdateCsvCell(attrId, rowIdx, header, val)
                           }
                           onToggleRow={(rowIdx) => handleToggleRow(attrId, rowIdx)}
+                          onToggleColumn={(header, include) => handleToggleColumn(attrId, header, include)}
                           onToggleAllRows={(selectAll: boolean) =>
                             handleToggleAllRows(attrId, selectAll)
                           }

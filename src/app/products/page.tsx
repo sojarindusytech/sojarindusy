@@ -1,14 +1,11 @@
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
-import { Folder, ChevronRight, Package, ArrowRight, Layers } from "lucide-react";
+import { Card, CardTitle } from "@/components/ui/card";
+import { Folder, ChevronRight } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
 import type { Metadata } from "next";
 import { fetchCategoriesTree } from "@/actions/category";
-import { getAllProducts } from "@/lib/server/catalog";
-import { getStorefrontViewer, toStorefrontProducts } from "@/lib/server/storefront";
-import { ProductCard } from "@/components/storefront/ProductCard";
+import { ImagePlaceholder } from "@/components/common/ImagePlaceholder";
 
 export const dynamic = "force-dynamic";
 
@@ -19,12 +16,7 @@ export const metadata: Metadata = {
 };
 
 export default async function ProductsPage() {
-  const [{ flatCategories }, allProducts, viewer] = await Promise.all([
-    fetchCategoriesTree(),
-    getAllProducts(),
-    getStorefrontViewer(),
-  ]);
-  const products = toStorefrontProducts(allProducts, viewer);
+  const { flatCategories } = await fetchCategoriesTree();
 
   // Show root categories
   const rootCategories = flatCategories
@@ -88,12 +80,7 @@ export default async function ProductsPage() {
                           className="object-cover group-hover:scale-105 transition-transform duration-500"
                         />
                       ) : (
-                        <div className="flex flex-col items-center justify-center text-slate-400 group-hover:text-[#024AE5] transition-colors">
-                          <Folder className="h-7 w-7 mb-1 opacity-50" />
-                          <span className="text-[9px] uppercase font-semibold tracking-wider">
-                            No Image
-                          </span>
-                        </div>
+                        <ImagePlaceholder icon={Folder} label="No Image" />
                       )}
                     </div>
 
@@ -115,41 +102,12 @@ export default async function ProductsPage() {
           </div>
         )}
 
-        {/* All Products & Tooling Families Section */}
-        <div className="space-y-6 pt-4 border-t border-slate-200/80">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
-                <Package className="h-5 w-5 text-[#024AE5]" />
-                <span>All Products & Tooling Families</span>
-              </h2>
-              <p className="text-xs text-slate-500 mt-0.5">
-                Browse all tool lines with full dimensional SKU availability and CAD data
-              </p>
-            </div>
-            <Badge
-              variant="outline"
-              className="text-xs bg-blue-50 text-[#024AE5] border-blue-200 font-semibold px-2.5 py-1"
-            >
-              {products.length} {products.length === 1 ? "Product Family" : "Product Families"}
-            </Badge>
+        {rootCategories.length === 0 && (
+          <div className="flex flex-col items-center justify-center py-20 text-slate-500 bg-white rounded-xl border border-dashed border-slate-200">
+            <Folder className="h-10 w-10 text-slate-300 mb-2" />
+            <p className="text-sm font-medium text-slate-600">No categories found in the catalog.</p>
           </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {products.map((item) => (
-              <ProductCard key={item.id} product={item} />
-            ))}
-
-            {products.length === 0 && (
-              <div className="col-span-full flex flex-col items-center justify-center py-20 text-slate-500 bg-white rounded-xl border border-dashed border-slate-200">
-                <Package className="h-10 w-10 text-slate-300 mb-2" />
-                <p className="text-sm font-medium text-slate-600">
-                  No products found in the catalog.
-                </p>
-              </div>
-            )}
-          </div>
-        </div>
+        )}
       </div>
     </div>
   );
