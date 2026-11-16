@@ -24,9 +24,9 @@ function Stat({ label, value, hint, tone = "text-slate-900" }: { label: string; 
   );
 }
 
-function Section({ title, onExport, children }: { title: string; onExport?: () => void; children: React.ReactNode }) {
+function Section({ id, title, onExport, children }: { id?: string; title: string; onExport?: () => void; children: React.ReactNode }) {
   return (
-    <Card className="bg-white border border-slate-200 shadow-none rounded-xl overflow-hidden">
+    <Card id={id} className="bg-white border border-slate-200 shadow-none rounded-xl overflow-hidden scroll-mt-20">
       <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100">
         <h2 className="text-sm font-bold text-slate-900">{title}</h2>
         {onExport && (
@@ -48,7 +48,13 @@ const tdNum = "py-1.5 pr-3 text-xs text-slate-900 text-right font-mono whitespac
 export function MonthlyBars({ months }: { months: SalesReport["months"] }) {
   const max = Math.max(1, ...months.map((m) => m.net));
   return (
-    <div className="flex items-end gap-0.5 h-48 border-b border-slate-200 pt-6" role="img" aria-label="Net sales by month (see the table for exact figures)">
+    <>
+    <table className="sr-only">
+      <caption>Net sales by month</caption>
+      <thead><tr><th>Month</th><th>Net sales</th><th>Invoices</th></tr></thead>
+      <tbody>{months.map((m) => <tr key={m.month}><td>{monthLabel(m.month)}</td><td>{inr0(m.net)}</td><td>{m.invoices}</td></tr>)}</tbody>
+    </table>
+    <div className="flex items-end gap-0.5 h-48 border-b border-slate-200 pt-6" aria-hidden="true">
       {months.map((m) => {
         const pct = Math.max(0, m.net) / max * 100;
         return (
@@ -65,6 +71,7 @@ export function MonthlyBars({ months }: { months: SalesReport["months"] }) {
         );
       })}
     </div>
+    </>
   );
 }
 
@@ -213,7 +220,7 @@ export function ReportsClient({ report }: { report: SalesReport }) {
           )}
         </Section>
 
-        <Section title={`Receivables ageing (as of ${range.to})`}>
+        <Section id="ageing" title={`Receivables ageing (as of ${range.to})`}>
           {!ageing ? <p className="text-xs text-slate-500">Receivables are available once the ledger migration is applied.</p> : (
             <div className="space-y-4">
               <table className="w-full">
@@ -247,7 +254,8 @@ export function ReportsClient({ report }: { report: SalesReport }) {
       </div>
 
       <Section
-        title={`Low stock (${lowStock.length})`}
+        id="low-stock"
+        title={`Low stock (${report.lowStockCount}${report.lowStockCount > lowStock.length ? `, most urgent ${lowStock.length} shown` : ""})`}
         onExport={lowStock.length ? () => downloadCsv(`low-stock-${range.to}.csv`, ["SKU", "Product", "On hand", "Reserved", "Available", "Reorder at", "Target"],
           lowStock.map((s) => [s.sku, s.product, s.stock, s.reserved, s.stock - s.reserved, s.trigger, s.target])) : undefined}
       >

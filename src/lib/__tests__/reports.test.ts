@@ -37,6 +37,13 @@ describe("monthlySales", () => {
   });
 });
 
+describe("monthlySales with a span", () => {
+  it("adds zero rows for quiet months, across a year end", () => {
+    const rows = monthlySales([inv("2026-11-03", "a", "Acme", 100)], [], [], { from: "2026-10-15", to: "2027-01-02" });
+    expect(rows.map((r) => [r.month, r.net])).toEqual([["2026-10", 0], ["2026-11", 100], ["2026-12", 0], ["2027-01", 0]]);
+  });
+});
+
 describe("gstSummary", () => {
   it("subtracts credit notes and adds debit notes", () => {
     const rows = gstSummary(invoices, credits, debits);

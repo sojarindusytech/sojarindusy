@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { redirect } from "next/navigation";
 import type { ComponentType } from "react";
 import {
   AlertTriangle,
@@ -19,7 +18,6 @@ import {
   UserCheck,
   Users,
 } from "lucide-react";
-import { getCurrentUserProfile } from "@/actions/auth";
 import { getDashboardData } from "@/actions/dashboard";
 import { MonthlyBars } from "@/components/admin/ReportsClient";
 import { LoadErrorCard } from "@/components/common/LoadErrorCard";
@@ -62,12 +60,8 @@ function Task({ icon: Icon, label, count, href, urgent }: { icon: ComponentType<
 }
 
 export default async function AdminDashboardPage() {
-  const { user, profile } = await getCurrentUserProfile();
-  if (!user) redirect("/login");
-  if (profile?.role !== "admin" && profile?.role !== "platform_owner") redirect("/dashboard");
-
-  const { attention: a, thisMonth, report, recentOrders } = await getDashboardData();
-  const ageing = report.ageing;
+  // The admin layout already sends non-admins away; the loader checks again (one lookup, not three).
+  const { attention: a, thisMonth, months, receivables: ageing, recentOrders, warnings } = await getDashboardData();
 
   return (
     <div className="space-y-6 w-full">
@@ -96,13 +90,13 @@ export default async function AdminDashboardPage() {
         </div>
       </div>
 
-      {report.warnings.map((w) => <LoadErrorCard key={w} message={w} />)}
+      {warnings.map((w) => <LoadErrorCard key={w} message={w} />)}
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <Kpi label="Sales this month" value={inr0(thisMonth.net)} hint={`${thisMonth.invoices} invoices · net of credit notes`} tone="text-[#024AE5]" href="/admin/invoices?range=this_month" />
         <Kpi label="Collected this month" value={thisMonth.collected === null ? "—" : inr0(thisMonth.collected)} hint="payments received" tone="text-emerald-700" href="/admin/payments-received?range=this_month" />
         <Kpi label="Receivable" value={ageing ? inr0(ageing.due) : "—"} hint="owed by customers today" href="/admin/party-ledger" />
-        <Kpi label="Overdue" value={ageing ? inr0(ageing.overdue) : "—"} hint="past their credit days" tone={ageing && ageing.overdue > 0 ? "text-rose-600" : "text-slate-900"} href="/admin/reports" />
+        <Kpi label="Overdue" value={ageing ? inr0(ageing.overdue) : "—"} hint="past their credit days" tone={ageing && ageing.overdue > 0 ? "text-rose-600" : "text-slate-900"} href="/admin/reports#ageing" />
       </div>
 
       <div>
@@ -112,7 +106,7 @@ export default async function AdminDashboardPage() {
           <Task icon={Truck} label="Orders in transit" count={a.ordersInTransit} href="/admin/orders" />
           <Task icon={RotateCcw} label="Return requests" count={a.returnRequests} href="/admin/order-returns" urgent />
           <Task icon={UserCheck} label="Customers to approve" count={a.customersPending} href="/admin/customers" />
-          <Task icon={PackageX} label="Low-stock SKUs" count={a.lowStock} href="/admin/reports" urgent />
+          <Task icon={PackageX} label="Low-stock SKUs" count={a.lowStock} href="/admin/reports#low-stock" urgent />
           <Task icon={Factory} label="Open purchase orders" count={a.openPurchaseOrders} href="/admin/purchase-orders" />
           <Task icon={Layers} label="RFQs to answer" count={a.rfqsOpen} href="/admin/rfqs" />
           <Task icon={Inbox} label="Unread inquiries" count={a.inquiriesUnread} href="/admin/inquiries" />
@@ -125,10 +119,10 @@ export default async function AdminDashboardPage() {
             <h2 className="text-sm font-bold text-slate-900">Net sales, last 6 months</h2>
             <Link href="/admin/reports" className="text-xs text-[#024AE5] hover:underline flex items-center gap-1">Full report <ArrowUpRight className="h-3 w-3" /></Link>
           </div>
-          {report.months.length === 0 ? (
+          {months.every((m) => m.invoices === 0 && m.net === 0) ? (
             <p className="text-xs text-slate-500 py-10 text-center">No invoices in the last six months.</p>
           ) : (
-            <div className="pb-6"><MonthlyBars months={report.months} /></div>
+            <div className="pb-6"><MonthlyBars months={months} /></div>
           )}
         </Card>
 
@@ -138,7 +132,9 @@ export default async function AdminDashboardPage() {
             <Link href="/admin/orders" className="text-xs text-[#024AE5] hover:underline flex items-center gap-1">All orders <ArrowUpRight className="h-3 w-3" /></Link>
           </div>
           {recentOrders.length === 0 ? (
-            <p className="text-xs text-slate-500 py-10 text-center">No orders yet.</p>
+            <p className="text-xs text-slate-500 py-10 text-center">
+              {warnings.includes("Recent orders could not be loaded.") ? "Recent orders could not be loaded." : "No orders yet."}
+            </p>
           ) : (
             <Table>
               <TableHeader>
@@ -156,7 +152,7 @@ export default async function AdminDashboardPage() {
                     <TableRow key={o.id} className="whitespace-nowrap">
                       <TableCell className="text-xs">
                         <div className="font-mono font-semibold text-[#024AE5]">{o.order_number}</div>
-                        <div className="text-[10px] text-slate-400">{new Date(o.created_at).toLocaleDateString("en-IN")}</div>
+                        <div className="text-[10px] text-slate-400">{new Date(o.created_at).toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata" })}</div>
                       </TableCell>
                       <TableCell className="text-xs max-w-[180px] truncate" title={o.company}>{o.company}</TableCell>
                       <TableCell className="text-xs text-right font-mono">{inr0(o.total_amount)}</TableCell>

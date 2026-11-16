@@ -43,7 +43,10 @@ export interface SalesReport {
   collections: ModeRow[];
   totals: { net: number; invoices: number; collected: number; avgInvoice: number };
   ageing: AgeingSummary | null;
+  /** Most urgent first, at most 50 rows. */
   lowStock: LowStockRow[];
+  /** Every SKU at or below its reorder level (the list above is cut to 50). */
+  lowStockCount: number;
   /** Parts that could not be loaded; the rest of the report still shows. */
   warnings: string[];
 }
@@ -103,7 +106,7 @@ export async function getSalesReport(range?: Partial<LedgerRange>): Promise<Sale
   const credits: ReportNote[] = creditRows.map((c) => ({ ...c, date: c.credit_note_date }));
   const debits: ReportNote[] = debitRows.map((d) => ({ ...d, date: d.debit_note_date }));
 
-  const months = monthlySales(invoices, credits, debits);
+  const months = monthlySales(invoices, credits, debits, r);
   const net = r2(months.reduce((s, m) => s + m.net, 0));
   const collections = collectionsByMode(payments);
   const collected = r2(collections.reduce((s, m) => s + m.amount, 0));
@@ -127,7 +130,7 @@ export async function getSalesReport(range?: Partial<LedgerRange>): Promise<Sale
     };
   }
 
-  const lowStock: LowStockRow[] = variants
+  const lowAll: LowStockRow[] = variants
     .map((v) => ({
       sku: v.sku,
       product: v.products?.title ?? "",
@@ -137,8 +140,8 @@ export async function getSalesReport(range?: Partial<LedgerRange>): Promise<Sale
       target: Number(v.min_quantity) || 0,
     }))
     .filter((v) => v.stock - v.reserved <= v.trigger)
-    .sort((a, b) => (a.stock - a.reserved - a.trigger) - (b.stock - b.reserved - b.trigger))
-    .slice(0, 50);
+    .sort((a, b) => (a.stock - a.reserved - a.trigger) - (b.stock - b.reserved - b.trigger));
+  const lowStock = lowAll.slice(0, 50);
 
   return {
     range: r,
@@ -150,6 +153,7 @@ export async function getSalesReport(range?: Partial<LedgerRange>): Promise<Sale
     totals: { net, invoices: invoices.length, collected, avgInvoice: invoices.length ? r2(invoices.reduce((s, i) => s + (Number(i.total_amount) || 0), 0) / invoices.length) : 0 },
     ageing,
     lowStock,
+    lowStockCount: lowAll.length,
     warnings,
   };
 }

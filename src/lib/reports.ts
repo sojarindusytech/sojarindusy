@@ -32,13 +32,33 @@ const r2 = (v: number) => Math.round(v * 100) / 100;
 
 export interface MonthRow { month: string; invoiced: number; credited: number; debited: number; net: number; invoices: number }
 
-/** One row per calendar month (YYYY-MM) that has any document, oldest first. */
-export function monthlySales(invoices: ReportInvoice[], credits: ReportNote[], debits: ReportNote[]): MonthRow[] {
+/**
+ * One row per calendar month (YYYY-MM) that has any document, oldest first. Pass `from` / `to`
+ * (YYYY-MM-DD) to also include the empty months in between as zero rows, so a chart never skips
+ * a quiet month.
+ */
+export function monthlySales(
+  invoices: Pick<ReportInvoice, "invoice_date" | "total_amount">[],
+  credits: Pick<ReportNote, "date" | "total_amount">[],
+  debits: Pick<ReportNote, "date" | "total_amount">[],
+  span?: { from: string; to: string }
+): MonthRow[] {
   const m = new Map<string, MonthRow>();
   const row = (month: string) => m.get(month) ?? m.set(month, { month, invoiced: 0, credited: 0, debited: 0, net: 0, invoices: 0 }).get(month)!;
   for (const i of invoices) { const x = row(i.invoice_date.slice(0, 7)); x.invoiced += n(i.total_amount); x.invoices += 1; }
   for (const c of credits) row(c.date.slice(0, 7)).credited += n(c.total_amount);
   for (const d of debits) row(d.date.slice(0, 7)).debited += n(d.total_amount);
+  if (span) {
+    // ponytail: walks month by month; fine for any realistic range (a decade is 120 steps).
+    let [y, mo] = span.from.slice(0, 7).split("-").map(Number);
+    const end = span.to.slice(0, 7);
+    for (let guard = 0; guard < 1200; guard++) {
+      const ym = `${y}-${String(mo).padStart(2, "0")}`;
+      if (ym > end) break;
+      row(ym);
+      if (++mo > 12) { mo = 1; y++; }
+    }
+  }
   return [...m.values()]
     .map((x) => ({ ...x, invoiced: r2(x.invoiced), credited: r2(x.credited), debited: r2(x.debited), net: r2(x.invoiced - x.credited + x.debited) }))
     .sort((a, b) => a.month.localeCompare(b.month));
