@@ -1,4 +1,5 @@
 "use server";
+import { recordAudit } from "@/lib/server/audit";
 
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireAdmin } from "@/lib/auth-guard";
@@ -301,6 +302,7 @@ export async function createCategory(formData: FormData): Promise<{
       return { error: error.message };
     }
 
+    await recordAudit({ action: "category.create", entity: "category", entityId: (data as Category).id, summary: `Created category ${(data as Category).name}` });
     revalidatePath("/admin/categories");
     return { success: true, category: data as Category };
   } catch (err) {
@@ -363,6 +365,7 @@ export async function updateCategory(
       return { error: error.message };
     }
 
+    await recordAudit({ action: "category.update", entity: "category", entityId: id, summary: "Edited category" });
     revalidatePath("/admin/categories");
     return { success: true };
   } catch (err) {
@@ -440,6 +443,7 @@ export async function deleteCategory(id: string): Promise<{
       return { error: error.message || "Failed to delete category." };
     }
 
+    await recordAudit({ action: "category.delete", entity: "category", entityId: id, summary: "Deleted category" });
     revalidatePath("/admin/categories");
     return { success: true };
   } catch (err) {
@@ -465,6 +469,7 @@ export async function toggleCategoryStatus(
 
     if (error) return { error: error.message };
 
+    await recordAudit({ action: is_active ? "category.activate" : "category.deactivate", entity: "category", entityId: id, summary: `Category ${is_active ? "shown" : "hidden"}` });
     revalidatePath("/admin/categories");
     return { success: true };
   } catch (err) {

@@ -1,4 +1,5 @@
 "use server";
+import { recordAudit } from "@/lib/server/audit";
 
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireAdmin } from "@/lib/auth-guard";
@@ -172,6 +173,7 @@ export async function updateFullProduct(
 
     revalidatePath("/admin/products");
     revalidatePath("/products");
+    await recordAudit({ action: "product.update", entity: "product", entityId: productId, summary: `Edited product ${payload.title ?? ""}`.trim() });
     return { success: true };
   } catch (err: any) {
     return { error: dbMessage(err.message) || "Failed to update product." };
@@ -212,6 +214,7 @@ export async function updateProductMetadata(
     }
 
     revalidatePath("/admin/products");
+    await recordAudit({ action: "product.update", entity: "product", entityId: productId, summary: `Edited product details: ${payload.title}` });
     return { success: true };
   } catch (err: any) {
     return { error: dbMessage(err.message) };
@@ -306,6 +309,7 @@ export async function addSingleSku(
     }
 
     revalidatePath("/admin/products");
+    await recordAudit({ action: "sku.create", entity: "sku", entityId: productId, summary: `Added SKU ${payload.sku} at ₹${payload.list_price} (stock ${payload.stock_quantity})` });
     return { success: true };
   } catch (err: any) {
     return { error: dbMessage(err.message) };
@@ -419,6 +423,7 @@ export async function bulkAppendSkus(
     }
 
     revalidatePath("/admin/products");
+    await recordAudit({ action: "sku.bulk_create", entity: "sku", entityId: productId, summary: `Added ${variants.length} SKUs from a CSV import`, metadata: { skus: variants.slice(0, 50).map((v) => v.sku) } });
     return { success: true };
   } catch (err: any) {
     return { error: dbMessage(err.message) };
@@ -484,6 +489,7 @@ export async function deleteSku(
       });
 
       revalidatePath("/admin/products");
+      await recordAudit({ action: "sku.archive", entity: "sku", entityId: variantId, summary: "Archived SKU (has stock history)" });
       return { success: true, archived: true };
     }
 
@@ -505,12 +511,14 @@ export async function deleteSku(
           .eq("id", variantId);
 
         revalidatePath("/admin/products");
+        await recordAudit({ action: "sku.archive", entity: "sku", entityId: variantId, summary: "Archived SKU (still referenced)" });
         return { success: true, archived: true };
       }
       return { error: dbMessage(error.message) };
     }
 
     revalidatePath("/admin/products");
+    await recordAudit({ action: "sku.delete", entity: "sku", entityId: variantId, summary: "Deleted SKU (no history)" });
     return { success: true };
   } catch (err: any) {
     return { error: dbMessage(err.message) };
@@ -672,6 +680,7 @@ export async function bulkUpdateSkus(
     }
 
     revalidatePath("/admin/products");
+    await recordAudit({ action: "sku.bulk_update", entity: "sku", summary: `Bulk-updated ${variantIds.length} SKUs`, metadata: { updates, variant_ids: variantIds.slice(0, 100) } });
     return { success: true };
   } catch (err: any) {
     return { error: dbMessage(err.message) };
@@ -775,6 +784,7 @@ export async function updateSingleSku(
     }
 
     revalidatePath("/admin/products");
+    await recordAudit({ action: "sku.update", entity: "sku", entityId: variantId, summary: `Edited SKU ${payload.sku}: price ₹${payload.list_price}, stock ${payload.stock_quantity}`, metadata: { gst_rate: payload.gst_rate, hsn_code: payload.hsn_code, min_quantity: payload.min_quantity, trigger_quantity: payload.trigger_quantity } });
     return { success: true };
   } catch (err: any) {
     return { error: dbMessage(err.message) };

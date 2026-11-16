@@ -1,4 +1,5 @@
 "use server";
+import { recordAudit } from "@/lib/server/audit";
 
 import { revalidatePath } from "next/cache";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -254,6 +255,7 @@ export async function saveCouponAction(input: CouponFormInput): Promise<SaveCoup
     return { success: false, error: "Could not save the coupon. Please check the details and try again." };
   }
 
+  await recordAudit({ action: data.id ? "coupon.update" : "coupon.create", entity: "coupon", entityId: saved.id, summary: `${data.id ? "Edited" : "Created"} coupon ${data.code}`, actor: { userId: guard.ctx.userId, email: guard.ctx.email, role: guard.ctx.role } });
   revalidatePath(COUPONS_PATH);
   return { success: true, id: saved.id, message: data.id ? `Coupon ${data.code} updated.` : `Coupon ${data.code} created.` };
 }
@@ -271,6 +273,7 @@ export async function deleteCouponAction(
     return { success: false, error: error.code === "COUPON_NOT_FOUND" ? "Coupon not found." : "Could not delete the coupon." };
   }
 
+  await recordAudit({ action: data === "archived" ? "coupon.archive" : "coupon.delete", entity: "coupon", entityId: couponId, summary: data === "archived" ? "Archived used coupon" : "Deleted unused coupon", actor: { userId: guard.ctx.userId, email: guard.ctx.email, role: guard.ctx.role } });
   revalidatePath(COUPONS_PATH);
   return {
     success: true,
@@ -301,6 +304,7 @@ export async function setCouponActiveAction(
   if (error) return { success: false, error: "Could not update the coupon." };
   if (!data || (data as unknown[]).length === 0) return { success: false, error: "Coupon not found." };
 
+  await recordAudit({ action: isActive ? "coupon.activate" : "coupon.deactivate", entity: "coupon", entityId: couponId, summary: `Coupon turned ${isActive ? "on" : "off"}`, actor: { userId: guard.ctx.userId, email: guard.ctx.email, role: guard.ctx.role } });
   revalidatePath(COUPONS_PATH);
   return { success: true };
 }

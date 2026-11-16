@@ -4,10 +4,14 @@ import Link from "next/link";
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
-import { Ban, BookMarked, Calendar, Factory, HandCoins, Search } from "lucide-react";
+import { Ban, BookMarked, FileDown, Factory, HandCoins, Search } from "lucide-react";
 import { cancelSupplierPaymentAction, getSupplierPaymentFormData, type SupplierPaymentFormData } from "@/actions/supplier-payment";
 import { PAYMENT_MODES, modeLabel } from "@/lib/payments";
-import { DATE_RANGE_OPTIONS, isWithinDateRange, type DateRangeKey } from "@/lib/date-range";
+import { isWithinDateRange } from "@/lib/date-range";
+import { DateRangeFilter, useDateRangeFilter } from "@/components/common/DateRangeFilter";
+import { LoadErrorCard } from "@/components/common/LoadErrorCard";
+import { useUrlState } from "@/lib/use-url-state";
+import { downloadCsv } from "@/lib/csv";
 import { fmtDate, inr } from "@/lib/ledger";
 import type { SupplierPayment } from "@/types/database.types";
 import { PageTitle } from "@/components/common/PageTitle";
@@ -34,12 +38,11 @@ import { SupplierPaymentFormModal } from "./SupplierPaymentFormModal";
 /** Payments Made: money paid to manufacturers. Each one posts to the manufacturer's Party Ledger. */
 export function AdminSupplierPaymentsClient({ initialPayments, loadError }: { initialPayments: SupplierPayment[]; loadError: string | null }) {
   const router = useRouter();
-  const [search, setSearch] = useState("");
-  const [mode, setMode] = useState("all");
-  const [status, setStatus] = useState<"all" | "paid" | "cancelled">("all");
-  const [dateRange, setDateRange] = useState<DateRangeKey>("all");
-  const [customFrom, setCustomFrom] = useState("");
-  const [customTo, setCustomTo] = useState("");
+  // Filters live in the URL: they survive reload / Back and can be shared as a link.
+  const [search, setSearch] = useUrlState("q");
+  const [mode, setMode] = useUrlState("mode", "all");
+  const [status, setStatus] = useUrlState("status", "all");
+  const dates = useDateRangeFilter();
   const [creating, setCreating] = useState(false);
   const [cancelling, setCancelling] = useState<SupplierPayment | null>(null);
   const [cancelReason, setCancelReason] = useState("");
@@ -59,12 +62,22 @@ export function AdminSupplierPaymentsClient({ initialPayments, loadError }: { in
     return initialPayments.filter((p) => {
       if (mode !== "all" && p.mode !== mode) return false;
       if (status !== "all" && p.status !== status) return false;
-      if (!isWithinDateRange(p.payment_date, dateRange, customFrom, customTo)) return false;
+      if (!isWithinDateRange(p.payment_date, dates.range, dates.from, dates.to)) return false;
       if (!q) return true;
       return [p.voucher_number, p.payee_name, p.reference ?? "", p.bill_reference ?? "", p.paid_from_name].some((v) => v.toLowerCase().includes(q));
     });
-  }, [initialPayments, search, mode, status, dateRange, customFrom, customTo]);
-  const pager = usePagination(filtered, `${search}|${mode}|${status}|${dateRange}|${customFrom}|${customTo}`);
+  }, [initialPayments, search, mode, status, dates.range, dates.from, dates.to]);
+  const pager = usePagination(filtered, `${search}|${mode}|${status}|${dates.key}`);
+
+  const exportCsv = () =>
+    downloadCsv(
+      `payments-made-${new Date().toISOString().slice(0, 10)}.csv`,
+      ["Voucher #", "Date", "Manufacturer", "Mode", "Paid from", "Reference", "Bill reference", "Amount", "Status"],
+      filtered.map((p) => [
+        p.voucher_number, p.payment_date, p.payee_name, p.mode, p.paid_from_name,
+        p.reference ?? "", p.bill_reference ?? "", p.amount.toFixed(2), p.status,
+      ])
+    );
 
   const stats = useMemo(() => {
     const live = filtered.filter((p) => p.status === "paid");
@@ -94,14 +107,20 @@ export function AdminSupplierPaymentsClient({ initialPayments, loadError }: { in
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <PageTitle icon={Factory}>Payments Made</PageTitle>
+        <div className="flex items-center gap-2">
+        <Button variant="outline" className="gap-1.5" onClick={exportCsv} disabled={!!loadError || filtered.length === 0}>
+          <FileDown className="h-4 w-4" />
+          Export CSV
+        </Button>
         <Button onClick={() => setCreating(true)} className="gap-1.5" disabled={!!loadError}>
           <HandCoins className="h-4 w-4" />
           Record Payment
         </Button>
+        </div>
       </div>
 
       {loadError ? (
-        <Card className="p-5 border-amber-200 bg-amber-50 text-sm text-amber-900 shadow-none rounded-xl">{loadError}</Card>
+        <LoadErrorCard message={loadError} />
       ) : (
         <>
           <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
@@ -132,7 +151,7 @@ export function AdminSupplierPaymentsClient({ initialPayments, loadError }: { in
                   {PAYMENT_MODES.map((m) => (<SelectItem key={m.value} value={m.value} className="text-xs">{m.label}</SelectItem>))}
                 </SelectContent>
               </Select>
-              <Select value={status} onValueChange={(v) => setStatus(v as typeof status)}>
+              <Select value={status} onValueChange={setStatus}>
                 <SelectTrigger className="h-9 text-xs bg-slate-50/50 border-slate-200 w-full lg:w-[130px]"><SelectValue /></SelectTrigger>
                 <SelectContent className="bg-white">
                   <SelectItem value="all" className="text-xs">All Statuses</SelectItem>
@@ -140,22 +159,7 @@ export function AdminSupplierPaymentsClient({ initialPayments, loadError }: { in
                   <SelectItem value="cancelled" className="text-xs">Cancelled</SelectItem>
                 </SelectContent>
               </Select>
-              <Select value={dateRange} onValueChange={(v) => setDateRange(v as DateRangeKey)}>
-                <SelectTrigger className="h-9 text-xs bg-slate-50/50 border-slate-200 w-full lg:w-[150px]">
-                  <Calendar className="h-3.5 w-3.5 text-slate-400 mr-1.5 shrink-0" />
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent className="bg-white">
-                  {DATE_RANGE_OPTIONS.map((o) => (<SelectItem key={o.value} value={o.value} className="text-xs">{o.label}</SelectItem>))}
-                </SelectContent>
-              </Select>
-              {dateRange === "custom" && (
-                <div className="flex items-center gap-2">
-                  <Input type="date" value={customFrom} max={customTo || undefined} onChange={(e) => setCustomFrom(e.target.value)} aria-label="From date" className="h-9 text-xs w-[140px]" />
-                  <span className="text-xs text-slate-400">to</span>
-                  <Input type="date" value={customTo} min={customFrom || undefined} onChange={(e) => setCustomTo(e.target.value)} aria-label="To date" className="h-9 text-xs w-[140px]" />
-                </div>
-              )}
+              <DateRangeFilter state={dates} />
             </div>
           </Card>
 

@@ -1,5 +1,7 @@
 "use server";
+import { recordAudit } from "@/lib/server/audit";
 
+import { selectAll } from "@/lib/server/select-all";
 import { requireAdmin, requireUser } from "@/lib/auth-guard";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { loadSalesSettings } from "@/lib/sales-settings";
@@ -11,11 +13,18 @@ import { ledgerErrorMessage } from "@/lib/server/ledger-errors";
 
 export async function listCreditNotes(customer = false): Promise<CreditNote[]> {
   const auth = customer ? await requireUser() : await requireAdmin();
-  let query = createAdminClient().from("credit_notes").select("*").order("created_at", { ascending: false });
-  if (customer) query = query.eq("user_id", auth.userId);
-  const { data, error } = await query;
-  if (error) throw new Error("Credit notes could not be loaded. Check that the credit note migration has been applied.");
-  return data ?? [];
+  const db = createAdminClient();
+  try {
+    return await selectAll<CreditNote>((from, to) => {
+      let query = db.from("credit_notes").select("*")
+        .order("credit_note_date", { ascending: false }).order("created_at", { ascending: false }).order("id");
+      if (customer) query = query.eq("user_id", auth.userId);
+      return query.range(from, to);
+    });
+  } catch (err) {
+    console.error("[listCreditNotes]", err);
+    throw new Error("Credit notes could not be loaded. Check that the credit note migration has been applied.");
+  }
 }
 
 export async function getCreditNoteFormData() {
@@ -51,8 +60,15 @@ export async function issueCreditNote(input: CreditNoteInput): Promise<{ success
       return { success: false, error: error.code === "23505" ? "That credit note number or submission has already been used." : error.code === "P0001" ? error.message : "Credit note could not be issued. Check the migration and submitted details." };
     }
     if (!data) return { success: false, error: "The credit note response was empty. Retry the same submission." };
+    const note = data as CreditNote;
+    await recordAudit({
+      action: "credit_note.issue", entity: "credit_note", entityId: note.id,
+      summary: `Issued credit note ${note.credit_note_number} against ${note.invoice_number}: ₹${Number(note.total_amount).toLocaleString("en-IN", { minimumFractionDigits: 2 })}`,
+      metadata: { reason: note.reason, treatment: note.treatment },
+      actor: { userId: auth.userId, email: auth.email, role: auth.role },
+    });
     for (const path of ["/admin/credit-notes", "/admin/invoices", "/admin/settings/sales", "/dashboard/credit-notes", "/admin/products", "/", "/products"]) revalidatePath(path);
-    return { success: true, note: data as CreditNote };
+    return { success: true, note };
   } catch (error) {
     return { success: false, error: error instanceof Error ? error.message : "Credit note could not be issued." };
   }

@@ -4,10 +4,14 @@ import { useEffect, useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
-import { Ban, Calendar, Download, Eye, FileUp, HandCoins, Search, Settings } from "lucide-react";
+import { Ban, Download, FileDown, Eye, FileUp, HandCoins, Search, Settings } from "lucide-react";
 import { cancelDebitNote, type DebitNoteListRow } from "@/actions/debit-note";
 import { debitNoteReasonLabel } from "@/lib/debit-notes";
-import { DATE_RANGE_OPTIONS, isWithinDateRange, type DateRangeKey } from "@/lib/date-range";
+import { isWithinDateRange } from "@/lib/date-range";
+import { DateRangeFilter, useDateRangeFilter } from "@/components/common/DateRangeFilter";
+import { LoadErrorCard } from "@/components/common/LoadErrorCard";
+import { useUrlState } from "@/lib/use-url-state";
+import { downloadCsv } from "@/lib/csv";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -38,11 +42,10 @@ export function AdminDebitNotesClient({
   loadError?: string | null;
 }) {
   const router = useRouter();
-  const [search, setSearch] = useState("");
-  const [status, setStatus] = useState<"all" | "issued" | "cancelled">("all");
-  const [dateRange, setDateRange] = useState<DateRangeKey>("all");
-  const [customFrom, setCustomFrom] = useState("");
-  const [customTo, setCustomTo] = useState("");
+  // Filters live in the URL: they survive reload / Back and can be shared as a link.
+  const [search, setSearch] = useUrlState("q");
+  const [status, setStatus] = useUrlState("status", "all");
+  const dates = useDateRangeFilter();
   const [creating, setCreating] = useState(false);
   const [viewing, setViewing] = useState<{ id: string; number: string; customer: string } | null>(null);
   // Id of the note whose PDF has finished loading; the skeleton shows until it matches.
@@ -64,7 +67,7 @@ export function AdminDebitNotesClient({
     const q = search.toLowerCase().trim();
     return initialDebitNotes.filter((dn) => {
       if (status !== "all" && dn.status !== status) return false;
-      if (!isWithinDateRange(dn.debit_note_date, dateRange, customFrom, customTo)) return false;
+      if (!isWithinDateRange(dn.debit_note_date, dates.range, dates.from, dates.to)) return false;
       if (!q) return true;
       return (
         dn.debit_note_number.toLowerCase().includes(q) ||
@@ -72,11 +75,24 @@ export function AdminDebitNotesClient({
         dn.bill_to?.name?.toLowerCase().includes(q)
       );
     });
-  }, [initialDebitNotes, search, status, dateRange, customFrom, customTo]);
+  }, [initialDebitNotes, search, status, dates.range, dates.from, dates.to]);
 
-  const pager = usePagination(filtered, `${search}|${status}|${dateRange}|${customFrom}|${customTo}`);
+  const pager = usePagination(filtered, `${search}|${status}|${dates.key}`);
 
-  const issued = initialDebitNotes.filter((d) => d.status === "issued");
+  // Cards follow the filters above.
+  const issued = filtered.filter((d) => d.status === "issued");
+  const exportCsv = () =>
+    downloadCsv(
+      `debit-notes-${new Date().toISOString().slice(0, 10)}.csv`,
+      ["Debit note #", "Date", "Invoice #", "Customer", "GSTIN", "Reason", "Total", "Paid", "Balance", "Status"],
+      filtered.map((d) => [
+        d.debit_note_number, d.debit_note_date, d.invoice_number, d.bill_to?.name ?? "", d.bill_to?.gstin ?? "", d.reason,
+        Number(d.total_amount || 0).toFixed(2),
+        d.status === "issued" && d.paid !== undefined ? d.paid.toFixed(2) : "",
+        d.status === "issued" && d.balance !== undefined ? d.balance.toFixed(2) : "",
+        d.status,
+      ])
+    );
   const debited = issued.reduce((sum, d) => sum + Number(d.total_amount || 0), 0);
   const outstanding = issued.reduce((sum, d) => sum + (d.balance ?? Number(d.total_amount || 0)), 0);
 
@@ -107,6 +123,10 @@ export function AdminDebitNotesClient({
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <Button variant="outline" className="gap-1.5" onClick={exportCsv} disabled={!!loadError || filtered.length === 0}>
+            <FileDown className="h-4 w-4" />
+            Export CSV
+          </Button>
           <Button asChild variant="outline" className="gap-1.5">
             <Link href="/admin/settings/sales">
               <Settings className="h-4 w-4" />
@@ -120,11 +140,7 @@ export function AdminDebitNotesClient({
         </div>
       </div>
 
-      {loadError && (
-        <div role="alert" className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-          {loadError}
-        </div>
-      )}
+      {loadError && <LoadErrorCard message={loadError} />}
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <Card className="p-3.5 bg-white border border-slate-200 shadow-none rounded-xl">
@@ -141,7 +157,7 @@ export function AdminDebitNotesClient({
         </Card>
         <Card className="p-3.5 bg-white border border-slate-200 shadow-none rounded-xl">
           <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1">Cancelled</div>
-          <div className="text-xl font-bold text-slate-900">{initialDebitNotes.length - issued.length}</div>
+          <div className="text-xl font-bold text-slate-900">{filtered.length - issued.length}</div>
         </Card>
       </div>
 
@@ -157,7 +173,7 @@ export function AdminDebitNotesClient({
               aria-label="Search debit notes"
             />
           </div>
-          <Select value={status} onValueChange={(v) => setStatus(v as typeof status)}>
+          <Select value={status} onValueChange={setStatus}>
             <SelectTrigger className="h-9 text-xs bg-slate-50/50 border-slate-200 w-full lg:w-[150px]" aria-label="Status">
               <SelectValue />
             </SelectTrigger>
@@ -167,24 +183,7 @@ export function AdminDebitNotesClient({
               <SelectItem value="cancelled" className="text-xs">Cancelled</SelectItem>
             </SelectContent>
           </Select>
-          <Select value={dateRange} onValueChange={(v) => setDateRange(v as DateRangeKey)}>
-            <SelectTrigger className="h-9 text-xs bg-slate-50/50 border-slate-200 w-full lg:w-[150px]" aria-label="Date range">
-              <Calendar className="h-3.5 w-3.5 text-slate-400 mr-1.5 shrink-0" />
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent className="bg-white">
-              {DATE_RANGE_OPTIONS.map((o) => (
-                <SelectItem key={o.value} value={o.value} className="text-xs">{o.label}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          {dateRange === "custom" && (
-            <div className="flex items-center gap-2">
-              <Input type="date" value={customFrom} max={customTo || undefined} onChange={(e) => setCustomFrom(e.target.value)} aria-label="From date" className="h-9 text-xs w-[140px]" />
-              <span className="text-xs text-slate-400">to</span>
-              <Input type="date" value={customTo} min={customFrom || undefined} onChange={(e) => setCustomTo(e.target.value)} aria-label="To date" className="h-9 text-xs w-[140px]" />
-            </div>
-          )}
+          <DateRangeFilter state={dates} />
         </div>
       </Card>
 

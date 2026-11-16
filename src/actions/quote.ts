@@ -1,5 +1,7 @@
 "use server";
+import { recordAudit } from "@/lib/server/audit";
 
+import { selectAll } from "@/lib/server/select-all";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { AuthorizationError, requireAdmin, requireApprovedCustomer } from "@/lib/auth-guard";
 import { loadSalesSettings } from "@/lib/sales-settings";
@@ -60,14 +62,16 @@ export interface CreateQuotePayload {
 
 export async function fetchCommercialQuotesList(): Promise<CommercialQuote[]> {
   await requireAdmin();
-  const { data, error } = await (createAdminClient().from("quotes") as any)
-    .select("*")
-    .order("created_at", { ascending: false });
-  if (error) {
-    console.error("[fetchCommercialQuotesList] Query error:", error);
-    return [];
+  const db = createAdminClient();
+  try {
+    return await selectAll<CommercialQuote>((from, to) =>
+      (db.from("quotes") as any).select("*")
+        .order("quote_date", { ascending: false }).order("created_at", { ascending: false }).order("id").range(from, to)
+    );
+  } catch (err) {
+    console.error("[fetchCommercialQuotesList] Query error:", err);
+    throw new Error("Quotes could not be loaded. Please reload the page.");
   }
-  return (data as CommercialQuote[]) ?? [];
 }
 
 export async function getQuoteFormData(): Promise<QuoteFormData> {
@@ -219,6 +223,7 @@ async function persistQuote(userId: string, payload: CreateQuotePayload): Promis
 
     await logStatusChange(db, (data as CommercialQuote).id, null, row.status as QuoteStatus, "Quotation created", userId);
 
+    await recordAudit({ action: "quote.create", entity: "quote", entityId: (data as CommercialQuote).id, summary: `Created quotation ${(data as CommercialQuote).quote_number} for ${(data as CommercialQuote).company_name}`, actor: { userId } });
     revalidatePath("/admin/quotes");
     return { success: true, quote: data as CommercialQuote };
   } catch (err) {
@@ -359,6 +364,7 @@ export async function updateCommercialQuoteStatus(
     if (before.status !== updates.status) {
       await logStatusChange(db, quoteId, before.status as QuoteStatus, updates.status, updates.admin_notes ?? null, ctx.userId);
     }
+    await recordAudit({ action: "quote.status", entity: "quote", entityId: quoteId, summary: before.status !== updates.status ? `Quotation ${before.status} → ${updates.status}` : "Updated quotation notes", changes: before.status !== updates.status ? { status: { from: before.status, to: updates.status } } : null, actor: { userId: ctx.userId, email: ctx.email, role: ctx.role } });
     revalidatePath("/admin/quotes");
     return { success: true };
   } catch (err) {

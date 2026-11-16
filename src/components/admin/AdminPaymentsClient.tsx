@@ -5,10 +5,14 @@ import { pdfViewerSrc } from "@/lib/pdf-viewer";
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
-import { Ban, Calendar, Download, Eye, HandCoins, Search, Wallet } from "lucide-react";
+import { Ban, Download, FileDown, Eye, HandCoins, Search, Wallet } from "lucide-react";
 import { cancelPayment, getPaymentFormData, type PaymentFormData } from "@/actions/payment";
 import { PAYMENT_CHANNELS, PAYMENT_MODES, allocationLabel, modeLabel } from "@/lib/payments";
-import { DATE_RANGE_OPTIONS, isWithinDateRange, type DateRangeKey } from "@/lib/date-range";
+import { isWithinDateRange } from "@/lib/date-range";
+import { DateRangeFilter, useDateRangeFilter } from "@/components/common/DateRangeFilter";
+import { LoadErrorCard } from "@/components/common/LoadErrorCard";
+import { useUrlState } from "@/lib/use-url-state";
+import { downloadCsv } from "@/lib/csv";
 import type { Payment } from "@/types/database.types";
 import { Card } from "@/components/ui/card";
 import { IconAction } from "@/components/common/IconAction";
@@ -41,15 +45,14 @@ function appliedTo(p: Payment): string {
   return parts.length ? parts.join(", ") : "—";
 }
 
-export function AdminPaymentsClient({ initialPayments }: { initialPayments: Payment[] }) {
+export function AdminPaymentsClient({ initialPayments, loadError = null }: { initialPayments: Payment[]; loadError?: string | null }) {
   const router = useRouter();
-  const [search, setSearch] = useState("");
-  const [mode, setMode] = useState("all");
-  const [channel, setChannel] = useState("all");
-  const [status, setStatus] = useState<"all" | "received" | "cancelled">("all");
-  const [dateRange, setDateRange] = useState<DateRangeKey>("all");
-  const [customFrom, setCustomFrom] = useState("");
-  const [customTo, setCustomTo] = useState("");
+  // Filters live in the URL: they survive reload / Back and can be shared as a link.
+  const [search, setSearch] = useUrlState("q");
+  const [mode, setMode] = useUrlState("mode", "all");
+  const [channel, setChannel] = useUrlState("channel", "all");
+  const [status, setStatus] = useUrlState("status", "all");
+  const dates = useDateRangeFilter();
 
   const [creating, setCreating] = useState(false);
   const [viewing, setViewing] = useState<Payment | null>(null);
@@ -73,7 +76,7 @@ export function AdminPaymentsClient({ initialPayments }: { initialPayments: Paym
       if (mode !== "all" && p.mode !== mode) return false;
       if (channel !== "all" && p.channel !== channel) return false;
       if (status !== "all" && p.status !== status) return false;
-      if (!isWithinDateRange(p.payment_date, dateRange, customFrom, customTo)) return false;
+      if (!isWithinDateRange(p.payment_date, dates.range, dates.from, dates.to)) return false;
       if (!q) return true;
       return (
         p.receipt_number.toLowerCase().includes(q) ||
@@ -82,9 +85,9 @@ export function AdminPaymentsClient({ initialPayments }: { initialPayments: Paym
         appliedTo(p).toLowerCase().includes(q)
       );
     });
-  }, [initialPayments, search, mode, channel, status, dateRange, customFrom, customTo]);
+  }, [initialPayments, search, mode, channel, status, dates.range, dates.from, dates.to]);
 
-  const pager = usePagination(filtered, `${search}|${mode}|${channel}|${status}|${dateRange}|${customFrom}|${customTo}`);
+  const pager = usePagination(filtered, `${search}|${mode}|${channel}|${status}|${dates.key}`);
 
   // Cards follow the filters above (cancelled receipts never count as money received).
   const stats = useMemo(() => {
@@ -99,6 +102,16 @@ export function AdminPaymentsClient({ initialPayments }: { initialPayments: Paym
       advances,
     };
   }, [filtered]);
+
+  const exportCsv = () =>
+    downloadCsv(
+      `payments-received-${new Date().toISOString().slice(0, 10)}.csv`,
+      ["Receipt #", "Date", "Payer", "Mode", "Channel", "Reference", "Applied to", "Amount", "Status"],
+      filtered.map((p) => [
+        p.receipt_number, p.payment_date, p.payer_name, modeLabel(p.mode), channelLabel(p.channel),
+        p.reference ?? "", appliedTo(p), p.amount.toFixed(2), p.status,
+      ])
+    );
 
   const confirmCancel = () => {
     const target = cancelling;
@@ -123,11 +136,19 @@ export function AdminPaymentsClient({ initialPayments }: { initialPayments: Paym
         <div>
           <PageTitle icon={HandCoins}>Payments Received</PageTitle>
         </div>
-        <Button onClick={() => setCreating(true)} className="gap-1.5">
-          <HandCoins className="h-4 w-4" />
-          Record Payment
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" className="gap-1.5" onClick={exportCsv} disabled={!!loadError || filtered.length === 0}>
+            <FileDown className="h-4 w-4" />
+            Export CSV
+          </Button>
+          <Button onClick={() => setCreating(true)} className="gap-1.5" disabled={!!loadError}>
+            <HandCoins className="h-4 w-4" />
+            Record Payment
+          </Button>
+        </div>
       </div>
+
+      {loadError && <LoadErrorCard message={loadError} />}
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <Card className="p-3.5 bg-white border border-slate-200 shadow-none rounded-xl">
@@ -168,7 +189,7 @@ export function AdminPaymentsClient({ initialPayments }: { initialPayments: Paym
               {PAYMENT_CHANNELS.map((c) => (<SelectItem key={c.value} value={c.value} className="text-xs">{c.label}</SelectItem>))}
             </SelectContent>
           </Select>
-          <Select value={status} onValueChange={(v) => setStatus(v as typeof status)}>
+          <Select value={status} onValueChange={setStatus}>
             <SelectTrigger className="h-9 text-xs bg-slate-50/50 border-slate-200 w-full lg:w-[130px]"><SelectValue /></SelectTrigger>
             <SelectContent className="bg-white">
               <SelectItem value="all" className="text-xs">All Statuses</SelectItem>
@@ -176,22 +197,7 @@ export function AdminPaymentsClient({ initialPayments }: { initialPayments: Paym
               <SelectItem value="cancelled" className="text-xs">Cancelled</SelectItem>
             </SelectContent>
           </Select>
-          <Select value={dateRange} onValueChange={(v) => setDateRange(v as DateRangeKey)}>
-            <SelectTrigger className="h-9 text-xs bg-slate-50/50 border-slate-200 w-full lg:w-[150px]">
-              <Calendar className="h-3.5 w-3.5 text-slate-400 mr-1.5 shrink-0" />
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent className="bg-white">
-              {DATE_RANGE_OPTIONS.map((o) => (<SelectItem key={o.value} value={o.value} className="text-xs">{o.label}</SelectItem>))}
-            </SelectContent>
-          </Select>
-          {dateRange === "custom" && (
-            <div className="flex items-center gap-2">
-              <Input type="date" value={customFrom} max={customTo || undefined} onChange={(e) => setCustomFrom(e.target.value)} aria-label="From date" className="h-9 text-xs w-[140px]" />
-              <span className="text-xs text-slate-400">to</span>
-              <Input type="date" value={customTo} min={customFrom || undefined} onChange={(e) => setCustomTo(e.target.value)} aria-label="To date" className="h-9 text-xs w-[140px]" />
-            </div>
-          )}
+          <DateRangeFilter state={dates} />
         </div>
       </Card>
 

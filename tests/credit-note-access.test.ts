@@ -19,8 +19,10 @@ describe("credit note server authorization", () => {
   });
   it("customer listing filters using the session identity", async () => {
     mocks.auth.mockResolvedValue({ userId: "owner" });
-    mocks.eq.mockResolvedValue({ data: [], error: null });
-    mocks.db.mockReturnValue({ from: () => ({ select: () => ({ order: () => ({ eq: mocks.eq }) }) }) });
+    // Chainable query: order(...) any number of times, then eq(...), then range(...) resolves.
+    const query = { order: () => query, eq: mocks.eq, range: async () => ({ data: [], error: null }) };
+    mocks.eq.mockReturnValue(query);
+    mocks.db.mockReturnValue({ from: () => ({ select: () => query }) });
     await listCreditNotes(true);
     expect(mocks.eq).toHaveBeenCalledWith("user_id", "owner");
   });

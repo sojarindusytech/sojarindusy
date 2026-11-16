@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import { getOrderAmounts } from "@/lib/order-amounts";
+import { safeHttpUrl } from "@/lib/url";
 import { OrderDiscountRow } from "@/components/common/OrderDiscountRow";
 import { Order, Profile, OrderItem } from "@/types/database.types";
 import { ORDER_STATUSES, ORDER_STATUS_CONFIG, OrderStatus } from "@/lib/constants";
@@ -459,9 +460,9 @@ export function CustomerOrdersView({ orders }: CustomerOrdersViewProps) {
                       </div>
                     </div>
 
-                    {ord.tracking_url ? (
+                    {safeHttpUrl(ord.tracking_url) ? (
                       <a
-                        href={ord.tracking_url}
+                        href={safeHttpUrl(ord.tracking_url)!}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="inline-flex items-center justify-center gap-1.5 bg-[#024AE5] hover:bg-[#024AE5]/90 text-white text-xs font-bold px-3.5 py-2 rounded-lg shadow-xs transition-colors w-full sm:w-auto"
@@ -549,7 +550,9 @@ export function CustomerOrdersView({ orders }: CustomerOrdersViewProps) {
                   <Boxes className="h-5 w-5 text-[#024AE5] shrink-0" />
                   <DialogTitle className="text-base sm:text-lg font-bold text-slate-900 truncate">
                     {activeOrderDetails.status === ORDER_STATUSES.DELIVERED
-                      ? `GST Tax Invoice #${activeOrderDetails.invoice_number || activeOrderDetails.order_number.replace("ORD-", "INV-")}`
+                      ? activeOrderDetails.invoice_number
+                        ? `GST Tax Invoice #${activeOrderDetails.invoice_number}`
+                        : `Order #${activeOrderDetails.order_number} (invoice being prepared)`
                       : `Purchase Order #${activeOrderDetails.order_number}`}
                   </DialogTitle>
                 </div>
@@ -656,6 +659,24 @@ export function CustomerOrdersView({ orders }: CustomerOrdersViewProps) {
                     </span>
                   </div>
                 </div>
+                {activeOrderDetails.status === ORDER_STATUSES.DELIVERED && activeOrderDetails.invoice_id && (
+                  <div className="flex flex-col sm:flex-row gap-2 justify-end">
+                    <a
+                      href={`/api/invoices/${activeOrderDetails.invoice_id}/pdf`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                    >
+                      <Receipt className="h-3.5 w-3.5" /> View Invoice PDF
+                    </a>
+                    <a
+                      href={`/api/invoices/${activeOrderDetails.invoice_id}/pdf?download=1`}
+                      className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-[#024AE5] px-3 py-2 text-xs font-bold text-white hover:bg-[#023ecc]"
+                    >
+                      <ExternalLink className="h-3.5 w-3.5" /> Download Invoice
+                    </a>
+                  </div>
+                )}
               </div>
             </div>
           </DialogContent>

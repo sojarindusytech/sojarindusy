@@ -1,5 +1,7 @@
 "use server";
+import { recordAudit } from "@/lib/server/audit";
 
+import { selectAll } from "@/lib/server/select-all";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { guardOrError, requireAdmin, requireAdminOrManufacturer } from "@/lib/auth-guard";
 import { receivePurchaseOrder } from "@/lib/server/rpc";
@@ -135,6 +137,7 @@ export async function createManualPurchaseOrder(payload: {
       },
     ]);
 
+    await recordAudit({ action: "purchase_order.create", entity: "purchase_order", entityId: (created as { id?: string } | null)?.id ?? null, summary: `Created purchase order ${orderNumber} for ${variant.sku} × ${quantity}`, actor: { userId: guard.ctx.userId, email: guard.ctx.email, role: guard.ctx.role } });
     revalidatePath("/admin/purchase-orders");
     revalidatePath("/manufacturer");
     return { success: true, order: created as unknown as PurchaseOrder };
@@ -157,37 +160,43 @@ export async function getPurchaseOrders(params?: {
   if (!guard.ctx) return [];
 
   try {
-    let query = createAdminClient()
-      .from("purchase_orders" as never)
-      .select(`
-        *,
-        manufacturer:profiles!manufacturer_id(id, company_name, first_name, last_name, email),
-        product:products(id, title, slug),
-        variant:product_variants(id, sku, diameter, flute_length, overall_length, shank_diameter, stock_quantity, min_quantity, trigger_quantity, min_order_quantity)
-      `)
-      .order("created_at", { ascending: false });
+    const db = createAdminClient();
+    const ctx = guard.ctx;
+    const build = () => {
+      let query = db
+        .from("purchase_orders" as never)
+        .select(`
+          *,
+          manufacturer:profiles!manufacturer_id(id, company_name, first_name, last_name, email),
+          product:products(id, title, slug),
+          variant:product_variants(id, sku, diameter, flute_length, overall_length, shank_diameter, stock_quantity, min_quantity, trigger_quantity, min_order_quantity)
+        `)
+        .order("created_at", { ascending: false })
+        .order("id");
 
-    // A manufacturer sees the POs sent to them, plus unassigned ones. The service client skips
-    // row security, so the scope has to be applied here.
-    if (guard.ctx.role === "manufacturer") {
-      query = query.or(`manufacturer_id.is.null,manufacturer_id.eq.${guard.ctx.userId}`);
+      // A manufacturer sees the POs sent to them, plus unassigned ones. The service client skips
+      // row security, so the scope has to be applied here.
+      if (ctx.role === "manufacturer") {
+        query = query.or(`manufacturer_id.is.null,manufacturer_id.eq.${ctx.userId}`);
+      }
+
+      if (params?.isPast === true) {
+        query = query.eq("status", "Received");
+      } else if (params?.isPast === false) {
+        query = query.in("status", OPEN_STATUSES);
+      } else if (params?.status) {
+        query = query.eq("status", params.status);
+      }
+      return query;
+    };
+
+    let orders: PurchaseOrder[];
+    try {
+      orders = await selectAll<PurchaseOrder>((from, to) => build().range(from, to));
+    } catch (err) {
+      console.error("[getPurchaseOrders] Query error:", err);
+      throw new Error("Purchase orders could not be loaded. Please reload the page.");
     }
-
-    if (params?.isPast === true) {
-      query = query.eq("status", "Received");
-    } else if (params?.isPast === false) {
-      query = query.in("status", OPEN_STATUSES);
-    } else if (params?.status) {
-      query = query.eq("status", params.status);
-    }
-
-    const { data, error } = await query;
-    if (error) {
-      console.error("[getPurchaseOrders] Query error:", error.message);
-      return [];
-    }
-
-    let orders = (data || []) as unknown as PurchaseOrder[];
 
     const term = params?.search?.toLowerCase().trim();
     if (term) {
@@ -202,7 +211,7 @@ export async function getPurchaseOrders(params?: {
     return orders;
   } catch (err) {
     console.error("[getPurchaseOrders] Exception:", err);
-    return [];
+    throw err instanceof Error ? err : new Error("Purchase orders could not be loaded.");
   }
 }
 
@@ -293,6 +302,7 @@ export async function updatePurchaseOrderStatus(
       return { success: false, error: "A purchase order cannot be moved back to Placed." };
     }
 
+    await recordAudit({ action: "purchase_order.status", entity: "purchase_order", entityId: orderId, summary: `Purchase order moved to ${newStatus}`, metadata: { notes: notes ?? null }, actor: { userId: actorId, email: guard.ctx.email, role: guard.ctx.role } });
     revalidatePath("/admin/purchase-orders");
     revalidatePath("/manufacturer");
     revalidatePath("/admin/products");

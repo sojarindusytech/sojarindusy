@@ -1,25 +1,16 @@
-import { AdminComingSoon } from "@/components/admin/AdminComingSoon";
-import { ShieldAlert } from "lucide-react";
 import type { Metadata } from "next";
+import { listAuditLogs } from "@/actions/audit";
+import { AuditLogClient } from "@/components/admin/AuditLogClient";
 
 export const metadata: Metadata = {
-  title: "Audit Log & Security | Sojar Solutions Admin",
-  description: "System audit trail, change tracking, and login logs.",
+  title: "Audit Log | Sojar Solutions Admin",
+  description: "Who changed what and when: administrative changes and sign-ins.",
 };
 
-export default function AuditLogsAdminPage() {
-  return (
-    <AdminComingSoon
-      section="Analytics & Logs"
-      title="Audit Log"
-      description="Immutable security log capturing administrative data mutations, pricing updates, user logins, and permissions changes."
-      icon={ShieldAlert}
-      features={[
-        "Granular timestamped records with actor IP address and user ID",
-        "Before / After diff inspection for pricing and order status changes",
-        "Failed login attempt alerts and anomaly detection",
-        "Tamper-proof compliance archive for regulatory reporting",
-      ]}
-    />
-  );
+export const dynamic = "force-dynamic";
+
+export default async function AuditLogsAdminPage({ searchParams }: { searchParams: Promise<{ from?: string; to?: string }> }) {
+  const { from, to } = await searchParams;
+  const data = await listAuditLogs({ from, to });
+  return <AuditLogClient {...data} />;
 }

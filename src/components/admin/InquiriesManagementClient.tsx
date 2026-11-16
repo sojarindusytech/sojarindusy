@@ -110,7 +110,10 @@ export function InquiriesManagementClient({
     setIsRefreshing(true);
     try {
       const res = await fetchContactSubmissions();
-      if (res.data) {
+      // A failed fetch returns { data: [], error }: keep the current list instead of wiping it.
+      if (res.error) {
+        toast.error(res.error);
+      } else {
         setSubmissions(res.data);
         toast.success("Submissions refreshed.");
       }
@@ -142,9 +145,8 @@ export function InquiriesManagementClient({
         setSubmissions((prev) =>
           prev.map((item) => (item.id === id ? { ...item, status: newStatus } : item))
         );
-        if (selectedInquiry && selectedInquiry.id === id) {
-          setSelectedInquiry((prev) => (prev ? { ...prev, status: newStatus } : null));
-        }
+        // Functional update: when called right after opening, the captured selectedInquiry is stale.
+        setSelectedInquiry((prev) => (prev?.id === id ? { ...prev, status: newStatus } : prev));
         if (showToast) {
           toast.success(`Marked as ${newStatus}`);
         }
@@ -670,6 +672,7 @@ export function InquiriesManagementClient({
                 </div>
                 <textarea
                   rows={3}
+                  maxLength={5000}
                   value={adminNoteInput}
                   onChange={(e) => setAdminNoteInput(e.target.value)}
                   placeholder="e.g. Sent price quote on 16 Sep; waiting on dimensions confirmation..."

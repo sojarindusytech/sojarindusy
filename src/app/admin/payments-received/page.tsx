@@ -1,3 +1,4 @@
+import { loadOrError } from "@/components/common/LoadErrorCard";
 import { AdminPaymentsClient } from "@/components/admin/AdminPaymentsClient";
 import { listPayments } from "@/actions/payment";
 import type { Metadata } from "next";
@@ -10,6 +11,6 @@ export const metadata: Metadata = {
 export const dynamic = "force-dynamic";
 
 export default async function PaymentsReceivedPage() {
-  const payments = await listPayments();
-  return <AdminPaymentsClient initialPayments={payments} />;
+  const { data: payments, loadError } = await loadOrError(listPayments, []);
+  return <AdminPaymentsClient initialPayments={payments} loadError={loadError} />;
 }

@@ -46,23 +46,34 @@ import {
   ShieldCheck,
   RefreshCw,
   FilePlus2,
+  FileDown,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import {
-  DATE_RANGE_OPTIONS,
-  isWithinDateRange,
-  type DateRangeKey,
-} from "@/lib/date-range";
+import { isWithinDateRange } from "@/lib/date-range";
+import { DateRangeFilter, useDateRangeFilter } from "@/components/common/DateRangeFilter";
+import { LoadErrorCard } from "@/components/common/LoadErrorCard";
+import { useUrlState } from "@/lib/use-url-state";
+import { downloadCsv } from "@/lib/csv";
 import toast from "react-hot-toast";
 import { PurchaseOrderFormModal } from "./PurchaseOrderFormModal";
 import { PaginationBar, usePagination } from "@/components/common/Pagination";
 
 interface AdminPurchaseOrdersClientProps {
   initialOrders: PurchaseOrder[];
+  loadError?: string | null;
 }
+
+const manufacturerName = (po: PurchaseOrder) =>
+  po.manufacturer
+    ? po.manufacturer.company_name ||
+      `${po.manufacturer.first_name ?? ""} ${po.manufacturer.last_name ?? ""}`.trim() ||
+      po.manufacturer.email ||
+      "Manufacturer"
+    : "Not assigned";
 
 export function AdminPurchaseOrdersClient({
   initialOrders,
+  loadError = null,
 }: AdminPurchaseOrdersClientProps) {
   const router = useRouter();
   const [creating, setCreating] = useState(false);
@@ -73,11 +84,13 @@ export function AdminPurchaseOrdersClient({
     setSyncedInitial(initialOrders);
     setOrders(initialOrders);
   }
-  const [activeTab, setActiveTab] = useState<"active" | "past">("active");
-  const [searchQuery, setSearchQuery] = useState("");
-  const [dateRange, setDateRange] = useState<DateRangeKey>("all");
-  const [customFrom, setCustomFrom] = useState("");
-  const [customTo, setCustomTo] = useState("");
+  // Filters live in the URL: they survive reload / Back and can be shared as a link.
+  const [tab, setActiveTab] = useUrlState("tab", "active");
+  const activeTab: "active" | "past" = tab === "past" ? "past" : "active";
+  const [searchQuery, setSearchQuery] = useUrlState("q");
+  const [statusFilter, setStatusFilter] = useUrlState("status", "all");
+  const [manufacturerFilter, setManufacturerFilter] = useUrlState("maker", "all");
+  const dates = useDateRangeFilter();
 
   // Confirmation Modal for receiving order
   const [receivingOrder, setReceivingOrder] = useState<PurchaseOrder | null>(null);
@@ -116,21 +129,49 @@ export function AdminPurchaseOrdersClient({
       // Filter on the same date the DATE column renders.
       const matchesDate = isWithinDateRange(
         o.placed_at || o.created_at,
-        dateRange,
-        customFrom,
-        customTo
+        dates.range,
+        dates.from,
+        dates.to
       );
 
-      return matchesSearch && matchesDate;
-    };
-  }, [searchQuery, dateRange, customFrom, customTo]);
+      const matchesMaker =
+        manufacturerFilter === "all" ||
+        (manufacturerFilter === "none" ? !o.manufacturer_id : o.manufacturer_id === manufacturerFilter);
 
-  const filteredOrders = useMemo(() => currentList.filter(matchesFilters), [currentList, matchesFilters]);
+      return matchesSearch && matchesDate && matchesMaker;
+    };
+  }, [searchQuery, dates.range, dates.from, dates.to, manufacturerFilter]);
+
+  // Manufacturers that appear on any PO, for the filter.
+  const manufacturerOptions = useMemo(() => {
+    const seen = new Map<string, string>();
+    for (const o of orders) if (o.manufacturer_id && !seen.has(o.manufacturer_id)) seen.set(o.manufacturer_id, manufacturerName(o));
+    return [...seen.entries()].sort((a, b) => a[1].localeCompare(b[1]));
+  }, [orders]);
+
+  // The status filter only narrows the Active tab (Placed / In Transit); Past is all Received.
+  const filteredOrders = useMemo(
+    () =>
+      currentList.filter(
+        (o) => matchesFilters(o) && (activeTab === "past" || statusFilter === "all" || o.status === statusFilter)
+      ),
+    [currentList, matchesFilters, activeTab, statusFilter]
+  );
+
+  const exportCsv = () =>
+    downloadCsv(
+      `purchase-orders-${activeTab}-${new Date().toISOString().slice(0, 10)}.csv`,
+      ["PO #", "Date", "Product", "SKU", "Manufacturer", "Order qty", "Status"],
+      filteredOrders.map((o) => [
+        o.order_number, (o.placed_at || o.created_at || "").slice(0, 10), o.product_title ?? "", o.sku_code ?? "",
+        manufacturerName(o), o.order_quantity ?? 0, o.status,
+      ])
+    );
   // The cards follow the search and date filters (each card keeps its own Active / Past scope).
   const shownActive = useMemo(() => activeOrders.filter(matchesFilters), [activeOrders, matchesFilters]);
   const shownPast = useMemo(() => pastOrders.filter(matchesFilters), [pastOrders, matchesFilters]);
 
-  const pager = usePagination(filteredOrders, `${activeTab}|${searchQuery}|${dateRange}|${customFrom}|${customTo}`);
+  const pager = usePagination(filteredOrders, `${activeTab}|${searchQuery}|${statusFilter}|${manufacturerFilter}|${dates.key}`);
 
   // Aggregate Metrics
   const totalActiveUnits = shownActive.reduce(
@@ -239,11 +280,19 @@ export function AdminPurchaseOrdersClient({
         <div>
           <PageTitle icon={Truck}>Purchase Orders</PageTitle>
         </div>
-        <Button onClick={() => setCreating(true)} className="gap-1.5 shrink-0">
-          <FilePlus2 className="h-4 w-4" />
-          New Purchase Order
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" className="gap-1.5" onClick={exportCsv} disabled={!!loadError || filteredOrders.length === 0}>
+            <FileDown className="h-4 w-4" />
+            Export CSV
+          </Button>
+          <Button onClick={() => setCreating(true)} className="gap-1.5 shrink-0" disabled={!!loadError}>
+            <FilePlus2 className="h-4 w-4" />
+            New Purchase Order
+          </Button>
+        </div>
       </div>
+
+      {loadError && <LoadErrorCard message={loadError} />}
 
       {/* KPI Summary Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -351,46 +400,34 @@ export function AdminPurchaseOrdersClient({
               />
             </div>
 
-            {/* Date filter on the order's placed date */}
-            <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-              <Select
-                value={dateRange}
-                onValueChange={(v) => setDateRange(v as DateRangeKey)}
-              >
-                <SelectTrigger className="h-9 text-xs bg-slate-50/50 border-slate-200 w-full sm:w-[150px]">
-                  <Calendar className="h-3.5 w-3.5 text-slate-400 mr-1.5 shrink-0" />
-                  <SelectValue placeholder="All Time" />
+            {activeTab === "active" && (
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="h-9 text-xs bg-slate-50/50 border-slate-200 w-full sm:w-[170px]" aria-label="Status">
+                  <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {DATE_RANGE_OPTIONS.map((opt) => (
-                    <SelectItem key={opt.value} value={opt.value} className="text-xs">
-                      {opt.label}
-                    </SelectItem>
-                  ))}
+                  <SelectItem value="all" className="text-xs">All Active</SelectItem>
+                  <SelectItem value="Placed" className="text-xs">Placed</SelectItem>
+                  <SelectItem value="Dispatched / In Transit" className="text-xs">Dispatched / In Transit</SelectItem>
                 </SelectContent>
               </Select>
+            )}
+            <Select value={manufacturerFilter} onValueChange={setManufacturerFilter}>
+              <SelectTrigger className="h-9 text-xs bg-slate-50/50 border-slate-200 w-full sm:w-[170px]" aria-label="Manufacturer">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all" className="text-xs">All Manufacturers</SelectItem>
+                <SelectItem value="none" className="text-xs">Not assigned</SelectItem>
+                {manufacturerOptions.map(([id, name]) => (
+                  <SelectItem key={id} value={id} className="text-xs">{name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
 
-              {dateRange === "custom" ? (
-                <div className="flex items-center gap-2">
-                  <Input
-                    type="date"
-                    value={customFrom}
-                    max={customTo || undefined}
-                    onChange={(e) => setCustomFrom(e.target.value)}
-                    aria-label="From date"
-                    className="h-9 text-xs bg-slate-50/50 border-slate-200 w-full sm:w-[140px]"
-                  />
-                  <span className="text-xs text-slate-400 shrink-0">to</span>
-                  <Input
-                    type="date"
-                    value={customTo}
-                    min={customFrom || undefined}
-                    onChange={(e) => setCustomTo(e.target.value)}
-                    aria-label="To date"
-                    className="h-9 text-xs bg-slate-50/50 border-slate-200 w-full sm:w-[140px]"
-                  />
-                </div>
-              ) : null}
+            {/* Date filter on the order's placed date */}
+            <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+              <DateRangeFilter state={dates} />
             </div>
           </div>
         </div>

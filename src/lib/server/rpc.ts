@@ -300,6 +300,12 @@ export const removeProduct = (productId: string, actorId: string) =>
 export const restoreProduct = (productId: string, actorId: string) =>
   callRpc<null>("restore_product", { p_product_id: productId, p_actor: actorId });
 
+// ---- Customers (20261025_customer_deactivation) ---------------------------------------
+
+/** True when the profile appears on any order, document, payment or ledger row. */
+export const customerHasHistory = (userId: string) =>
+  callRpc<boolean>("customer_has_history", { p_user_id: userId });
+
 export const removeCoupon = (couponId: string) =>
   callRpc<"deleted" | "archived">("remove_coupon", { p_coupon_id: couponId });
 

@@ -6,11 +6,15 @@ import { useEffect, useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
-import { Calendar, Download, Eye, FilePlus2, FileUp, HandCoins, Pencil, Receipt, Search, Settings, Ban } from "lucide-react";
+import { Download, FileDown, Eye, FilePlus2, FileUp, HandCoins, Pencil, Receipt, Search, Settings, Ban } from "lucide-react";
 import type { InvoiceListRow } from "@/actions/invoice";
 import { cancelInvoice, getInvoice } from "@/actions/invoice";
 import type { Invoice } from "@/types/database.types";
-import { DATE_RANGE_OPTIONS, isWithinDateRange, type DateRangeKey } from "@/lib/date-range";
+import { isWithinDateRange } from "@/lib/date-range";
+import { DateRangeFilter, useDateRangeFilter } from "@/components/common/DateRangeFilter";
+import { LoadErrorCard } from "@/components/common/LoadErrorCard";
+import { useUrlState } from "@/lib/use-url-state";
+import { downloadCsv } from "@/lib/csv";
 import { Card } from "@/components/ui/card";
 import { IconAction } from "@/components/common/IconAction";
 import { Button } from "@/components/ui/button";
@@ -70,13 +74,13 @@ function PdfSkeleton() {
   );
 }
 
-export function AdminInvoicesClient({ initialInvoices }: { initialInvoices: InvoiceListRow[] }) {
+export function AdminInvoicesClient({ initialInvoices, loadError = null }: { initialInvoices: InvoiceListRow[]; loadError?: string | null }) {
   const router = useRouter();
-  const [search, setSearch] = useState("");
-  const [status, setStatus] = useState<"all" | "issued" | "cancelled">("all");
-  const [dateRange, setDateRange] = useState<DateRangeKey>("all");
-  const [customFrom, setCustomFrom] = useState("");
-  const [customTo, setCustomTo] = useState("");
+  // Filters live in the URL: they survive reload / Back and can be shared as a link.
+  const [search, setSearch] = useUrlState("q");
+  const [status, setStatus] = useUrlState("status", "all");
+  const [payStatus, setPayStatus] = useUrlState("pay", "all");
+  const dates = useDateRangeFilter();
   const [creating, setCreating] = useState(false);
   // "Record payment" from a row: the form opens with that invoice preselected. Its data is fetched ahead of the click.
   const [payingInvoiceId, setPayingInvoiceId] = useState<string | null>(null);
@@ -103,21 +107,39 @@ export function AdminInvoicesClient({ initialInvoices }: { initialInvoices: Invo
     const q = search.toLowerCase().trim();
     return initialInvoices.filter((inv) => {
       if (status !== "all" && inv.status !== status) return false;
-      if (!isWithinDateRange(inv.invoice_date, dateRange, customFrom, customTo)) return false;
+      // Payment status only applies to issued invoices.
+      if (payStatus !== "all" && (inv.status !== "issued" || inv.payment_status !== payStatus)) return false;
+      if (!isWithinDateRange(inv.invoice_date, dates.range, dates.from, dates.to)) return false;
       if (!q) return true;
       return (
         inv.invoice_number.toLowerCase().includes(q) ||
         inv.bill_to?.name?.toLowerCase().includes(q) ||
+        inv.bill_to?.gstin?.toLowerCase().includes(q) ||
         inv.po_number?.toLowerCase().includes(q)
       );
     });
-  }, [initialInvoices, search, status, dateRange, customFrom, customTo]);
+  }, [initialInvoices, search, status, payStatus, dates.range, dates.from, dates.to]);
 
-  const pager = usePagination(filtered, `${search}|${status}|${dateRange}|${customFrom}|${customTo}`);
+  const pager = usePagination(filtered, `${search}|${status}|${payStatus}|${dates.key}`);
 
   // Cards follow the filters above.
   const issued = filtered.filter((i) => i.status === "issued");
   const billed = issued.reduce((sum, i) => sum + Number(i.total_amount || 0), 0);
+  const outstanding = issued.reduce((sum, i) => sum + Math.max(0, i.balance ?? Number(i.total_amount || 0)), 0);
+
+  const exportCsv = () =>
+    downloadCsv(
+      `invoices-${new Date().toISOString().slice(0, 10)}.csv`,
+      ["Invoice #", "Date", "Customer", "GSTIN", "PO / Order #", "Total", "Paid", "Balance", "Payment status", "Status"],
+      filtered.map((i) => [
+        i.invoice_number, i.invoice_date, i.bill_to?.name ?? "", i.bill_to?.gstin ?? "", i.po_number ?? "",
+        Number(i.total_amount || 0).toFixed(2),
+        i.status === "issued" && i.paid !== undefined ? i.paid.toFixed(2) : "",
+        i.status === "issued" && i.balance !== undefined ? i.balance.toFixed(2) : "",
+        i.status === "issued" && i.payment_status ? paymentStatusLabel(i.payment_status) : "",
+        i.status,
+      ])
+    );
 
   const startEdit = async (inv: InvoiceListRow) => {
     setLoadingEditId(inv.id);
@@ -149,6 +171,10 @@ export function AdminInvoicesClient({ initialInvoices }: { initialInvoices: Invo
           <PageTitle icon={Receipt}>Invoice</PageTitle>
         </div>
         <div className="flex items-center gap-2">
+          <Button variant="outline" className="gap-1.5" onClick={exportCsv} disabled={!!loadError || filtered.length === 0}>
+            <FileDown className="h-4 w-4" />
+            Export CSV
+          </Button>
           <Button asChild variant="outline" className="gap-1.5">
             <Link href="/admin/settings/sales">
               <Settings className="h-4 w-4" />
@@ -162,7 +188,9 @@ export function AdminInvoicesClient({ initialInvoices }: { initialInvoices: Invo
         </div>
       </div>
 
-      <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
+      {loadError && <LoadErrorCard message={loadError} />}
+
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <Card className="p-3.5 bg-white border border-slate-200 shadow-none rounded-xl">
           <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1">Invoices Issued</div>
           <div className="text-xl font-bold text-slate-900">{issued.length}</div>
@@ -171,7 +199,11 @@ export function AdminInvoicesClient({ initialInvoices }: { initialInvoices: Invo
           <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1">Total Billed</div>
           <div className="text-xl font-bold text-[#024AE5]">{inr(billed)}</div>
         </Card>
-        <Card className="p-3.5 bg-white border border-slate-200 shadow-none rounded-xl col-span-2 lg:col-span-1">
+        <Card className="p-3.5 bg-white border border-slate-200 shadow-none rounded-xl">
+          <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1">Outstanding</div>
+          <div className="text-xl font-bold text-amber-700">{inr(outstanding)}</div>
+        </Card>
+        <Card className="p-3.5 bg-white border border-slate-200 shadow-none rounded-xl">
           <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1">Cancelled</div>
           <div className="text-xl font-bold text-slate-900">{filtered.length - issued.length}</div>
         </Card>
@@ -182,13 +214,13 @@ export function AdminInvoicesClient({ initialInvoices }: { initialInvoices: Invo
           <div className="relative flex-1">
             <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-slate-400" />
             <Input
-              placeholder="Search by invoice #, customer or PO..."
+              placeholder="Search by invoice #, customer, GSTIN or PO..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="pl-8 h-9 text-xs bg-slate-50/50 border-slate-200 focus:bg-white"
             />
           </div>
-          <Select value={status} onValueChange={(v) => setStatus(v as typeof status)}>
+          <Select value={status} onValueChange={setStatus}>
             <SelectTrigger className="h-9 text-xs bg-slate-50/50 border-slate-200 w-full lg:w-[150px]">
               <SelectValue />
             </SelectTrigger>
@@ -198,24 +230,18 @@ export function AdminInvoicesClient({ initialInvoices }: { initialInvoices: Invo
               <SelectItem value="cancelled" className="text-xs">Cancelled</SelectItem>
             </SelectContent>
           </Select>
-          <Select value={dateRange} onValueChange={(v) => setDateRange(v as DateRangeKey)}>
-            <SelectTrigger className="h-9 text-xs bg-slate-50/50 border-slate-200 w-full lg:w-[150px]">
-              <Calendar className="h-3.5 w-3.5 text-slate-400 mr-1.5 shrink-0" />
+          <Select value={payStatus} onValueChange={setPayStatus}>
+            <SelectTrigger className="h-9 text-xs bg-slate-50/50 border-slate-200 w-full lg:w-[160px]" aria-label="Payment status">
               <SelectValue />
             </SelectTrigger>
             <SelectContent className="bg-white">
-              {DATE_RANGE_OPTIONS.map((o) => (
-                <SelectItem key={o.value} value={o.value} className="text-xs">{o.label}</SelectItem>
-              ))}
+              <SelectItem value="all" className="text-xs">All Payments</SelectItem>
+              <SelectItem value="unpaid" className="text-xs">Unpaid</SelectItem>
+              <SelectItem value="partial" className="text-xs">Partially Paid</SelectItem>
+              <SelectItem value="paid" className="text-xs">Paid</SelectItem>
             </SelectContent>
           </Select>
-          {dateRange === "custom" && (
-            <div className="flex items-center gap-2">
-              <Input type="date" value={customFrom} max={customTo || undefined} onChange={(e) => setCustomFrom(e.target.value)} aria-label="From date" className="h-9 text-xs w-[140px]" />
-              <span className="text-xs text-slate-400">to</span>
-              <Input type="date" value={customTo} min={customFrom || undefined} onChange={(e) => setCustomTo(e.target.value)} aria-label="To date" className="h-9 text-xs w-[140px]" />
-            </div>
-          )}
+          <DateRangeFilter state={dates} />
         </div>
       </Card>
 

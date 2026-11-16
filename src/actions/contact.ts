@@ -1,4 +1,5 @@
 "use server";
+import { recordAudit } from "@/lib/server/audit";
 
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireAdmin } from "@/lib/auth-guard";
@@ -9,14 +10,17 @@ import {
   ContactSubmissionUpdate,
 } from "@/types/database.types";
 import { revalidatePath } from "next/cache";
+import { CONTACT_RATE_LIMIT, validateInquiry, type InquiryInput } from "@/lib/contact";
+import { createNotification } from "@/lib/server/notifications";
 
-export interface ContactInquiryPayload {
-  fullName: string;
-  email: string;
-  mobile?: string;
-  message: string;
-  privacyAccepted?: boolean;
+export interface ContactInquiryPayload extends InquiryInput {
+  /** Honeypot: a hidden field people never fill in. Bots that do are silently dropped. */
+  website?: string;
 }
+
+const GENERIC_SUBMIT_ERROR = "We could not send your message right now. Please try again in a few minutes.";
+const STATUSES: ContactSubmissionStatus[] = ["unread", "read", "replied", "archived"];
+const ADMIN_NOTES_MAX = 5000;
 
 export interface FetchSubmissionsResult {
   data: ContactSubmission[];
@@ -25,114 +29,68 @@ export interface FetchSubmissionsResult {
 }
 
 /**
- * Public Server Action to submit an inquiry from the storefront contact form
+ * Public Server Action for the storefront contact form. Runs with the service role (the table
+ * has no public insert policy), so every check here is the only gate.
  */
 export async function submitContactInquiry(payload: ContactInquiryPayload): Promise<{
   success: boolean;
   error?: string;
 }> {
+  // Honeypot filled in: pretend it worked so the bot learns nothing, store nothing.
+  if (typeof payload?.website === "string" && payload.website.trim() !== "") {
+    return { success: true };
+  }
+
+  const checked = validateInquiry(payload ?? ({} as InquiryInput));
+  if ("error" in checked) return { success: false, error: checked.error };
+  const clean = checked.data;
+
   try {
-    const { fullName, email, mobile, message, privacyAccepted } = payload;
-
-    // 0. Privacy Policy acceptance validation
-    if (privacyAccepted === false) {
-      return { success: false, error: "You must agree to our Privacy Policy to submit your message." };
-    }
-
-    // 1. Full Name validation
-    const trimmedName = fullName?.trim();
-    if (!trimmedName) {
-      return { success: false, error: "Please enter your full name." };
-    }
-    if (trimmedName.length < 2) {
-      return { success: false, error: "Name must be at least 2 characters long." };
-    }
-    if (trimmedName.length > 100) {
-      return { success: false, error: "Name must not exceed 100 characters." };
-    }
-    if (!/^[a-zA-Z\s.'-]+$/.test(trimmedName)) {
-      return { success: false, error: "Name should only contain letters and standard characters." };
-    }
-
-    // 2. Email validation
-    const trimmedEmail = email?.trim().toLowerCase();
-    if (!trimmedEmail) {
-      return { success: false, error: "Please enter your email address." };
-    }
-    const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
-    if (!emailRegex.test(trimmedEmail) || trimmedEmail.length > 254) {
-      return { success: false, error: "Please provide a valid email address (e.g. name@example.com)." };
-    }
-
-    // 3. Mobile validation (optional, but if provided must be valid)
-    let cleanedMobile: string | null = null;
-    if (mobile && mobile.trim()) {
-      const rawMobile = mobile.trim().replace(/[\s-]/g, "");
-      const indianPhoneRegex = /^(?:\+91|91)?[6-9]\d{9}$/;
-      const generalPhoneRegex = /^\+?\d{10,14}$/;
-
-      if (!indianPhoneRegex.test(rawMobile) && !generalPhoneRegex.test(rawMobile)) {
-        return { success: false, error: "Please enter a valid 10-digit mobile number." };
-      }
-      cleanedMobile = rawMobile.startsWith("+") ? rawMobile : (rawMobile.length === 10 ? `+91${rawMobile}` : rawMobile);
-    }
-
-    // 4. Message validation
-    const trimmedMessage = message?.trim();
-    if (!trimmedMessage) {
-      return { success: false, error: "Please enter your message or requirements." };
-    }
-    if (trimmedMessage.length < 10) {
-      return { success: false, error: "Message must be at least 10 characters long so we can assist you better." };
-    }
-    if (trimmedMessage.length > 2000) {
-      return { success: false, error: "Message cannot exceed 2000 characters." };
-    }
-
     const supabase = createAdminClient();
 
+    // Rate limit per email address.
+    const since = new Date(Date.now() - CONTACT_RATE_LIMIT.windowMinutes * 60_000).toISOString();
+    const { count, error: countError } = await supabase
+      .from("contact_submissions")
+      .select("id", { count: "exact", head: true })
+      .eq("email", clean.email)
+      .gte("created_at", since);
+    if (countError) {
+      console.error("[submitContactInquiry] rate-limit lookup:", countError.message);
+      return { success: false, error: GENERIC_SUBMIT_ERROR };
+    }
+    if ((count ?? 0) >= CONTACT_RATE_LIMIT.max) {
+      return {
+        success: false,
+        error: "You have already sent us several messages. Please wait an hour before sending another.",
+      };
+    }
+
     const insertData: ContactSubmissionInsert = {
-      full_name: trimmedName,
-      email: trimmedEmail,
-      mobile: cleanedMobile,
-      message: trimmedMessage,
+      ...clean,
       status: "unread",
       privacy_accepted: true,
       admin_notes: null,
     };
-
-    let { error } = await supabase
-      .from("contact_submissions")
-      .insert(insertData as never);
-
-    // Graceful fallback if database table does not yet have privacy_accepted column
-    if (error && (error.code === "42703" || error.message?.includes("privacy_accepted"))) {
-      const fallbackData = { ...insertData };
-      delete fallbackData.privacy_accepted;
-      const retry = await supabase
-        .from("contact_submissions")
-        .insert(fallbackData as never);
-      error = retry.error;
-    }
-
+    const { error } = await supabase.from("contact_submissions").insert(insertData as never);
     if (error) {
-      console.error("Supabase error submitting contact inquiry:", error);
-      if (error.code === "42P01" || error.message?.includes("does not exist")) {
-        return {
-          success: false,
-          error: "The contact submissions table is pending migration in Supabase. Please apply the migration first.",
-        };
-      }
-      return { success: false, error: error.message || "Failed to submit your message." };
+      // Details stay in the server log; visitors get a generic message.
+      console.error("[submitContactInquiry] insert:", error.code, error.message);
+      return { success: false, error: GENERIC_SUBMIT_ERROR };
     }
+
+    await createNotification({
+      role: "admin",
+      title: "New website inquiry",
+      message: `${clean.full_name} (${clean.email}) sent a message from the contact form.`,
+      type: "info",
+      link: "/admin/inquiries",
+    }).catch((err) => console.warn("[submitContactInquiry] admin notification skipped:", err));
 
     return { success: true };
-  } catch (err: any) {
-    console.error("Unexpected error submitting contact inquiry:", err);
-    return {
-      success: false,
-      error: err?.message || "An unexpected error occurred. Please try again.",
-    };
+  } catch (err) {
+    console.error("[submitContactInquiry] unexpected:", err);
+    return { success: false, error: GENERIC_SUBMIT_ERROR };
   }
 }
 
@@ -181,6 +139,12 @@ export async function updateContactSubmission(
   await requireAdmin();
   try {
     if (!id) return { success: false, error: "Missing submission ID" };
+    if (updates.status !== undefined && !STATUSES.includes(updates.status)) {
+      return { success: false, error: "Invalid status." };
+    }
+    if (updates.admin_notes && updates.admin_notes.length > ADMIN_NOTES_MAX) {
+      return { success: false, error: `Admin notes cannot exceed ${ADMIN_NOTES_MAX} characters.` };
+    }
 
     const supabase = createAdminClient();
 
@@ -229,6 +193,7 @@ export async function deleteContactSubmission(
       return { success: false, error: error.message };
     }
 
+    await recordAudit({ action: "inquiry.delete", entity: "inquiry", entityId: id, summary: "Deleted website inquiry" });
     revalidatePath("/admin/inquiries");
     return { success: true };
   } catch (err: any) {

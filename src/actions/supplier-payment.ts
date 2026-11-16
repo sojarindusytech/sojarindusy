@@ -1,5 +1,7 @@
 "use server";
+import { recordAudit } from "@/lib/server/audit";
 
+import { selectAll } from "@/lib/server/select-all";
 import { revalidatePath } from "next/cache";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireAdmin } from "@/lib/auth-guard";
@@ -40,16 +42,18 @@ const revalidate = () => {
 
 export async function listSupplierPayments(): Promise<SupplierPayment[]> {
   await requireAdmin();
-  const { data, error } = await createAdminClient()
-    .from("supplier_payments" as never)
-    .select("*")
-    .order("created_at", { ascending: false });
-  if (error) {
-    console.error("[listSupplierPayments]", error.code, error.message);
-    if (isMissingTable(error)) throw new Error(LEDGER_MIGRATION_HINT);
-    throw new Error("Payments could not be loaded.");
+  const db = createAdminClient();
+  try {
+    const rows = await selectAll<SupplierPayment>((from, to) =>
+      db.from("supplier_payments" as never).select("*")
+        .order("payment_date", { ascending: false }).order("created_at", { ascending: false }).order("id").range(from, to)
+    );
+    return rows.map((p) => ({ ...p, amount: Number(p.amount) }));
+  } catch (err) {
+    const e = err as { code?: string; message?: string };
+    console.error("[listSupplierPayments]", e.code, e.message);
+    throw new Error(isMissingTable(e) ? LEDGER_MIGRATION_HINT : "Payments could not be loaded.");
   }
-  return ((data as unknown as SupplierPayment[]) ?? []).map((p) => ({ ...p, amount: Number(p.amount) }));
 }
 
 export interface SupplierPaymentFormData {
@@ -60,7 +64,7 @@ export interface SupplierPaymentFormData {
 
 export async function getSupplierPaymentFormData(): Promise<SupplierPaymentFormData> {
   await requireAdmin();
-  const [parties, accounts, settings] = await Promise.all([loadParties(), loadMoneyAccounts(), loadSalesSettings()]);
+  const [parties, accounts, settings] = await Promise.all([loadParties().catch(() => []), loadMoneyAccounts(), loadSalesSettings()]);
   return {
     manufacturers: parties.filter((p) => p.role === "manufacturer").map((p) => ({ id: p.id, name: p.name })),
     accounts,
@@ -104,6 +108,11 @@ export async function recordSupplierPaymentAction(input: SupplierPaymentInput): 
     if (error.code === "DATABASE_ERROR") console.error("[recordSupplierPayment]", error.raw);
     return { success: false, error: supplierPaymentError(error) };
   }
+  await recordAudit({
+    action: "supplier_payment.record", entity: "supplier_payment", entityId: data.id,
+    summary: `Recorded payment ${data.voucher_number} to ${data.payee_name}: ₹${Number(data.amount).toLocaleString("en-IN", { minimumFractionDigits: 2 })}`,
+    actor: { userId: actorId },
+  });
   revalidate();
   return { success: true, payment: { ...data, amount: Number(data.amount) } };
 }
@@ -117,8 +126,15 @@ export async function cancelSupplierPaymentAction(id: string, reason: string): P
     return { success: false, error: "Administrator access required." };
   }
   if (reason.trim().length < 3) return { success: false, error: "Enter a reason (at least 3 characters)." };
-  const { error } = await cancelSupplierPayment(id, reason.trim(), actorId);
+  const { data: cancelled, error } = await cancelSupplierPayment(id, reason.trim(), actorId);
   if (error) return { success: false, error: supplierPaymentError(error) };
+  if (!cancelled?.already_cancelled) {
+    await recordAudit({
+      action: "supplier_payment.cancel", entity: "supplier_payment", entityId: id,
+      summary: `Cancelled payment ${cancelled?.voucher_number ?? id}: ${reason.trim()}`,
+      actor: { userId: actorId },
+    });
+  }
   revalidate();
   return { success: true };
 }

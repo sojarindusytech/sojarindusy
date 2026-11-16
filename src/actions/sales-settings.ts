@@ -1,4 +1,6 @@
 "use server";
+import { diffChanges } from "@/lib/audit";
+import { recordAudit } from "@/lib/server/audit";
 
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireAdmin } from "@/lib/auth-guard";
@@ -106,6 +108,11 @@ export async function updateSalesSettings(
 
     if (!saved) return { success: false, error: "Sales settings changed while saving. Reload and try again." };
 
+    await recordAudit({
+      action: "sales_settings.update", entity: "sales_settings", entityId: "sales_settings",
+      summary: "Updated sales settings",
+      changes: diffChanges(current as unknown as Record<string, unknown>, values as Record<string, unknown>),
+    });
     revalidatePath("/admin/settings/sales");
     revalidatePath("/admin/invoices");
     revalidatePath("/admin/credit-notes");

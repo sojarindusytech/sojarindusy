@@ -51,19 +51,28 @@ import {
   Building2,
   CheckCircle2,
   FilePlus2,
+  FileDown,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { RfqFormModal } from "./RfqFormModal";
 import { PaginationBar, usePagination } from "@/components/common/Pagination";
+import { DateRangeFilter, useDateRangeFilter } from "@/components/common/DateRangeFilter";
+import { LoadErrorCard } from "@/components/common/LoadErrorCard";
+import { useUrlState } from "@/lib/use-url-state";
+import { isWithinDateRange } from "@/lib/date-range";
+import { downloadCsv } from "@/lib/csv";
 
 interface AdminRfqsClientProps {
   initialRfqs: RFQ[];
+  loadError?: string | null;
 }
 
-export function AdminRfqsClient({ initialRfqs }: AdminRfqsClientProps) {
+export function AdminRfqsClient({ initialRfqs, loadError = null }: AdminRfqsClientProps) {
   const [rfqs, setRfqs] = useState<RFQ[]>(initialRfqs);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState("ALL");
+  // Filters live in the URL: they survive reload / Back and can be shared as a link.
+  const [searchQuery, setSearchQuery] = useUrlState("q");
+  const [statusFilter, setStatusFilter] = useUrlState("status", "ALL");
+  const dates = useDateRangeFilter();
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [creating, setCreating] = useState(false);
 
@@ -74,10 +83,10 @@ export function AdminRfqsClient({ initialRfqs }: AdminRfqsClientProps) {
   const [adminNotes, setAdminNotes] = useState<string>("");
   const [isSaving, setIsSaving] = useState(false);
 
-  const filteredRfqs = rfqs.filter((r) => {
-    if (statusFilter !== "ALL" && r.status !== statusFilter) {
-      return false;
-    }
+  // Search + date narrow everything; the status tab narrows only the table, so the tab counts and
+  // cards keep showing every status.
+  const searchedRfqs = rfqs.filter((r) => {
+    if (!isWithinDateRange(r.created_at, dates.range, dates.from, dates.to)) return false;
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
       const matchNum = r.rfq_number?.toLowerCase().includes(q);
@@ -92,13 +101,26 @@ export function AdminRfqsClient({ initialRfqs }: AdminRfqsClientProps) {
     return true;
   });
 
-  // Metrics: the cards follow the filters
-  const totalCount = filteredRfqs.length;
-  const pendingCount = filteredRfqs.filter((r) => r.status === "pending").length;
-  const reviewingCount = filteredRfqs.filter((r) => r.status === "reviewing").length;
-  const quotedCount = filteredRfqs.filter((r) => r.status === "quoted" || r.status === "accepted").length;
+  const filteredRfqs = searchedRfqs.filter((r) => statusFilter === "ALL" || r.status === statusFilter);
+  const countOf = (status: string) => searchedRfqs.filter((r) => r.status === status).length;
 
-  const pager = usePagination(filteredRfqs, `${searchQuery}|${statusFilter}`);
+  // Metrics: the cards follow the search and date filters
+  const totalCount = searchedRfqs.length;
+  const pendingCount = countOf("pending");
+  const reviewingCount = countOf("reviewing");
+  const quotedCount = countOf("quoted") + countOf("accepted");
+
+  const exportCsv = () =>
+    downloadCsv(
+      `rfqs-${new Date().toISOString().slice(0, 10)}.csv`,
+      ["RFQ #", "Date", "Company", "Contact", "Email", "Mobile", "Item", "Quantity", "Quoted amount", "Status"],
+      filteredRfqs.map((r) => [
+        r.rfq_number ?? "", (r.created_at ?? "").slice(0, 10), r.company_name ?? "", r.contact_person ?? "",
+        r.email ?? "", r.mobile ?? "", r.item_name ?? "", r.quantity ?? "", r.quoted_amount ?? "", r.status,
+      ])
+    );
+
+  const pager = usePagination(filteredRfqs, `${searchQuery}|${statusFilter}|${dates.key}`);
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
@@ -206,6 +228,10 @@ export function AdminRfqsClient({ initialRfqs }: AdminRfqsClientProps) {
         </div>
 
         <div className="flex items-center gap-2 w-full sm:w-auto">
+        <Button variant="outline" size="sm" onClick={exportCsv} disabled={!!loadError || filteredRfqs.length === 0} className="gap-2 flex-1 sm:flex-none justify-center">
+          <FileDown className="w-4 h-4" />
+          <span>Export CSV</span>
+        </Button>
         <Button onClick={() => setCreating(true)} size="sm" className="gap-2 flex-1 sm:flex-none justify-center">
           <FilePlus2 className="w-4 h-4" />
           <span>New RFQ</span>
@@ -232,6 +258,8 @@ export function AdminRfqsClient({ initialRfqs }: AdminRfqsClientProps) {
           }}
         />
       )}
+
+      {loadError && <LoadErrorCard message={loadError} />}
 
       {/* KPI Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -297,8 +325,9 @@ export function AdminRfqsClient({ initialRfqs }: AdminRfqsClientProps) {
               { key: "ALL", label: "All RFQs", count: totalCount },
               { key: "pending", label: "Under Review", count: pendingCount },
               { key: "reviewing", label: "Engineering Review", count: reviewingCount },
-              { key: "quoted", label: "Quoted", count: rfqs.filter((r) => r.status === "quoted").length },
-              { key: "accepted", label: "Accepted", count: rfqs.filter((r) => r.status === "accepted").length },
+              { key: "quoted", label: "Quoted", count: countOf("quoted") },
+              { key: "accepted", label: "Accepted", count: countOf("accepted") },
+              { key: "declined", label: "Declined", count: countOf("declined") },
             ].map((tab) => {
               const active = statusFilter === tab.key;
               return (
@@ -324,7 +353,9 @@ export function AdminRfqsClient({ initialRfqs }: AdminRfqsClientProps) {
             })}
           </div>
 
-          {/* Search Input */}
+          {/* Search + date */}
+          <div className="flex flex-col sm:flex-row sm:items-center gap-2 w-full md:w-auto">
+          <DateRangeFilter state={dates} />
           <div className="relative w-full md:w-80">
             <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
             <Input
@@ -334,6 +365,7 @@ export function AdminRfqsClient({ initialRfqs }: AdminRfqsClientProps) {
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-9 h-9 text-xs bg-slate-50 border-slate-200 focus:bg-white focus:border-[#024AE5]"
             />
+          </div>
           </div>
         </div>
       </Card>

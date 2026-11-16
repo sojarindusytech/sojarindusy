@@ -1,5 +1,7 @@
 "use server";
+import { recordAudit } from "@/lib/server/audit";
 
+import { selectAll } from "@/lib/server/select-all";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireAdmin } from "@/lib/auth-guard";
@@ -229,6 +231,7 @@ export async function createManualRfq(payload: {
       return { success: false, error: error.message };
     }
 
+    await recordAudit({ action: "rfq.create", entity: "rfq", entityId: (data as RFQ).id, summary: `Created RFQ ${(data as RFQ).rfq_number ?? ""}`.trim() });
     revalidatePath("/admin/rfqs");
     revalidatePath("/dashboard/rfqs");
     revalidatePath("/admin/quotes");
@@ -241,22 +244,15 @@ export async function createManualRfq(payload: {
 
 export async function fetchAllRfqsList(): Promise<RFQ[]> {
   await requireAdmin();
+  const adminDb = createAdminClient();
   try {
-    const adminDb = createAdminClient();
-    const { data, error } = await adminDb
-      .from("rfqs")
-      .select("*")
-      .order("created_at", { ascending: false });
-
-    if (error) {
-      console.warn("Notice fetching all RFQs for admin:", error.message);
-      return [];
-    }
-
-    return (data || []) as RFQ[];
+    return await selectAll<RFQ>((from, to) =>
+      adminDb.from("rfqs").select("*").order("created_at", { ascending: false }).order("id").range(from, to)
+    );
   } catch (err) {
     console.error("Failed to fetch all RFQs:", err);
-    return [];
+    // An empty list would read as "no RFQs"; the page shows this instead.
+    throw new Error("RFQs could not be loaded. Please reload the page.");
   }
 }
 
@@ -288,6 +284,7 @@ export async function updateRfqQuotation(
       return { success: false, error: error.message };
     }
 
+    await recordAudit({ action: "rfq.update", entity: "rfq", entityId: rfqId, summary: `RFQ set to ${updates.status}${updates.quoted_amount ? ` (quoted ₹${updates.quoted_amount})` : ""}` });
     revalidatePath("/admin/rfqs");
     revalidatePath("/admin/quotes");
     revalidatePath("/dashboard/rfqs");
