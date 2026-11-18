@@ -1,3 +1,4 @@
+import { LoadErrorCard, loadOrError } from "@/components/common/LoadErrorCard";
 import { getPurchaseOrders } from "@/actions/purchase-order";
 import { ManufacturerDashboardClient } from "@/components/manufacturer/ManufacturerDashboardClient";
 
@@ -9,7 +10,8 @@ export const metadata = {
 };
 
 export default async function ManufacturerPage() {
-  const orders = await getPurchaseOrders();
+  const { data: orders, loadError } = await loadOrError(() => getPurchaseOrders(), []);
+  if (loadError) return <div className="p-6"><LoadErrorCard message={loadError} /></div>;
 
   return <ManufacturerDashboardClient orders={orders} />;
 }

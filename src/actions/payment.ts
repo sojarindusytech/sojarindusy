@@ -1,5 +1,7 @@
 "use server";
+import { recordAudit } from "@/lib/server/audit";
 
+import { selectAll } from "@/lib/server/select-all";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireAdmin, requireUser } from "@/lib/auth-guard";
 import { loadSalesSettings } from "@/lib/sales-settings";
@@ -21,17 +23,19 @@ type Result<T> = ({ success: true } & T) | { success: false; error: string };
 /** Admin list: every receipt with where its money went. */
 export async function listPayments(): Promise<Payment[]> {
   await requireAdmin();
-  const { data, error } = await createAdminClient()
-    .from("payments" as never)
-    .select("*, allocations:payment_allocations(*)")
-    .order("created_at", { ascending: false });
-  if (error) {
-    console.error("[listPayments] Query error:", error.code, error.message);
+  const db = createAdminClient();
+  try {
+    const rows = await selectAll<Payment>((from, to) =>
+      db.from("payments" as never).select("*, allocations:payment_allocations(*)")
+        .order("payment_date", { ascending: false }).order("created_at", { ascending: false }).order("id").range(from, to)
+    );
+    return rows.map((p) => ({ ...p, amount: Number(p.amount) }));
+  } catch (err) {
+    const e = err as { code?: string; message?: string };
+    console.error("[listPayments] Query error:", e.code, e.message);
     // An empty list would hide a missing migration; say what is wrong instead.
-    if (isMissingTable(error)) throw new Error(MIGRATION_HINT);
-    return [];
+    throw new Error(isMissingTable(e) ? MIGRATION_HINT : "Payments could not be loaded. Please reload the page.");
   }
-  return ((data as unknown as Payment[]) ?? []).map((p) => ({ ...p, amount: Number(p.amount) }));
 }
 
 export interface PaymentFormCustomer {
@@ -211,6 +215,11 @@ export async function recordPayment(input: RecordPaymentInput): Promise<Result<{
   revalidatePath("/admin/general-ledger");
   revalidatePath("/admin/invoices");
   revalidatePath("/admin/debit-notes");
+  await recordAudit({
+    action: "payment.record", entity: "payment", entityId: data.id,
+    summary: `Recorded receipt ${data.receipt_number} from ${data.payer_name}: ₹${Number(data.amount).toLocaleString("en-IN", { minimumFractionDigits: 2 })} (${data.mode})`,
+    actor: { userId: actorId },
+  });
   revalidatePath("/dashboard/payments");
   return { success: true, payment: { ...data, amount: Number(data.amount) } };
 }
@@ -222,8 +231,15 @@ export async function cancelPayment(paymentId: string, reason: string): Promise<
   } catch {
     return { success: false, error: "Administrator access required." };
   }
-  const { error } = await cancelPaymentRpc(paymentId, reason, actorId);
+  const { data: cancelled, error } = await cancelPaymentRpc(paymentId, reason, actorId);
   if (error) return { success: false, error: paymentErrorMessage(error) };
+  if (!cancelled?.already_cancelled) {
+    await recordAudit({
+      action: "payment.cancel", entity: "payment", entityId: paymentId,
+      summary: `Cancelled receipt ${cancelled?.receipt_number ?? paymentId}: ${reason}`,
+      actor: { userId: actorId },
+    });
+  }
 
   revalidatePath("/admin/payments-received");
   revalidatePath("/admin/party-ledger", "layout");

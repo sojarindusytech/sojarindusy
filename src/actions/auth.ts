@@ -1,4 +1,5 @@
 "use server";
+import { recordAudit } from "@/lib/server/audit";
 
 import { createClient } from "@/lib/supabase/server";
 import { Profile } from "@/types/database.types";
@@ -256,6 +257,10 @@ export async function signInUser(
     // Generic message: a distinct "user not found" reply would let an attacker
     // enumerate which email addresses are registered.
     console.warn("[auth] Sign-in failed:", error.message);
+    await recordAudit({
+      action: "auth.sign_in_failed", entity: "auth", summary: `Failed sign-in for ${email}`,
+      outcome: "failure", actor: null, metadata: { email },
+    });
     return { error: "Invalid email or password. Please try again." };
   }
 
@@ -277,6 +282,11 @@ export async function signInUser(
   const profileData = profile as { role?: UserRole; approval_status?: string } | null;
   const userRole = profileData?.role ?? USER_ROLES.CUSTOMER;
   const approvalStatus = profileData?.approval_status ?? APPROVAL_STATUSES.PENDING;
+
+  await recordAudit({
+    action: "auth.sign_in", entity: "auth", entityId: data.user.id, summary: `Signed in (${userRole})`,
+    actor: { userId: data.user.id, email: data.user.email, role: userRole },
+  });
 
   // Route based on role & approval status
   revalidatePath("/", "layout");
@@ -378,6 +388,7 @@ export async function updateUserPassword(
   // Single use: spent only once the password really changed, so a rejected attempt (for example the
   // new password equals the old one) can be retried with the same link.
   jar.delete(RECOVERY_COOKIE);
+  await recordAudit({ action: "auth.password_reset", entity: "auth", summary: "Password changed with a reset link" });
 
   // Ends every session of this user, so sessions opened with the old password stop working too.
   await supabase.auth.signOut({ scope: "global" });

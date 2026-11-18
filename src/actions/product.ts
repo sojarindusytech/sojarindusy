@@ -1,4 +1,5 @@
 "use server";
+import { recordAudit } from "@/lib/server/audit";
 
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireAdmin } from "@/lib/auth-guard";
@@ -171,6 +172,7 @@ export async function createFullProduct(payload: CreateProductPayload): Promise<
       }
     }
 
+    await recordAudit({ action: "product.create", entity: "product", entityId: productId, summary: `Created product ${title}` });
     revalidatePath("/admin/products");
     revalidatePath("/admin/product-upload");
     return { success: true, productId };
@@ -194,6 +196,7 @@ export async function deleteProduct(
     return { error: res.error.code === "PRODUCT_NOT_FOUND" ? "Product not found." : "Could not delete the product. Please try again." };
   }
 
+  await recordAudit({ action: res.data === "archived" ? "product.archive" : "product.delete", entity: "product", entityId: productId, summary: res.data === "archived" ? "Archived product (has order / document history)" : "Deleted product (no history)", actor: { userId } });
   revalidatePath("/admin/products");
   revalidatePath("/products");
   return { success: true, archived: res.data === "archived" };
@@ -207,6 +210,7 @@ export async function restoreArchivedProduct(productId: string): Promise<{ succe
     return { error: res.error.code === "PRODUCT_NOT_FOUND" ? "Product not found." : "Could not restore the product. Please try again." };
   }
 
+  await recordAudit({ action: "product.restore", entity: "product", entityId: productId, summary: "Restored archived product", actor: { userId } });
   revalidatePath("/admin/products");
   revalidatePath("/products");
   return { success: true };

@@ -16,7 +16,13 @@ import {
   UserType,
   UserTitle,
 } from "@/lib/constants";
-import { updateCustomerApprovalStatus, createOfflineCustomer } from "@/actions/customer";
+import {
+  updateCustomerApprovalStatus,
+  createOfflineCustomer,
+  deleteCustomer,
+  reactivateCustomer,
+} from "@/actions/customer";
+import toast from "react-hot-toast";
 import { CustomerEditModal } from "./CustomerEditModal";
 import { Card } from "@/components/ui/card";
 import { IconAction } from "@/components/common/IconAction";
@@ -78,10 +84,16 @@ import {
   ArrowLeft,
   CheckCircle2,
   Pencil,
+  Trash2,
+  RotateCcw,
 } from "lucide-react";
 
 /** tel: link that dials: keeps digits and a leading +, drops spaces, dashes and brackets. */
 const telHref = (phone: string | null | undefined) => `tel:${(phone ?? "").replace(/[^\d+]/g, "")}`;
+
+const INACTIVE = "inactive";
+/** Approval status, or "inactive" for a customer deleted while having history. */
+const statusOf = (c: Profile): string => (c.deactivated_at ? INACTIVE : c.approval_status || APPROVAL_STATUSES.PENDING);
 
 interface CustomerManagementClientProps {
   initialCustomers: Profile[];
@@ -118,6 +130,7 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
     customer: Profile;
     targetStatus: ApprovalStatus;
   } | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<Profile | null>(null);
 
   // Add Customer Form State (Reusing SignUp Form fields with plain text inputs)
   const [formValues, setFormValues] = useState({
@@ -289,22 +302,21 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
       const userType = c.user_type || USER_TYPES.PLATFORM_USER;
       const matchesType = selectedUserType === "all" || userType === selectedUserType;
 
-      const status = c.approval_status || APPROVAL_STATUSES.PENDING;
-      const matchesStatus = selectedStatus === "all" || status === selectedStatus;
+      const matchesStatus = selectedStatus === "all" || statusOf(c) === selectedStatus;
 
       return matchesSearch && matchesType && matchesStatus;
     });
   }, [customers, searchQuery, selectedUserType, selectedStatus]);
 
   // The KPI cards count what the current search and filters show, so they update with them.
-  const totalCount = filteredCustomers.length;
-  const platformCount = filteredCustomers.filter(
+  // Inactive (deleted with history) customers are not counted.
+  const activeFiltered = filteredCustomers.filter((c) => !c.deactivated_at);
+  const totalCount = activeFiltered.length;
+  const platformCount = activeFiltered.filter(
     (c) => (c.user_type || USER_TYPES.PLATFORM_USER) === USER_TYPES.PLATFORM_USER
   ).length;
-  const offlineCount = filteredCustomers.filter((c) => c.user_type === USER_TYPES.OFFLINE_USER).length;
-  const pendingCount = filteredCustomers.filter(
-    (c) => (c.approval_status || APPROVAL_STATUSES.PENDING) === APPROVAL_STATUSES.PENDING
-  ).length;
+  const offlineCount = activeFiltered.filter((c) => c.user_type === USER_TYPES.OFFLINE_USER).length;
+  const pendingCount = activeFiltered.filter((c) => statusOf(c) === APPROVAL_STATUSES.PENDING).length;
 
   const filteredAndSortedCustomers = useMemo(() => {
     const result = [...filteredCustomers];
@@ -319,9 +331,7 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
         const typeB = b.user_type || USER_TYPES.PLATFORM_USER;
         comparison = typeA.localeCompare(typeB);
       } else if (sortField === "status") {
-        const statusA = a.approval_status || APPROVAL_STATUSES.PENDING;
-        const statusB = b.approval_status || APPROVAL_STATUSES.PENDING;
-        comparison = statusA.localeCompare(statusB);
+        comparison = statusOf(a).localeCompare(statusOf(b));
       } else if (sortField === "date") {
         const dateA = a.created_at ? new Date(a.created_at).getTime() : 0;
         const dateB = b.created_at ? new Date(b.created_at).getTime() : 0;
@@ -414,6 +424,42 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
     });
   };
 
+  const handleConfirmedDelete = () => {
+    if (!deleteTarget) return;
+    const customer = deleteTarget;
+    setDeleteTarget(null);
+    startTransition(async () => {
+      const res = await deleteCustomer(customer.id);
+      if (res.error) {
+        toast.error(res.error);
+        return;
+      }
+      if (res.deactivated) {
+        const deactivated_at = new Date().toISOString();
+        setCustomers((prev) => prev.map((c) => (c.id === customer.id ? { ...c, deactivated_at } : c)));
+        setViewingCustomer((prev) => (prev?.id === customer.id ? { ...prev, deactivated_at } : prev));
+        toast.success("Customer made inactive. Login blocked; orders, invoices and ledger are kept.");
+      } else {
+        setCustomers((prev) => prev.filter((c) => c.id !== customer.id));
+        setViewingCustomer((prev) => (prev?.id === customer.id ? null : prev));
+        toast.success("Customer deleted.");
+      }
+    });
+  };
+
+  const handleReactivate = (customer: Profile) => {
+    startTransition(async () => {
+      const res = await reactivateCustomer(customer.id);
+      if (res.error) {
+        toast.error(res.error);
+        return;
+      }
+      setCustomers((prev) => prev.map((c) => (c.id === customer.id ? { ...c, deactivated_at: null } : c)));
+      setViewingCustomer((prev) => (prev?.id === customer.id ? { ...prev, deactivated_at: null } : prev));
+      toast.success("Customer reactivated. They can sign in again.");
+    });
+  };
+
   return (
     <div className="space-y-6 w-full max-w-full">
       {/* Page Header */}
@@ -441,7 +487,7 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
                   c.state,
                   formatDate(c.created_at),
                   c.user_type || USER_TYPES.PLATFORM_USER,
-                  c.approval_status || APPROVAL_STATUSES.PENDING,
+                  statusOf(c),
                 ])
               );
             }}
@@ -635,6 +681,7 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
                 <SelectItem value={APPROVAL_STATUSES.APPROVED}>Approved</SelectItem>
                 <SelectItem value={APPROVAL_STATUSES.PENDING}>Pending Review</SelectItem>
                 <SelectItem value={APPROVAL_STATUSES.REJECTED}>Rejected</SelectItem>
+                <SelectItem value={INACTIVE}>Inactive</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -676,7 +723,7 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
               </TableHead>
 
               {/* Contact Details (20%) */}
-              <TableHead className="w-[20%] text-[11px] font-semibold text-slate-600 tracking-wider uppercase py-2.5 px-3.5">
+              <TableHead className="w-[17%] text-[11px] font-semibold text-slate-600 tracking-wider uppercase py-2.5 px-3.5">
                 Contact Details
               </TableHead>
 
@@ -724,8 +771,8 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
                 </div>
               </TableHead>
 
-              {/* Actions (12%) */}
-              <TableHead className="w-[12%] text-[11px] font-semibold text-slate-600 tracking-wider uppercase py-2.5 px-3.5 text-right">
+              {/* Actions (15%) */}
+              <TableHead className="w-[15%] text-[11px] font-semibold text-slate-600 tracking-wider uppercase py-2.5 px-3.5 text-right">
                 Actions
               </TableHead>
             </TableRow>
@@ -746,7 +793,8 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
             ) : (
               paginatedCustomers.map((customer) => {
                 const userType = customer.user_type || USER_TYPES.PLATFORM_USER;
-                const approvalStatus = customer.approval_status || APPROVAL_STATUSES.PENDING;
+                const approvalStatus = statusOf(customer);
+                const isInactive = approvalStatus === INACTIVE;
 
                 return (
                   <TableRow
@@ -851,6 +899,14 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
                           <span className="h-1.5 w-1.5 rounded-full bg-rose-500" /> Rejected
                         </span>
                       )}
+                      {isInactive && (
+                        <span
+                          className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[11px] font-medium bg-slate-100 text-slate-600 border border-slate-200"
+                          title="Deleted while having orders or documents: login blocked, history kept"
+                        >
+                          <span className="h-1.5 w-1.5 rounded-full bg-slate-400" /> Inactive
+                        </span>
+                      )}
                     </TableCell>
 
                     {/* Location */}
@@ -902,6 +958,25 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
 
                         <IconAction label="View customer" onClick={() => setViewingCustomer(customer)}><Eye /></IconAction>
                         <IconAction label="Edit customer" tone="primary" onClick={() => setEditingCustomer(customer)}><Pencil /></IconAction>
+                        {isInactive ? (
+                          <IconAction
+                            label="Reactivate customer"
+                            tone="success"
+                            disabled={isPending}
+                            onClick={() => handleReactivate(customer)}
+                          >
+                            <RotateCcw />
+                          </IconAction>
+                        ) : (
+                          <IconAction
+                            label="Delete customer"
+                            tone="danger"
+                            disabled={isPending}
+                            onClick={() => setDeleteTarget(customer)}
+                          >
+                            <Trash2 />
+                          </IconAction>
+                        )}
                       </div>
                     </TableCell>
                   </TableRow>
@@ -1112,6 +1187,48 @@ export function CustomerManagementClient({ initialCustomers }: CustomerManagemen
                 : confirmDialog?.targetStatus === APPROVAL_STATUSES.PENDING
                 ? "Yes, Move to Pending"
                 : "Yes, Reject Account"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* DELETE / DEACTIVATE CONFIRMATION */}
+      <AlertDialog
+        open={Boolean(deleteTarget)}
+        onOpenChange={(open) => {
+          if (!open) setDeleteTarget(null);
+        }}
+      >
+        <AlertDialogContent className="max-w-md bg-white border border-slate-200 shadow-2xl rounded-2xl p-6">
+          <AlertDialogHeader>
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-rose-50 text-rose-600 border border-rose-200">
+                <Trash2 className="h-5 w-5" />
+              </div>
+              <div>
+                <AlertDialogTitle className="text-base font-bold text-slate-900">Delete customer?</AlertDialogTitle>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  {deleteTarget?.company_name} ({deleteTarget?.email})
+                </p>
+              </div>
+            </div>
+            <AlertDialogDescription className="text-xs text-slate-600 pt-2 leading-relaxed">
+              If this customer has any orders, invoices, quotes, payments or ledger entries, they are made{" "}
+              <strong className="text-slate-900 font-semibold">inactive</strong> instead: their login is blocked and
+              all history stays intact. You can reactivate them later. A customer with no history is deleted
+              permanently, together with their login.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="flex items-center justify-end gap-2 pt-4 border-t border-slate-100">
+            <AlertDialogCancel className="h-8 text-xs border-slate-200 text-slate-700 hover:bg-slate-50">
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmedDelete}
+              disabled={isPending}
+              className="h-8 text-xs font-medium text-white shadow-none bg-rose-600 hover:bg-rose-700"
+            >
+              Delete or deactivate
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

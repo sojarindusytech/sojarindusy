@@ -1,5 +1,8 @@
 "use server";
+import { diffChanges } from "@/lib/audit";
+import { recordAudit } from "@/lib/server/audit";
 
+import { selectAll } from "@/lib/server/select-all";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireAdmin, requireUser } from "@/lib/auth-guard";
 import { loadSalesSettings } from "@/lib/sales-settings";
@@ -191,30 +194,49 @@ async function insertInvoice(args: {
     }
   }
 
+  const issued = data as Invoice;
+  await recordAudit({
+    action: args.orderId ? "invoice.create_from_order" : "invoice.create",
+    entity: "invoice", entityId: issued.id,
+    summary: `Issued invoice ${issued.invoice_number} to ${issued.bill_to?.name ?? "customer"} for ₹${Number(issued.total_amount).toLocaleString("en-IN", { minimumFractionDigits: 2 })}`,
+    metadata: { order_id: args.orderId, total: Number(issued.total_amount) },
+  });
+
   revalidatePath("/admin/invoices");
   revalidatePath("/admin/settings/sales");
   revalidatePath("/dashboard/invoices");
   revalidatePath("/admin/products");
-  return { success: true, invoice: data as Invoice };
+  return { success: true, invoice: issued };
 }
 
 export async function listInvoices(): Promise<InvoiceListRow[]> {
   await requireAdmin();
-  const { data, error } = await (createAdminClient().from("invoices") as any)
-    .select("id, invoice_number, invoice_date, bill_to, po_number, gst_enabled, total_amount, status, order_id, created_at")
-    .order("created_at", { ascending: false });
-  if (error) {
-    console.error("[listInvoices] Query error:", error);
-    return [];
+  const db = createAdminClient();
+  let rows: InvoiceListRow[];
+  try {
+    // Every row, past Supabase's 1000-row limit. Newest document date first.
+    rows = await selectAll<InvoiceListRow>((from, to) =>
+      (db.from("invoices") as any)
+        .select("id, invoice_number, invoice_date, bill_to, po_number, gst_enabled, total_amount, status, order_id, created_at")
+        .order("invoice_date", { ascending: false })
+        .order("created_at", { ascending: false })
+        .order("id")
+        .range(from, to)
+    );
+  } catch (err) {
+    console.error("[listInvoices] Query error:", err);
+    throw new Error("Invoices could not be loaded. Please reload the page.");
   }
-  const rows = (data as InvoiceListRow[]) ?? [];
 
-  // Paid / balance / status come from the payments module.
-  const { data: sums } = await (createAdminClient().from("invoice_payment_summary" as never) as any)
-    .select("invoice_id, paid, balance, payment_status");
-  const byId = new Map<string, { paid: number | string; balance: number | string; payment_status: InvoiceListRow["payment_status"] }>(
-    ((sums as any[]) ?? []).map((r) => [r.invoice_id, r])
-  );
+  // Paid / balance / status come from the payments module. A missing view only hides those columns.
+  type Sum = { invoice_id: string; paid: number | string; balance: number | string; payment_status: InvoiceListRow["payment_status"] };
+  const sums = await selectAll<Sum>((from, to) =>
+    (db.from("invoice_payment_summary" as never) as any).select("invoice_id, paid, balance, payment_status").order("invoice_id").range(from, to)
+  ).catch((err) => {
+    console.warn("[listInvoices] payment summary:", err);
+    return [] as Sum[];
+  });
+  const byId = new Map(sums.map((r) => [r.invoice_id, r]));
   return rows.map((r) => {
     const s = byId.get(r.id);
     return s ? { ...r, paid: Number(s.paid), balance: Number(s.balance), payment_status: s.payment_status } : r;
@@ -491,10 +513,17 @@ export async function updateInvoice(
       revalidatePath("/admin/orders");
     }
 
+    const saved = data as Invoice;
+    await recordAudit({
+      action: "invoice.update", entity: "invoice", entityId: saved.id,
+      summary: `Edited invoice ${saved.invoice_number}`,
+      changes: diffChanges(existing as unknown as Record<string, unknown>, saved as unknown as Record<string, unknown>,
+        ["invoice_number", "invoice_date", "po_number", "place_of_supply", "gst_enabled", "total_amount", "bill_to"]),
+    });
     revalidatePath("/admin/invoices");
     revalidatePath("/dashboard/invoices");
     revalidatePath("/admin/products");
-    return { success: true, invoice: data as Invoice };
+    return { success: true, invoice: saved };
   } catch (err) {
     console.error("[updateInvoice] Exception:", err);
     return { success: false, error: err instanceof Error ? err.message : "Failed to update invoice." };
@@ -599,7 +628,7 @@ export async function cancelInvoice(invoiceId: string): Promise<{ success: boole
     const ctx = await requireAdmin();
     const db = createAdminClient();
 
-    const { data: inv } = await (db.from("invoices") as any).select("id, status, stock_owner").eq("id", invoiceId).maybeSingle();
+    const { data: inv } = await (db.from("invoices") as any).select("id, status, stock_owner, invoice_number, total_amount").eq("id", invoiceId).maybeSingle();
     if (!inv) return { success: false, error: "Invoice not found." };
     if (inv.status === "cancelled") return { success: true };
     if (inv.stock_owner === "order") {
@@ -624,6 +653,10 @@ export async function cancelInvoice(invoiceId: string): Promise<{ success: boole
       }
     }
 
+    await recordAudit({
+      action: "invoice.cancel", entity: "invoice", entityId: invoiceId,
+      summary: `Cancelled invoice ${inv.invoice_number} (₹${Number(inv.total_amount).toLocaleString("en-IN", { minimumFractionDigits: 2 })})`,
+    });
     revalidatePath("/admin/invoices");
     revalidatePath("/dashboard/invoices");
     revalidatePath("/admin/products");

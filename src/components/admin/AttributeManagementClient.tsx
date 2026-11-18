@@ -3,7 +3,7 @@
 import { PageTitle } from "@/components/common/PageTitle";
 import { useState, useTransition } from "react";
 import { Attribute } from "@/types/database.types";
-import { createAttribute, deleteAttribute } from "@/actions/attribute";
+import { createAttribute, deleteAttribute, getAttributeUsage, type AttributeUsage } from "@/actions/attribute";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { IconAction } from "@/components/common/IconAction";
 import { Button } from "@/components/ui/button";
@@ -25,12 +25,25 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   Sparkles,
   Plus,
   Trash2,
   Search,
   CheckCircle2,
   AlertCircle,
+  Loader2,
+  Package,
+  Layers,
 } from "lucide-react";
 import toast from "react-hot-toast";
 
@@ -53,14 +66,18 @@ export function AttributeManagementClient({
   const [nameInput, setNameInput] = useState("");
   const [formError, setFormError] = useState<string | null>(null);
   const [formSuccess, setFormSuccess] = useState<string | null>(null);
-  const [actionError, setActionError] = useState<string | null>(null);
-
+  // Delete confirmation: usage is loaded first, the delete button only shows when there is none.
+  const [deleteTarget, setDeleteTarget] = useState<{
+    attr: Attribute;
+    loading: boolean;
+    usage?: AttributeUsage;
+    error?: string;
+  } | null>(null);
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
     setFormError(null);
     setFormSuccess(null);
-    setActionError(null);
 
     if (!nameInput.trim()) {
       setFormError("Attribute name is required.");
@@ -84,21 +101,32 @@ export function AttributeManagementClient({
     });
   };
 
-  const handleDelete = (id: string, name: string) => {
-    setActionError(null);
-    if (!confirm(`Are you sure you want to delete attribute "${name}"?`)) return;
+  const openDelete = async (attr: Attribute) => {
+    setDeleteTarget({ attr, loading: true });
+    const res = await getAttributeUsage(attr.id);
+    // Ignore the answer if the dialog was closed or switched to another attribute meanwhile.
+    setDeleteTarget((prev) =>
+      prev?.attr.id === attr.id ? { attr, loading: false, usage: res.usage, error: res.error } : prev
+    );
+  };
 
+  const confirmDelete = () => {
+    if (!deleteTarget) return;
+    const { attr } = deleteTarget;
     startTransition(async () => {
-      const res = await deleteAttribute(id);
+      const res = await deleteAttribute(attr.id);
       if (res.error) {
-        setActionError(res.error);
         toast.error(res.error, { duration: 6000 });
       } else {
-        toast.success(`Attribute "${name}" deleted.`);
-        setAttributes((prev) => prev.filter((t) => t.id !== id));
+        toast.success(`Attribute "${attr.name}" deleted.`);
+        setAttributes((prev) => prev.filter((t) => t.id !== attr.id));
       }
+      setDeleteTarget(null);
     });
   };
+
+  const usage = deleteTarget?.usage;
+  const inUse = Boolean(usage && (usage.products.length > 0 || usage.skuCount > 0));
 
   const filteredAttributes = attributes.filter((t) => {
     const query = searchQuery.toLowerCase().trim();
@@ -124,27 +152,6 @@ export function AttributeManagementClient({
           </Button>
         </div>
       </div>
-
-      {/* Global Action Error Alert */}
-      {actionError && (
-        <div className="flex items-start justify-between gap-3 rounded-xl border border-rose-200 bg-rose-50/80 p-4 text-xs text-rose-900 shadow-xs animate-in fade-in duration-200">
-          <div className="flex items-start gap-3">
-            <div className="p-1.5 rounded-lg bg-rose-100 text-rose-600 mt-0.5 shrink-0">
-              <AlertCircle className="h-4 w-4" />
-            </div>
-            <div className="space-y-1">
-              <p className="font-bold text-rose-900 text-sm">Cannot Delete Attribute</p>
-              <p className="text-slate-700 leading-relaxed">{actionError}</p>
-            </div>
-          </div>
-          <button
-            onClick={() => setActionError(null)}
-            className="text-slate-400 hover:text-slate-700 text-xs font-semibold px-2 py-1 rounded-md hover:bg-rose-100/50 transition-colors shrink-0"
-          >
-            Dismiss
-          </button>
-        </div>
-      )}
 
       {/* KPI Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -262,7 +269,7 @@ export function AttributeManagementClient({
                       {attr.slug}
                     </TableCell>
                     <TableCell className="py-2.5 px-3.5 text-right">
-                      <IconAction label="Delete attribute (only if unassigned)" tone="danger" onClick={() => handleDelete(attr.id, attr.name)}><Trash2 /></IconAction>
+                      <IconAction label="Delete attribute" tone="danger" disabled={isPending} onClick={() => openDelete(attr)}><Trash2 /></IconAction>
                     </TableCell>
                   </TableRow>
                 ))
@@ -271,6 +278,86 @@ export function AttributeManagementClient({
           </Table>
         </Card>
       </div>
+
+      {/* Delete confirmation */}
+      <AlertDialog open={Boolean(deleteTarget)} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+        <AlertDialogContent className="max-w-md bg-white border border-slate-200 shadow-2xl rounded-2xl p-6">
+          <AlertDialogHeader>
+            <div className="flex items-center gap-3">
+              <div
+                className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border ${
+                  inUse ? "bg-amber-50 text-amber-600 border-amber-200" : "bg-rose-50 text-rose-600 border-rose-200"
+                }`}
+              >
+                {inUse ? <AlertCircle className="h-5 w-5" /> : <Trash2 className="h-5 w-5" />}
+              </div>
+              <AlertDialogTitle className="text-base font-bold text-slate-900">
+                {deleteTarget?.loading
+                  ? "Checking attribute usage..."
+                  : inUse
+                  ? `"${deleteTarget?.attr.name}" is in use`
+                  : `Delete "${deleteTarget?.attr.name}"?`}
+              </AlertDialogTitle>
+            </div>
+            <AlertDialogDescription asChild>
+              <div className="text-xs text-slate-600 pt-2 leading-relaxed space-y-3">
+                {deleteTarget?.loading ? (
+                  <p className="flex items-center gap-2">
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" /> Looking for product families and SKUs that use it.
+                  </p>
+                ) : deleteTarget?.error ? (
+                  <p className="text-rose-700">{deleteTarget.error}</p>
+                ) : inUse && usage ? (
+                  <>
+                    <p>This attribute can&apos;t be deleted while it is used. Remove it from these first:</p>
+                    {usage.products.length > 0 && (
+                      <div>
+                        <p className="font-semibold text-slate-800 flex items-center gap-1.5">
+                          <Layers className="h-3.5 w-3.5" /> {usage.products.length} product famil{usage.products.length === 1 ? "y" : "ies"}
+                        </p>
+                        <p className="text-slate-500 mt-0.5">
+                          {usage.products.slice(0, 5).join(", ")}
+                          {usage.products.length > 5 && ` and ${usage.products.length - 5} more`}
+                        </p>
+                      </div>
+                    )}
+                    {usage.skuCount > 0 && (
+                      <div>
+                        <p className="font-semibold text-slate-800 flex items-center gap-1.5">
+                          <Package className="h-3.5 w-3.5" /> {usage.skuCount} SKU{usage.skuCount === 1 ? "" : "s"}
+                        </p>
+                        <p className="text-slate-500 mt-0.5 font-mono">
+                          {usage.skus.join(", ")}
+                          {usage.skuCount > usage.skus.length && ` and ${usage.skuCount - usage.skus.length} more`}
+                        </p>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <p>It is not assigned to any product family or SKU. This deletes it permanently.</p>
+                )}
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="flex items-center justify-end gap-2 pt-4 border-t border-slate-100">
+            <AlertDialogCancel className="h-8 text-xs border-slate-200 text-slate-700 hover:bg-slate-50">
+              {inUse || deleteTarget?.error ? "Close" : "Cancel"}
+            </AlertDialogCancel>
+            {!deleteTarget?.loading && !deleteTarget?.error && !inUse && (
+              <AlertDialogAction
+                onClick={(e) => {
+                  e.preventDefault();
+                  confirmDelete();
+                }}
+                disabled={isPending}
+                className="h-8 text-xs font-medium text-white shadow-none bg-rose-600 hover:bg-rose-700"
+              >
+                {isPending ? "Deleting..." : "Delete attribute"}
+              </AlertDialogAction>
+            )}
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

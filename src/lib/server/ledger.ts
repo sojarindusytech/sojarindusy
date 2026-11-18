@@ -86,8 +86,10 @@ export async function loadParties(): Promise<PartyInfo[]> {
         .range(from, to),
       "loadParties"
     );
-  } catch {
-    return [];
+  } catch (err) {
+    // An empty list would make every party vanish from the ledgers without a word: report it.
+    console.error("[loadParties]", err);
+    throw new Error("Customers and manufacturers could not be loaded. Please reload the page.");
   }
   return data
     .map((p) => ({

@@ -60,7 +60,7 @@ interface UpdateOrderTrackingModalProps {
     courier_partner?: string;
     awb_number?: string;
     tracking_url?: string;
-    notes?: string;
+    admin_notes?: string | null;
     return_reason?: string;
   }) => void;
 }
@@ -75,7 +75,7 @@ export function UpdateOrderTrackingModal({
   const [courierPartner, setCourierPartner] = useState<string>(order.courier_partner || "");
   const [awbNumber, setAwbNumber] = useState<string>(order.awb_number || "");
   const [trackingUrl, setTrackingUrl] = useState<string>(order.tracking_url || "");
-  const [notes, setNotes] = useState<string>(order.notes || "");
+  const [adminNotes, setAdminNotes] = useState<string>(order.admin_notes || "");
   const [returnReason, setReturnReason] = useState<string>(order.return_reason || "");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -88,7 +88,7 @@ export function UpdateOrderTrackingModal({
       setCourierPartner(order.courier_partner || "");
       setAwbNumber(order.awb_number || "");
       setTrackingUrl(order.tracking_url || "");
-      setNotes(order.notes || "");
+      setAdminNotes(order.admin_notes || "");
       setReturnReason(order.return_reason || "");
     }
   }, [order]);
@@ -118,11 +118,13 @@ export function UpdateOrderTrackingModal({
     e.preventDefault();
     setIsSubmitting(true);
 
+    // Notes are sent only when edited, so a status change never depends on the notes table.
+    const notesChanged = adminNotes.trim() !== (order.admin_notes || "").trim();
     const result = await updateOrderStatus(order.id, status, {
       courier_partner: courierPartner,
       awb_number: awbNumber,
       tracking_url: trackingUrl,
-      notes,
+      admin_notes: notesChanged ? adminNotes : undefined,
       return_reason: status === ORDER_STATUSES.RETURNED ? returnReason : undefined,
     });
 
@@ -141,7 +143,7 @@ export function UpdateOrderTrackingModal({
         courier_partner: courierPartner || undefined,
         awb_number: awbNumber || undefined,
         tracking_url: trackingUrl || undefined,
-        notes: notes || undefined,
+        admin_notes: notesChanged ? adminNotes.trim() || null : undefined,
         return_reason: status === ORDER_STATUSES.RETURNED ? returnReason : undefined,
       });
       onClose();
@@ -307,13 +309,24 @@ export function UpdateOrderTrackingModal({
             </div>
           </div>
 
-          {/* Internal Fulfillment Notes */}
+          {/* Customer's own checkout note: read-only here, it is theirs. */}
+          {order.notes && (
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold text-slate-700">Customer Note</Label>
+              <p className="text-xs text-slate-700 whitespace-pre-line rounded-md border border-slate-200 bg-slate-50 p-2">
+                {order.notes}
+              </p>
+            </div>
+          )}
+
+          {/* Internal Fulfillment Notes: stored separately, never shown to the customer. */}
           <div className="space-y-1.5">
-            <Label className="text-xs font-semibold text-slate-700">Dispatch / Status Notes</Label>
+            <Label className="text-xs font-semibold text-slate-700">Internal Notes (not visible to customer)</Label>
             <Textarea
               placeholder="e.g. Handed over to Blue Dart courier van, 3 boxes with wooden strapping..."
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
+              value={adminNotes}
+              maxLength={5000}
+              onChange={(e) => setAdminNotes(e.target.value)}
               className="text-xs min-h-[60px] border-slate-200"
             />
           </div>

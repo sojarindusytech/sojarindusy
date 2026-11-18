@@ -1,3 +1,4 @@
+import { loadOrError } from "@/components/common/LoadErrorCard";
 import { fetchCommercialQuotesList } from "@/actions/quote";
 import { AdminQuotesClient } from "@/components/admin/AdminQuotesClient";
 import type { Metadata } from "next";
@@ -10,7 +11,7 @@ export const metadata: Metadata = {
 export const dynamic = "force-dynamic";
 
 export default async function QuotesAdminPage() {
-  const quotes = await fetchCommercialQuotesList();
+  const { data: quotes, loadError } = await loadOrError(fetchCommercialQuotesList, []);
 
-  return <AdminQuotesClient initialQuotes={quotes} />;
+  return <AdminQuotesClient initialQuotes={quotes} loadError={loadError} />;
 }

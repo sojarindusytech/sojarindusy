@@ -27,6 +27,7 @@ CREATE TABLE public.profiles (
   credit_limit numeric DEFAULT 0,
   credit_days integer DEFAULT 0,
   channel text DEFAULT 'online'::text CHECK (channel = ANY (ARRAY['online'::text, 'offline'::text])),
+  deactivated_at timestamp with time zone,
   CONSTRAINT profiles_pkey PRIMARY KEY (id),
   CONSTRAINT profiles_id_fkey FOREIGN KEY (id) REFERENCES auth.users(id) ON DELETE CASCADE
 );
@@ -181,8 +182,9 @@ CREATE TABLE public.contact_submissions (
   admin_notes text,
   created_at timestamp with time zone NOT NULL DEFAULT now(),
   updated_at timestamp with time zone NOT NULL DEFAULT now(),
-  privacy_accepted boolean NOT NULL DEFAULT true,
-  CONSTRAINT contact_submissions_pkey PRIMARY KEY (id)
+  privacy_accepted boolean NOT NULL DEFAULT false,
+  CONSTRAINT contact_submissions_pkey PRIMARY KEY (id),
+  CONSTRAINT contact_submissions_lengths CHECK (char_length(full_name) >= 1 AND char_length(full_name) <= 100 AND char_length(email) >= 3 AND char_length(email) <= 254 AND (mobile IS NULL OR char_length(mobile) <= 20) AND char_length(message) >= 1 AND char_length(message) <= 2000 AND (admin_notes IS NULL OR char_length(admin_notes) <= 5000))
 );
 CREATE TABLE public.purchase_orders (
   id uuid NOT NULL DEFAULT gen_random_uuid(),

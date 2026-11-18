@@ -53,11 +53,17 @@ export async function getAuthContext(): Promise<AuthContext | null> {
   const adminDb = createAdminClient();
   const { data } = await adminDb
     .from("profiles")
-    .select("role, approval_status")
+    // "*" rather than a column list: a column missing on a not-yet-migrated database must
+    // not make the lookup fail, which would silently demote an admin to "customer".
+    .select("*")
     .eq("id", user.id)
     .single();
 
-  const profile = data as { role?: UserRole; approval_status?: string } | null;
+  const profile = data as { role?: UserRole; approval_status?: string; deactivated_at?: string | null } | null;
+
+  // A deactivated account is treated as signed out everywhere, even while its
+  // last access token is still valid (the auth ban stops new sign-ins/refreshes).
+  if (profile?.deactivated_at) return null;
 
   // Deny by default: a missing profile row is never treated as an approved
   // account, and never inherits a role from client-writable user_metadata.

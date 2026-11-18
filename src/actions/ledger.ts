@@ -1,7 +1,9 @@
 "use server";
+import { recordAudit } from "@/lib/server/audit";
 
 import { revalidatePath } from "next/cache";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { selectAll } from "@/lib/server/select-all";
 import { requireAdmin, requireUser } from "@/lib/auth-guard";
 import { parseDbError } from "@/lib/server/db-error";
 import { ledgerErrorMessage } from "@/lib/server/ledger-errors";
@@ -185,18 +187,20 @@ export async function listJournals(range?: Partial<LedgerRange>): Promise<{ rows
   const r = resolveRange(range);
   try {
     const db = createAdminClient();
-    const { data, error } = await db
-      .from("ledger_entries" as never)
-      .select("id, voucher_type, voucher_number, entry_date, narration, reversed_by, lines:ledger_lines(line_no, debit, credit, bill_ref, party_id, account:ledger_accounts(name))")
-      .in("voucher_type", ["journal", "opening"])
-      .eq("is_reversal", false)
-      .gte("entry_date", r.from)
-      .lte("entry_date", r.to)
-      .order("entry_date", { ascending: false })
-      .order("seq", { ascending: false })
-      .limit(1000);
-    if (error) throw new Error(isMissingTable(error) ? LEDGER_MIGRATION_HINT : error.message);
-    const rows = (data as unknown as JournalEntryRow[] | null) ?? [];
+    // Every entry in the range (was capped at 1000 without saying so).
+    const rows = await selectAll<JournalEntryRow>((from, to) =>
+      db.from("ledger_entries" as never)
+        .select("id, voucher_type, voucher_number, entry_date, narration, reversed_by, lines:ledger_lines(line_no, debit, credit, bill_ref, party_id, account:ledger_accounts(name))")
+        .in("voucher_type", ["journal", "opening"])
+        .eq("is_reversal", false)
+        .gte("entry_date", r.from)
+        .lte("entry_date", r.to)
+        .order("entry_date", { ascending: false })
+        .order("seq", { ascending: false })
+        .range(from, to)
+    ).catch((err: { code?: string; message?: string }) => {
+      throw new Error(isMissingTable(err) ? LEDGER_MIGRATION_HINT : err.message ?? "Could not load journals.");
+    });
 
     // Why each cancelled one was cancelled (the reason sits on its reversal).
     const reversedIds = rows.filter((e) => e.reversed_by).map((e) => e.reversed_by as string);
@@ -270,6 +274,7 @@ export async function postJournalEntry(input: JournalInput): Promise<Result<{ vo
     actorId
   );
   if (error) return { success: false, error: ledgerErrorMessage(error) ?? journalError(error.code) };
+  await recordAudit({ action: "journal.post", entity: "journal", entityId: data.id, summary: `Posted ${v.kind === "opening" ? "opening balance" : "journal"} ${data.voucher_number} dated ${v.entryDate}`, metadata: { narration: v.narration, lines: v.lines.length }, actor: { userId: actorId } });
   revalidateLedger();
   return { success: true, voucherNumber: data.voucher_number };
 }
@@ -299,6 +304,7 @@ export async function cancelJournalEntry(entryId: string, reason: string): Promi
   if (reason.trim().length < 3) return { success: false, error: "Enter a reason (at least 3 characters)." };
   const { error } = await cancelJournal(entryId, reason.trim(), actorId);
   if (error) return { success: false, error: ledgerErrorMessage(error) ?? journalError(error.code) };
+  await recordAudit({ action: "journal.cancel", entity: "journal", entityId: entryId, summary: `Cancelled journal entry: ${reason.trim()}`, actor: { userId: actorId } });
   revalidateLedger();
   return { success: true };
 }
@@ -361,6 +367,7 @@ export async function saveLedgerAccount(input: LedgerAccountInput): Promise<Resu
     }
     return { success: false, error: ledgerErrorMessage(e) ?? "Could not save the account." };
   }
+  await recordAudit({ action: a.id ? "ledger_account.update" : "ledger_account.create", entity: "ledger_account", entityId: (res.data as unknown as LedgerAccount).id, summary: `${a.id ? "Edited" : "Created"} ledger account ${a.code} ${a.name}` });
   revalidateLedger();
   revalidatePath("/admin/settings/sales");
   revalidatePath("/admin/payments-received");
@@ -383,6 +390,7 @@ export async function setLedgerAccountActive(accountId: string, active: boolean)
   if (!active && acc.system_key) return { success: false, error: "System accounts are always active." };
   const { error } = await db.from("ledger_accounts" as never).update({ active } as never).eq("id", accountId);
   if (error) return { success: false, error: ledgerErrorMessage(parseDbError(error)) ?? "Could not update the account." };
+  await recordAudit({ action: active ? "ledger_account.activate" : "ledger_account.deactivate", entity: "ledger_account", entityId: accountId, summary: `Ledger account ${active ? "activated" : "deactivated"}` });
   revalidateLedger();
   revalidatePath("/admin/settings/sales");
   return { success: true };
@@ -397,6 +405,7 @@ export async function makeDefaultMoneyAccount(accountId: string): Promise<Result
   if (!UUID.test(accountId)) return { success: false, error: "Account not found." };
   const { error } = await setDefaultMoneyAccount(accountId);
   if (error) return { success: false, error: ledgerErrorMessage(error) ?? "Could not change the default account." };
+  await recordAudit({ action: "ledger_account.set_default", entity: "ledger_account", entityId: accountId, summary: "Made the default money account" });
   revalidatePath("/admin/settings/sales");
   revalidateLedger();
   return { success: true };

@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { submitContactInquiry } from "@/actions/contact";
+import { NAME_RE } from "@/lib/contact";
 import { SocialLinks } from "@/components/common/SocialLinks";
 
 interface FormErrors {
@@ -79,7 +80,7 @@ export function ContactSection() {
         if (!trimmed) return "Full name is required.";
         if (trimmed.length < 2) return "Name must be at least 2 characters long.";
         if (trimmed.length > 100) return "Name cannot exceed 100 characters.";
-        if (!/^[a-zA-Z\s.'-]+$/.test(trimmed)) {
+        if (!NAME_RE.test(trimmed)) {
           return "Name should only contain letters and standard punctuation.";
         }
         return undefined;
@@ -192,8 +193,9 @@ export function ContactSection() {
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    const website = String(new FormData(e.currentTarget).get("website") ?? "");
 
     // Mark all as touched
     setTouched({
@@ -253,6 +255,7 @@ export function ContactSection() {
         mobile,
         message,
         privacyAccepted: privacyAgreed,
+        website,
       });
 
       if (res.success) {
@@ -275,7 +278,7 @@ export function ContactSection() {
   const trimmedEmail = email.trim();
   const trimmedMsg = message.trim();
   const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
-  const isNameValid = trimmedName.length >= 2 && trimmedName.length <= 100 && /^[a-zA-Z\s.'-]+$/.test(trimmedName);
+  const isNameValid = trimmedName.length >= 2 && trimmedName.length <= 100 && NAME_RE.test(trimmedName);
   const isEmailValid = emailRegex.test(trimmedEmail) && trimmedEmail.length <= 254;
   const isMessageValid = trimmedMsg.length >= 10 && trimmedMsg.length <= 2000;
   const isCaptchaValid = isVerified || (parseInt(captchaInput.trim(), 10) === (num1 + num2));
@@ -349,6 +352,11 @@ export function ContactSection() {
             </div>
           ) : (
             <form onSubmit={handleSubmit} noValidate className="space-y-6">
+              {/* Honeypot: hidden from people and screen readers; bots that fill it are dropped server-side. */}
+              <div aria-hidden="true" className="absolute -left-[9999px] h-0 w-0 overflow-hidden">
+                <label htmlFor="contact-website">Website</label>
+                <input id="contact-website" name="website" type="text" tabIndex={-1} autoComplete="off" defaultValue="" />
+              </div>
               {/* Full Name */}
               <div>
                 <input

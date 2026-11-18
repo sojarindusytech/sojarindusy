@@ -1,4 +1,6 @@
 "use server";
+import { diffChanges } from "@/lib/audit";
+import { recordAudit } from "@/lib/server/audit";
 
 import { createAdminClient } from "@/lib/supabase/admin";
 import { Profile } from "@/types/database.types";
@@ -12,6 +14,7 @@ import {
 import { requireAdmin, requireUser } from "@/lib/auth-guard";
 import { createNotification } from "@/lib/server/notifications";
 import { revalidatePath } from "next/cache";
+import { customerHasHistory } from "@/lib/server/rpc";
 
 export async function fetchCustomersList(): Promise<Profile[]> {
   await requireAdmin();
@@ -204,6 +207,12 @@ export async function updateCustomerApprovalStatus(
     return { success: false, message: "Could not update the customer's status. Please try again." };
   }
 
+  await recordAudit({
+    action: `customer.${newStatus === APPROVAL_STATUSES.APPROVED ? "approve" : newStatus === APPROVAL_STATUSES.REJECTED ? "reject" : "set_pending"}`,
+    entity: "customer", entityId: customerId,
+    summary: `Customer approval set to ${newStatus}`,
+    changes: { approval_status: { from: null, to: newStatus } },
+  });
   revalidatePath("/admin/customers");
   return {
     success: true,
@@ -321,6 +330,11 @@ export async function createOfflineCustomer(formData: FormData): Promise<{
     return rollback(err instanceof Error ? err.message : String(err));
   }
 
+  await recordAudit({
+    action: "customer.create_offline", entity: "customer", entityId: created.user.id,
+    summary: `Added offline customer ${companyName} (${email})`,
+    metadata: { credit_limit: creditLimit, credit_days: creditDays },
+  });
   revalidatePath("/admin/customers");
   return {
     success: true,
@@ -392,8 +406,8 @@ export async function adminUpdateCustomer(
   const days = parseCredit(input.credit_days, "Credit days");
   if ("error" in days) return { success: false, error: days.error };
 
-  const { data: existing } = await supabase.from("profiles").select("id, role").eq("id", customerId).maybeSingle();
-  const target = existing as { id: string; role: string } | null;
+  const { data: existing } = await supabase.from("profiles").select("*").eq("id", customerId).maybeSingle();
+  const target = existing as ({ id: string; role: string } & Record<string, unknown>) | null;
   if (!target) return { success: false, error: "Customer not found." };
   if (target.role === "admin" || target.role === "platform_owner") {
     return { success: false, error: "Administrator accounts cannot be edited here." };
@@ -432,8 +446,91 @@ export async function adminUpdateCustomer(
     return { success: false, error: `Could not save the changes: ${error.message}` };
   }
 
+  await recordAudit({
+    action: "customer.update", entity: "customer", entityId: customerId,
+    summary: `Edited customer ${company}`,
+    changes: diffChanges(target, payload),
+  });
   revalidatePath("/admin/customers");
   return { success: true, customer: data as unknown as Profile };
+}
+
+/** Long enough to never expire on its own; "none" lifts it. */
+const DEACTIVATED_BAN = "876000h";
+
+async function setCustomerActive(customerId: string, active: boolean): Promise<string | null> {
+  const supabase = createAdminClient();
+  const { error } = await supabase
+    .from("profiles")
+    .update({ deactivated_at: active ? null : new Date().toISOString(), updated_at: new Date().toISOString() } as never)
+    .eq("id", customerId);
+  if (error) {
+    console.error("[setCustomerActive]", error.code, error.message);
+    return `Could not update the customer: ${error.message}`;
+  }
+  // The ban blocks new sign-ins and token refreshes; getAuthContext refuses live sessions.
+  const { error: banError } = await supabase.auth.admin.updateUserById(customerId, {
+    ban_duration: active ? "none" : DEACTIVATED_BAN,
+  });
+  if (banError) console.error("[setCustomerActive] ban", banError.message);
+  return null;
+}
+
+/** Loads the real role from the database (the list view reports every row as "customer"). */
+async function loadDeletableCustomer(customerId: string, adminId: string): Promise<{ error: string } | { ok: true; label: string }> {
+  if (customerId === adminId) return { error: "You cannot delete your own account." };
+  const supabase = createAdminClient();
+  const { data } = await supabase.from("profiles").select("id, role, company_name, email").eq("id", customerId).maybeSingle();
+  const target = data as { id: string; role: string; company_name: string | null; email: string | null } | null;
+  if (!target) return { error: "Customer not found." };
+  if (target.role === "admin" || target.role === "platform_owner") {
+    return { error: "Administrator accounts cannot be deleted here." };
+  }
+  return { ok: true, label: target.company_name || target.email || customerId };
+}
+
+/**
+ * Deletes a customer. One with any order, invoice, quote, RFQ, note, payment, coupon use or
+ * ledger entry is made inactive instead (login blocked, every document keeps its link);
+ * only a customer with no history is removed, together with their login.
+ */
+export async function deleteCustomer(
+  customerId: string
+): Promise<{ success?: boolean; deactivated?: boolean; error?: string }> {
+  const { userId } = await requireAdmin();
+  const target = await loadDeletableCustomer(customerId, userId);
+  if ("error" in target) return { error: target.error };
+
+  const history = await customerHasHistory(customerId);
+  if (history.error) return { error: "Could not check the customer's history. Please try again." };
+
+  if (!history.data) {
+    const { error } = await createAdminClient().auth.admin.deleteUser(customerId);
+    if (!error) {
+      await recordAudit({ action: "customer.delete", entity: "customer", entityId: customerId, summary: `Deleted customer ${target.label} (no history)` });
+      revalidatePath("/admin/customers");
+      return { success: true, deactivated: false };
+    }
+    // A document was added meanwhile (FK refused the delete): keep the account, deactivate it.
+    console.warn("[deleteCustomer] delete refused, deactivating instead:", error.message);
+  }
+
+  const failed = await setCustomerActive(customerId, false);
+  if (failed) return { error: failed };
+  await recordAudit({ action: "customer.deactivate", entity: "customer", entityId: customerId, summary: `Deactivated customer ${target.label} (has history)` });
+  revalidatePath("/admin/customers");
+  return { success: true, deactivated: true };
+}
+
+export async function reactivateCustomer(customerId: string): Promise<{ success?: boolean; error?: string }> {
+  const { userId } = await requireAdmin();
+  const target = await loadDeletableCustomer(customerId, userId);
+  if ("error" in target) return { error: target.error };
+  const failed = await setCustomerActive(customerId, true);
+  if (failed) return { error: failed };
+  await recordAudit({ action: "customer.reactivate", entity: "customer", entityId: customerId, summary: `Reactivated customer ${target.label}` });
+  revalidatePath("/admin/customers");
+  return { success: true };
 }
 
 /**

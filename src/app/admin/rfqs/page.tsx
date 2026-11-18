@@ -1,3 +1,4 @@
+import { loadOrError } from "@/components/common/LoadErrorCard";
 import { fetchAllRfqsList } from "@/actions/rfq";
 import { AdminRfqsClient } from "@/components/admin/AdminRfqsClient";
 import type { Metadata } from "next";
@@ -10,7 +11,7 @@ export const metadata: Metadata = {
 export const dynamic = "force-dynamic";
 
 export default async function RfqsAdminPage() {
-  const rfqs = await fetchAllRfqsList();
+  const { data: rfqs, loadError } = await loadOrError(fetchAllRfqsList, []);
 
-  return <AdminRfqsClient initialRfqs={rfqs} />;
+  return <AdminRfqsClient initialRfqs={rfqs} loadError={loadError} />;
 }

@@ -1,4 +1,5 @@
 "use server";
+import { recordAudit } from "@/lib/server/audit";
 
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireAdmin } from "@/lib/auth-guard";
@@ -110,6 +111,12 @@ export async function adjustVariantStock(
     await checkAndGeneratePurchaseOrder(data.variant_id, data.balance_after);
   }
 
+  await recordAudit({
+    action: "stock.adjust", entity: "stock", entityId: data.variant_id,
+    summary: `Stock of ${data.sku}: ${data.balance_before} → ${data.balance_after} (${params.reason})`,
+    changes: { stock_quantity: { from: data.balance_before, to: data.balance_after } },
+    actor: { userId },
+  });
   revalidatePath("/admin/products");
   return { success: true, updatedStock: data.balance_after };
 }

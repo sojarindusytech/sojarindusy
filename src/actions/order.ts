@@ -1,4 +1,5 @@
 "use server";
+import { recordAudit } from "@/lib/server/audit";
 
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -13,6 +14,7 @@ import { createInvoiceFromOrder } from "@/actions/invoice";
 import { stockErrorMessage } from "@/lib/server/stock-errors";
 import { needsEwayBill, EWAY_BILL_THRESHOLD } from "@/lib/invoice";
 import { revalidatePath } from "next/cache";
+import { safeHttpUrl } from "@/lib/url";
 
 export interface CreateOrderPayload {
   items: Array<{
@@ -122,21 +124,52 @@ export async function updateOrderStatus(
     courier_partner?: string;
     awb_number?: string;
     tracking_url?: string;
-    notes?: string;
+    /** Internal only (order_admin_notes); never written to the customer's order notes. */
+    admin_notes?: string;
     return_reason?: string;
   }
 ): Promise<{ success: boolean; error?: string }> {
   const guard = await guardOrError(requireAdmin);
   if (!guard.ctx) return { success: false, error: guard.error };
 
+  const { admin_notes: adminNotes, ...rest } = tracking ?? {};
+
+  // The tracking link is shown to the customer as a clickable link: http(s) only.
+  if (rest.tracking_url?.trim()) {
+    const safe = safeHttpUrl(rest.tracking_url);
+    if (!safe) return { success: false, error: "Tracking link must start with http:// or https://." };
+    rest.tracking_url = safe;
+  }
+  if (adminNotes !== undefined && adminNotes.length > 5000) {
+    return { success: false, error: "Internal notes cannot exceed 5000 characters." };
+  }
+
   // Only send the fields the caller actually provided: absent keys are left unchanged.
   const changes = Object.fromEntries(
-    Object.entries(tracking ?? {}).filter(([, v]) => v !== undefined)
+    Object.entries(rest).filter(([, v]) => v !== undefined)
   ) as Record<string, string>;
 
   const { data, error } = await transitionOrderStatus(orderId, newStatus, changes, guard.ctx.userId);
   if (error) {
     return { success: false, error: transitionErrorMessage(error.code, error.detail) };
+  }
+
+  if (adminNotes !== undefined) {
+    const db = createAdminClient();
+    const trimmed = adminNotes.trim();
+    const { error: noteErr } = trimmed
+      ? await db
+          .from("order_admin_notes" as never)
+          .upsert(
+            { order_id: orderId, notes: trimmed, updated_by: guard.ctx.userId, updated_at: new Date().toISOString() } as never,
+            { onConflict: "order_id" }
+          )
+      : await db.from("order_admin_notes" as never).delete().eq("order_id", orderId);
+    // The status change is already saved; report the notes problem instead of failing it.
+    if (noteErr) {
+      console.error("[updateOrderStatus] admin notes:", noteErr.message);
+      return { success: false, error: "Status saved, but the internal notes could not be saved. Please try again." };
+    }
   }
 
   let invoiceNumber = data.invoice_number;
@@ -150,6 +183,23 @@ export async function updateOrderStatus(
   if (data.previous_status !== data.status || data.status === ORDER_STATUSES.SHIPPED) {
     await notifyCustomerOfStatus({ ...data, invoice_number: invoiceNumber });
   }
+
+  const trackingChanges = Object.fromEntries(
+    Object.entries(rest).filter(([, v]) => v !== undefined).map(([k, v]) => [k, { from: null, to: v }])
+  );
+  await recordAudit({
+    action: data.previous_status !== data.status ? "order.status" : "order.update",
+    entity: "order", entityId: orderId,
+    summary: data.previous_status !== data.status
+      ? `Order ${data.order_number}: ${data.previous_status} → ${data.status}`
+      : `Updated order ${data.order_number} (${data.status})`,
+    changes: {
+      ...(data.previous_status !== data.status ? { status: { from: data.previous_status, to: data.status } } : {}),
+      ...trackingChanges,
+      ...(adminNotes !== undefined ? { internal_notes: { from: null, to: adminNotes.trim() || null } } : {}),
+    },
+    actor: { userId: guard.ctx.userId, email: guard.ctx.email, role: guard.ctx.role },
+  });
 
   revalidatePath("/dashboard");
   revalidatePath("/dashboard/invoices");
@@ -189,6 +239,12 @@ export async function renameOrderNumber(
   }
 
   if (data.changed) {
+    await recordAudit({
+      action: "order.rename", entity: "order", entityId: orderId,
+      summary: `Order number changed ${data.previous} → ${data.order_number}`,
+      changes: { order_number: { from: data.previous, to: data.order_number } },
+      actor: { userId: guard.ctx.userId, email: guard.ctx.email, role: guard.ctx.role },
+    });
     const { error: invErr } = await createAdminClient()
       .from("invoices" as never)
       .update({ po_number: data.order_number } as never)
@@ -281,7 +337,8 @@ async function notifyCustomerOfStatus(order: {
 export async function fetchAdminOrdersList(): Promise<Order[]> {
   await requireAdmin();
   try {
-    const { data: orders, error } = await createAdminClient()
+    const db = createAdminClient();
+    const { data: orders, error } = await db
       .from("orders")
       .select("*")
       .order("created_at", { ascending: false });
@@ -290,7 +347,13 @@ export async function fetchAdminOrdersList(): Promise<Order[]> {
       console.warn("Notice fetching admin orders:", error.message);
       return [];
     }
-    return (orders as Order[]) || [];
+    const list = (orders as Order[]) || [];
+
+    // Internal notes; a missing table (migration not run yet) just means no notes.
+    const { data: notes, error: notesErr } = await db.from("order_admin_notes" as never).select("order_id, notes");
+    if (notesErr) console.warn("[fetchAdminOrdersList] admin notes:", notesErr.message);
+    const byOrder = new Map(((notes ?? []) as { order_id: string; notes: string }[]).map((n) => [n.order_id, n.notes]));
+    return list.map((o) => ({ ...o, admin_notes: byOrder.get(o.id) ?? null }));
   } catch (err) {
     console.error("fetchAdminOrdersList exception:", err);
     return [];
@@ -320,7 +383,20 @@ export async function fetchCustomerOrdersList(): Promise<Order[]> {
       console.warn("Notice fetching customer orders:", error.message);
       return [];
     }
-    return (orders as Order[]) || [];
+    const list = (orders as Order[]) || [];
+
+    // Issued invoice per order, so the customer can open the real PDF (the PDF route still
+    // checks ownership and that the order is delivered).
+    const withInvoice = list.filter((o) => o.invoice_number).map((o) => o.id);
+    if (withInvoice.length === 0) return list;
+    const { data: invoices } = await createAdminClient()
+      .from("invoices" as never)
+      .select("id, order_id")
+      .eq("user_id", user.id)
+      .eq("status", "issued")
+      .in("order_id", withInvoice);
+    const invoiceByOrder = new Map(((invoices ?? []) as { id: string; order_id: string }[]).map((i) => [i.order_id, i.id]));
+    return list.map((o) => ({ ...o, invoice_id: invoiceByOrder.get(o.id) ?? null }));
   } catch (err) {
     console.error("fetchCustomerOrdersList exception:", err);
     return [];
@@ -360,29 +436,31 @@ export async function requestCustomerOrderReturn(
       return { success: false, error: "Order not found." };
     }
 
-    if (order.status !== ORDER_STATUSES.DELIVERED && order.status !== ORDER_STATUSES.SHIPPED) {
-      return { success: false, error: "Only dispatched or delivered orders can be requested for return." };
+    // Same rule as the customer screen: goods must have arrived before they can be returned.
+    if (order.status !== ORDER_STATUSES.DELIVERED) {
+      return { success: false, error: "Only delivered orders can be requested for return." };
     }
-    if (order.return_reason) {
-      return { success: false, error: "A return has already been requested for this order." };
-    }
+    const alreadyRequested = { success: false, error: "A return has already been requested for this order." };
+    if (order.return_reason) return alreadyRequested;
 
-    const formattedReason = `Return Requested: ${trimmedReason} (Submitted on ${new Date().toLocaleDateString("en-IN")})`;
-    const updatedNotes = order.notes ? `${order.notes}\n${formattedReason}` : formattedReason;
-
-    const { error: updateErr } = await adminClient
+    // Conditional update: two submits at once cannot both record a request. The customer's own
+    // order notes are left as they wrote them; the reason lives in return_reason.
+    const { data: updated, error: updateErr } = await adminClient
       .from("orders")
       .update({
         return_reason: trimmedReason,
-        notes: updatedNotes,
         updated_at: new Date().toISOString(),
       } as never)
       .eq("id", orderId)
-      .eq("user_id", userId);
+      .eq("user_id", userId)
+      .eq("status", ORDER_STATUSES.DELIVERED)
+      .is("return_reason", null)
+      .select("id");
 
     if (updateErr) {
       return { success: false, error: "Could not submit the return request. Please try again." };
     }
+    if (!updated || updated.length === 0) return alreadyRequested;
 
     await notifyAll([
       {

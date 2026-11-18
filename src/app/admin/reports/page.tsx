@@ -1,25 +1,15 @@
-import { AdminComingSoon } from "@/components/admin/AdminComingSoon";
-import { BarChart3 } from "lucide-react";
 import type { Metadata } from "next";
+import { getSalesReport } from "@/actions/reports";
+import { ReportsClient } from "@/components/admin/ReportsClient";
 
 export const metadata: Metadata = {
-  title: "Analytics & Reports | Sojar Solutions Admin",
-  description: "Executive business intelligence, sales trends, and production metrics.",
+  title: "Reports | Sojar Solutions Admin",
+  description: "Sales, GST, customers, products, collections, receivables and stock for any period.",
 };
 
-export default function ReportsAdminPage() {
-  return (
-    <AdminComingSoon
-      section="Analytics & Logs"
-      title="Reports"
-      description="Comprehensive analytical dashboards covering monthly sales growth, SKU velocity, and regional revenue."
-      icon={BarChart3}
-      features={[
-        "Interactive revenue forecasting charts by HRC grade and tool geometry",
-        "Top-performing customers and distributor concentration metrics",
-        "Inventory turnover rates and slow-moving SKU detection",
-        "One-click multi-page executive summary PDF exports",
-      ]}
-    />
-  );
+export const dynamic = "force-dynamic";
+
+export default async function ReportsAdminPage({ searchParams }: { searchParams: Promise<{ from?: string; to?: string }> }) {
+  const { from, to } = await searchParams;
+  return <ReportsClient report={await getSalesReport({ from, to })} />;
 }

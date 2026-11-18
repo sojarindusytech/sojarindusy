@@ -1,3 +1,4 @@
+import { loadOrError } from "@/components/common/LoadErrorCard";
 import { getPurchaseOrders } from "@/actions/purchase-order";
 import { AdminPurchaseOrdersClient } from "@/components/admin/AdminPurchaseOrdersClient";
 import { requireAdmin } from "@/lib/auth-guard";
@@ -11,7 +12,7 @@ export const metadata = {
 
 export default async function AdminPurchaseOrdersPage() {
   await requireAdmin();
-  const orders = await getPurchaseOrders();
+  const { data: orders, loadError } = await loadOrError(() => getPurchaseOrders(), []);
 
-  return <AdminPurchaseOrdersClient initialOrders={orders} />;
+  return <AdminPurchaseOrdersClient initialOrders={orders} loadError={loadError} />;
 }

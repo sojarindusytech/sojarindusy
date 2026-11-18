@@ -1,5 +1,7 @@
 "use server";
+import { recordAudit } from "@/lib/server/audit";
 
+import { selectAll } from "@/lib/server/select-all";
 import { revalidatePath } from "next/cache";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireAdmin, requireUser } from "@/lib/auth-guard";
@@ -41,28 +43,29 @@ const toListRow = (r: DebitNoteListRow): DebitNoteListRow => ({ ...r, total_amou
 
 export async function listDebitNotes(): Promise<DebitNoteListRow[]> {
   await requireAdmin();
-  const { data, error } = await createAdminClient()
-    .from("debit_notes" as never)
-    .select(LIST_COLUMNS)
-    .order("created_at", { ascending: false });
-  if (error) {
-    console.error("[listDebitNotes] Query error:", error.code, error.message);
+  const db = createAdminClient();
+  let rows: DebitNoteListRow[];
+  try {
+    rows = (
+      await selectAll<DebitNoteListRow>((from, to) =>
+        db.from("debit_notes" as never).select(LIST_COLUMNS)
+          .order("debit_note_date", { ascending: false }).order("created_at", { ascending: false }).order("id").range(from, to)
+      )
+    ).map(toListRow);
+  } catch (err) {
+    const e = err as { code?: string; message?: string };
+    console.error("[listDebitNotes] Query error:", e.code, e.message);
     // An empty list would hide a missing migration; say what is wrong instead.
-    if (isMissingTable(error)) throw new Error(MIGRATION_HINT);
-    return [];
+    throw new Error(isMissingTable(e) ? MIGRATION_HINT : "Debit notes could not be loaded. Please reload the page.");
   }
-  const rows = ((data as unknown as DebitNoteListRow[]) ?? []).map(toListRow);
 
   // Paid / balance / status come from the payments module (20261023). Before that migration the
   // view is missing and the list simply shows no payment columns.
-  const { data: sums } = await createAdminClient()
-    .from("debit_note_payment_summary" as never)
-    .select("debit_note_id, paid, balance, payment_status");
-  const byId = new Map(
-    ((sums as unknown as { debit_note_id: string; paid: number | string; balance: number | string; payment_status: InvoicePaymentStatus }[] | null) ?? []).map(
-      (r) => [r.debit_note_id, r]
-    )
-  );
+  type Sum = { debit_note_id: string; paid: number | string; balance: number | string; payment_status: InvoicePaymentStatus };
+  const sums = await selectAll<Sum>((from, to) =>
+    db.from("debit_note_payment_summary" as never).select("debit_note_id, paid, balance, payment_status").order("debit_note_id").range(from, to)
+  ).catch(() => [] as Sum[]);
+  const byId = new Map(sums.map((r) => [r.debit_note_id, r]));
   return rows.map((r) => {
     const s = byId.get(r.id);
     return s ? { ...r, paid: Number(s.paid), balance: Number(s.balance), payment_status: s.payment_status } : r;
@@ -226,6 +229,11 @@ export async function issueDebitNote(input: IssueDebitNoteInput): Promise<Result
       ]);
     }
 
+    await recordAudit({
+      action: "debit_note.issue", entity: "debit_note", entityId: data.id,
+      summary: `Issued debit note ${data.debit_note_number} against ${data.invoice_number}: ₹${Number(data.total_amount).toLocaleString("en-IN", { minimumFractionDigits: 2 })}`,
+      actor: { userId: actorId },
+    });
     revalidatePath("/admin/debit-notes");
     revalidatePath("/admin/invoices");
     revalidatePath("/admin/settings/sales");
@@ -249,6 +257,13 @@ export async function cancelDebitNote(debitNoteId: string, reason: string): Prom
   const { data, error } = await cancelDebitNoteRpc(debitNoteId, String(reason ?? "").slice(0, 500), actorId);
   if (error) return { success: false, error: debitNoteErrorMessage(error) };
 
+  if (!data.already_cancelled) {
+    await recordAudit({
+      action: "debit_note.cancel", entity: "debit_note", entityId: debitNoteId,
+      summary: `Cancelled debit note ${data.debit_note_number}: ${String(reason ?? "").slice(0, 200)}`,
+      actor: { userId: actorId },
+    });
+  }
   if (!data.already_cancelled && data.user_id) {
     await notifyAll([
       {

@@ -10,6 +10,11 @@ import { QuoteFormModal } from "./QuoteFormModal";
 import { InvoiceFormModal } from "./InvoiceFormModal";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PaginationBar, usePagination } from "@/components/common/Pagination";
+import { DateRangeFilter, useDateRangeFilter } from "@/components/common/DateRangeFilter";
+import { LoadErrorCard } from "@/components/common/LoadErrorCard";
+import { useUrlState } from "@/lib/use-url-state";
+import { isWithinDateRange } from "@/lib/date-range";
+import { downloadCsv } from "@/lib/csv";
 import { Card } from "@/components/ui/card";
 import { IconAction } from "@/components/common/IconAction";
 import { Button } from "@/components/ui/button";
@@ -59,19 +64,34 @@ import {
   IndianRupee,
   Calendar,
   Layers,
+  FileDown,
 } from "lucide-react";
 import toast from "react-hot-toast";
 
 interface AdminQuotesClientProps {
   initialQuotes: CommercialQuote[];
+  loadError?: string | null;
 }
 
-export function AdminQuotesClient({ initialQuotes }: AdminQuotesClientProps) {
+/** Local "YYYY-MM-DD" for today, to compare with valid_until. */
+const todayIso = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+};
+
+/** A quote sent but past its validity is treated as expired (filters, counts, pipeline), even before
+ *  anyone changes its stored status. */
+const isPastValidity = (q: CommercialQuote) => q.status === "sent" && !!q.valid_until && q.valid_until < todayIso();
+const effectiveStatus = (q: CommercialQuote): QuoteStatus => (isPastValidity(q) ? "expired" : q.status);
+
+export function AdminQuotesClient({ initialQuotes, loadError = null }: AdminQuotesClientProps) {
   const [quotes, setQuotes] = useState<CommercialQuote[]>(initialQuotes);
   // Quotation being turned into an invoice (opens the invoice form pre-filled).
   const [convertingQuote, setConvertingQuote] = useState<CommercialQuote | null>(null);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState<string>("ALL");
+  // Filters live in the URL: they survive reload / Back and can be shared as a link.
+  const [searchQuery, setSearchQuery] = useUrlState("q");
+  const [statusFilter, setStatusFilter] = useUrlState("status", "ALL");
+  const dates = useDateRangeFilter();
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   // Status & Note Management State
@@ -106,10 +126,9 @@ export function AdminQuotesClient({ initialQuotes }: AdminQuotesClientProps) {
   // Id of the quote whose PDF has finished loading; the skeleton shows until it matches.
   const [loadedPdfId, setLoadedPdfId] = useState<string | null>(null);
 
-  const filteredQuotes = quotes.filter((q) => {
-    if (statusFilter !== "ALL" && q.status !== statusFilter) {
-      return false;
-    }
+  // Search + date narrow everything; the status filter narrows only the table and cards.
+  const searchedQuotes = quotes.filter((q) => {
+    if (!isWithinDateRange(q.quote_date, dates.range, dates.from, dates.to)) return false;
     if (searchQuery.trim()) {
       const term = searchQuery.toLowerCase();
       const matchNum = q.quote_number?.toLowerCase().includes(term);
@@ -125,14 +144,29 @@ export function AdminQuotesClient({ initialQuotes }: AdminQuotesClientProps) {
     return true;
   });
 
-  // Metrics: the cards follow the filters
-  const totalCount = filteredQuotes.length;
-  const totalPipelineValue = filteredQuotes.reduce((acc, q) => acc + q.total_amount, 0);
-  const acceptedQuotes = filteredQuotes.filter((q) => q.status === "accepted");
-  const acceptedValue = acceptedQuotes.reduce((acc, q) => acc + q.total_amount, 0);
-  const pendingOrSentCount = filteredQuotes.filter((q) => q.status === "sent" || q.status === "draft").length;
+  const filteredQuotes = searchedQuotes.filter((q) => statusFilter === "ALL" || effectiveStatus(q) === statusFilter);
+  const countOf = (status: QuoteStatus) => searchedQuotes.filter((q) => effectiveStatus(q) === status).length;
 
-  const pager = usePagination(filteredQuotes, `${searchQuery}|${statusFilter}`);
+  // Metrics: the cards follow the filters. The pipeline is only what can still be won
+  // (drafts and sent quotes still within validity), not declined or expired ones.
+  const totalCount = filteredQuotes.length;
+  const openQuotes = filteredQuotes.filter((q) => effectiveStatus(q) === "draft" || effectiveStatus(q) === "sent");
+  const totalPipelineValue = openQuotes.reduce((acc, q) => acc + Number(q.total_amount || 0), 0);
+  const acceptedQuotes = filteredQuotes.filter((q) => q.status === "accepted");
+  const acceptedValue = acceptedQuotes.reduce((acc, q) => acc + Number(q.total_amount || 0), 0);
+  const pendingOrSentCount = openQuotes.length;
+
+  const pager = usePagination(filteredQuotes, `${searchQuery}|${statusFilter}|${dates.key}`);
+
+  const exportCsv = () =>
+    downloadCsv(
+      `quotes-${new Date().toISOString().slice(0, 10)}.csv`,
+      ["Quote #", "Date", "Valid until", "Company", "Contact", "GSTIN", "Items", "Total", "Status"],
+      filteredQuotes.map((q) => [
+        q.quote_number, q.quote_date, q.valid_until ?? "", q.company_name, q.contact_person ?? "", q.gstin ?? "",
+        q.items.length, Number(q.total_amount || 0).toFixed(2), QUOTE_STATUS_CONFIG[effectiveStatus(q)]?.label ?? effectiveStatus(q),
+      ])
+    );
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
@@ -235,6 +269,16 @@ ${note}` : note;
           <Button
             variant="outline"
             size="sm"
+            onClick={exportCsv}
+            disabled={!!loadError || filteredQuotes.length === 0}
+            className="w-full sm:w-auto justify-center border-slate-200 text-slate-700 hover:bg-slate-50 h-9 sm:h-8"
+          >
+            <FileDown className="w-4 h-4 mr-2" />
+            Export CSV
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
             onClick={handleRefresh}
             disabled={isRefreshing}
             className="w-full sm:w-auto justify-center border-slate-200 text-slate-700 hover:bg-slate-50 h-9 sm:h-8"
@@ -252,6 +296,8 @@ ${note}` : note;
           </Button>
         </div>
       </div>
+
+      {loadError && <LoadErrorCard message={loadError} />}
 
       {/* Metrics Row */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -279,7 +325,7 @@ ${note}` : note;
             <span className="text-2xl font-bold text-slate-900">
               ₹{totalPipelineValue.toLocaleString("en-IN")}
             </span>
-            <span className="text-xs text-slate-500">incl. GST where applicable</span>
+            <span className="text-xs text-slate-500">open drafts & sent, incl. GST</span>
           </div>
         </Card>
 
@@ -307,7 +353,7 @@ ${note}` : note;
           </div>
           <div className="mt-2 flex items-baseline gap-2">
             <span className="text-2xl font-bold text-amber-600">{pendingOrSentCount}</span>
-            <span className="text-xs text-slate-500">drafts & dispatched</span>
+            <span className="text-xs text-slate-500">drafts & sent, still valid</span>
           </div>
         </Card>
       </div>
@@ -326,7 +372,7 @@ ${note}` : note;
             />
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3">
             <div className="flex items-center gap-2 min-w-[190px]">
               <Filter className="w-4 h-4 text-slate-400" />
               <Select value={statusFilter} onValueChange={(val) => setStatusFilter(val)}>
@@ -334,23 +380,28 @@ ${note}` : note;
                   <SelectValue placeholder="Filter by status" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="ALL">All Statuses ({quotes.length})</SelectItem>
-                  <SelectItem value="draft">Draft ({quotes.filter((q) => q.status === "draft").length})</SelectItem>
-                  <SelectItem value="sent">Sent to Client ({quotes.filter((q) => q.status === "sent").length})</SelectItem>
-                  <SelectItem value="accepted">Accepted / Confirmed ({quotes.filter((q) => q.status === "accepted").length})</SelectItem>
-                  <SelectItem value="rejected">Declined ({quotes.filter((q) => q.status === "rejected").length})</SelectItem>
-                  <SelectItem value="expired">Expired ({quotes.filter((q) => q.status === "expired").length})</SelectItem>
+                  <SelectItem value="ALL">All Statuses ({searchedQuotes.length})</SelectItem>
+                  <SelectItem value="draft">Draft ({countOf("draft")})</SelectItem>
+                  <SelectItem value="sent">Sent to Client ({countOf("sent")})</SelectItem>
+                  <SelectItem value="accepted">Accepted / Confirmed ({countOf("accepted")})</SelectItem>
+                  <SelectItem value="rejected">Declined ({countOf("rejected")})</SelectItem>
+                  <SelectItem value="expired">Expired ({countOf("expired")})</SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
-            {(searchQuery || statusFilter !== "ALL") && (
+            <DateRangeFilter state={dates} />
+
+            {(searchQuery || statusFilter !== "ALL" || dates.range !== "all") && (
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={() => {
                   setSearchQuery("");
                   setStatusFilter("ALL");
+                  dates.setRange("all");
+                  dates.setFrom("");
+                  dates.setTo("");
                 }}
                 className="text-slate-500 hover:text-slate-700 text-xs"
               >
@@ -446,6 +497,11 @@ ${note}` : note;
                             ))}
                           </SelectContent>
                         </Select>
+                        {isPastValidity(quote) && (
+                          <span className="ml-1.5 text-[10px] font-semibold text-amber-700" title={`Valid until ${quote.valid_until}`}>
+                            Validity ended
+                          </span>
+                        )}
                       </TableCell>
                       <TableCell className="py-2.5 text-right">
                         <div className="flex items-center justify-end gap-1">

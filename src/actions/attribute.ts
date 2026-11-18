@@ -1,4 +1,5 @@
 "use server";
+import { recordAudit } from "@/lib/server/audit";
 
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireAdmin } from "@/lib/auth-guard";
@@ -84,6 +85,7 @@ export async function createAttribute(
       return { error: error.message || "Unable to create attribute. Please try again." };
     }
 
+    await recordAudit({ action: "attribute.create", entity: "attribute", entityId: (data as unknown as Attribute | null)?.id ?? null, summary: `Created attribute ${trimmedName}` });
     revalidatePath("/admin/attributes");
     revalidatePath("/admin/tags");
     revalidatePath("/admin/product-upload");
@@ -94,60 +96,82 @@ export async function createAttribute(
   }
 }
 
+export interface AttributeUsage {
+  name: string;
+  /** Product families the attribute is assigned to. */
+  products: string[];
+  /** SKUs carrying it in specifications.Attribute / specifications.Tag (set by Add / Edit SKU). */
+  skuCount: number;
+  skus: string[];
+}
+
+const SAMPLE = 5;
+
+/** Where an attribute is used. null = attribute not found. */
+async function loadAttributeUsage(id: string): Promise<AttributeUsage | { error: string } | null> {
+  const supabase = createAdminClient();
+
+  const { data: attr, error: attrErr } = await supabase.from("attributes").select("name").eq("id", id).maybeSingle();
+  if (attrErr) return { error: attrErr.message };
+  const name = (attr as { name?: string } | null)?.name;
+  if (!name) return null;
+
+  const { data: links, error: linkErr } = await supabase
+    .from("product_attributes")
+    .select("products(title)")
+    .eq("attribute_id", id);
+  if (linkErr) return { error: linkErr.message };
+  const products = ((links ?? []) as { products?: { title?: string } | null }[])
+    .map((l) => l.products?.title?.trim() || "Untitled product")
+    .sort();
+
+  // SKUs store the attribute by name; older ones only under "Tag".
+  const skuSet = new Set<string>();
+  for (const key of ["Attribute", "Tag"]) {
+    const { data: rows, error } = await supabase
+      .from("product_variants")
+      .select("sku")
+      .eq(`specifications->>${key}`, name)
+      .limit(1000);
+    if (error) return { error: error.message };
+    for (const r of (rows ?? []) as { sku: string }[]) skuSet.add(r.sku);
+  }
+  const skus = [...skuSet].sort();
+
+  return { name, products, skuCount: skus.length, skus: skus.slice(0, SAMPLE) };
+}
+
+/** For the delete confirmation: shows where the attribute is used before anything is deleted. */
+export async function getAttributeUsage(id: string): Promise<{ usage?: AttributeUsage; error?: string }> {
+  await requireAdmin();
+  try {
+    const usage = await loadAttributeUsage(id);
+    if (!usage) return { error: "Attribute not found. It may already have been deleted." };
+    if ("error" in usage) return { error: "Could not check where this attribute is used. Please try again." };
+    return { usage };
+  } catch (err) {
+    console.error("[getAttributeUsage]", err);
+    return { error: "Could not check where this attribute is used. Please try again." };
+  }
+}
+
 export async function deleteAttribute(id: string): Promise<{ success?: boolean; error?: string }> {
   await requireAdmin();
   const supabase = createAdminClient();
 
   try {
-    // 1. Fetch the attribute name for friendly display
-    let attrName = "this attribute";
-    const { data: attrData } = await supabase
-      .from("attributes")
-      .select("name")
-      .eq("id", id)
-      .maybeSingle();
-
-    const typedAttr = attrData as { name?: string } | null;
-    if (typedAttr?.name) {
-      attrName = `"${typedAttr.name}"`;
-    } else {
-      const { data: tagData } = await supabase
-        .from("tags")
-        .select("name")
-        .eq("id", id)
-        .maybeSingle();
-      const typedTag = tagData as { name?: string } | null;
-      if (typedTag?.name) attrName = `"${typedTag.name}"`;
-    }
-
-    // 2. Check if any products are associated with this attribute & fetch their titles
-    let productTitles: string[] = [];
-    let { data: productLinks, error: countError } = await supabase
-      .from("product_attributes")
-      .select("product_id, products(id, title)")
-      .eq("attribute_id", id);
-
-    if (countError && countError.code === "42P01") {
-      // Fallback to product_tags
-      const fallback = await supabase
-        .from("product_tags")
-        .select("product_id, products(id, title)")
-        .eq("tag_id", id);
-      productLinks = fallback.data as any;
-    }
-
-    if (productLinks && productLinks.length > 0) {
-      productTitles = productLinks
-        .map((p: any) => p.products?.title)
-        .filter((t: string | undefined): t is string => Boolean(t && t.trim()));
-
-      const count = productLinks.length;
-      const productListStr = productTitles.length > 0
-        ? ` (${productTitles.slice(0, 3).map(t => `"${t}"`).join(", ")}${productTitles.length > 3 ? ` and ${productTitles.length - 3} more` : ""})`
-        : "";
-
+    // Re-checked here: the confirmation dialog's answer may be stale.
+    const usage = await loadAttributeUsage(id);
+    if (!usage) return { error: "Attribute not found. It may already have been deleted." };
+    if ("error" in usage) return { error: "Could not check where this attribute is used. Please try again." };
+    const attrName = `"${usage.name}"`;
+    if (usage.products.length > 0 || usage.skuCount > 0) {
+      const parts = [
+        usage.products.length > 0 && `${usage.products.length} product famil${usage.products.length === 1 ? "y" : "ies"}`,
+        usage.skuCount > 0 && `${usage.skuCount} SKU${usage.skuCount === 1 ? "" : "s"}`,
+      ].filter(Boolean);
       return {
-        error: `Cannot delete attribute ${attrName} because it is currently assigned to ${count} product family${count > 1 ? "ies" : ""}${productListStr}. Please remove this attribute from the product(s) before deleting.`,
+        error: `Cannot delete attribute ${attrName}: it is used by ${parts.join(" and ")}. Remove it from them first.`,
       };
     }
 
@@ -168,6 +192,7 @@ export async function deleteAttribute(id: string): Promise<{ success?: boolean; 
       return { error: error.message || "Failed to delete attribute. Please try again." };
     }
 
+    await recordAudit({ action: "attribute.delete", entity: "attribute", entityId: id, summary: `Deleted attribute ${attrName}` });
     revalidatePath("/admin/attributes");
     revalidatePath("/admin/tags");
     revalidatePath("/admin/product-upload");

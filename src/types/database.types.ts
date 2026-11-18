@@ -35,6 +35,8 @@ export interface Profile {
   notes?: string | null;
   credit_limit?: number | null;
   credit_days?: number | null;
+  /** Set when an admin deleted a customer who has history: login blocked, documents kept. */
+  deactivated_at?: string | null;
   created_at?: string;
   updated_at?: string;
 }
@@ -257,6 +259,10 @@ export interface Order {
   idempotency_key?: string | null;
   created_at: string;
   updated_at: string;
+  /** Admin views only (order_admin_notes): internal dispatch / status notes, never sent to customers. */
+  admin_notes?: string | null;
+  /** Customer views only: the issued invoice for this order, to open its PDF. */
+  invoice_id?: string | null;
 }
 
 export interface SalesSettings {

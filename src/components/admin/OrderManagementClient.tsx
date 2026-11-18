@@ -1,5 +1,6 @@
 "use client";
 
+import { safeHttpUrl } from "@/lib/url";
 import { PageTitle } from "@/components/common/PageTitle";
 import { useState, useMemo, useEffect } from "react";
 import { getOrderAmounts } from "@/lib/order-amounts";
@@ -70,7 +71,7 @@ export function OrderManagementClient({ initialOrders }: OrderManagementClientPr
     courier_partner?: string;
     awb_number?: string;
     tracking_url?: string;
-    notes?: string;
+    admin_notes?: string | null;
     return_reason?: string;
   }) => {
     if (!trackingModalOrder) return;
@@ -84,7 +85,7 @@ export function OrderManagementClient({ initialOrders }: OrderManagementClientPr
               courier_partner: updatedFields.courier_partner !== undefined ? updatedFields.courier_partner : ord.courier_partner,
               awb_number: updatedFields.awb_number !== undefined ? updatedFields.awb_number : ord.awb_number,
               tracking_url: updatedFields.tracking_url !== undefined ? updatedFields.tracking_url : ord.tracking_url,
-              notes: updatedFields.notes !== undefined ? updatedFields.notes : ord.notes,
+              admin_notes: updatedFields.admin_notes !== undefined ? updatedFields.admin_notes : ord.admin_notes,
               return_reason: updatedFields.return_reason !== undefined ? updatedFields.return_reason : ord.return_reason,
               returned_at: updatedFields.status === ORDER_STATUSES.RETURNED ? (ord.returned_at || new Date().toISOString()) : ord.returned_at,
               dispatched_at: updatedFields.status === ORDER_STATUSES.SHIPPED ? (ord.dispatched_at || new Date().toISOString()) : ord.dispatched_at,
@@ -134,7 +135,8 @@ export function OrderManagementClient({ initialOrders }: OrderManagementClientPr
     const shipped = filteredOrders.filter((o) => o.status === ORDER_STATUSES.SHIPPED).length;
     const delivered = filteredOrders.filter((o) => o.status === ORDER_STATUSES.DELIVERED).length;
     const totalRevenue = filteredOrders
-      .filter((o) => o.status !== ORDER_STATUSES.CANCELLED)
+      // Cancelled and returned orders are not sales.
+      .filter((o) => o.status !== ORDER_STATUSES.CANCELLED && o.status !== ORDER_STATUSES.RETURNED)
       .reduce((acc, o) => acc + (Number(o.total_amount) || 0), 0);
 
     return { total, pending, confirmed, processing, shipped, delivered, totalRevenue };
@@ -368,9 +370,9 @@ export function OrderManagementClient({ initialOrders }: OrderManagementClientPr
                                 AWB: {ord.awb_number}
                               </div>
                             )}
-                            {ord.tracking_url && (
+                            {safeHttpUrl(ord.tracking_url) && (
                               <a
-                                href={ord.tracking_url}
+                                href={safeHttpUrl(ord.tracking_url)!}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="text-[10px] text-[#024AE5] hover:underline flex items-center gap-0.5 font-bold"
@@ -497,9 +499,9 @@ export function OrderManagementClient({ initialOrders }: OrderManagementClientPr
                       </div>
                     </div>
                   </div>
-                  {viewOrder.tracking_url && (
+                  {safeHttpUrl(viewOrder.tracking_url) && (
                     <a
-                      href={viewOrder.tracking_url}
+                      href={safeHttpUrl(viewOrder.tracking_url)!}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="text-xs text-[#024AE5] font-bold hover:underline flex items-center gap-1 shrink-0"
@@ -539,8 +541,15 @@ export function OrderManagementClient({ initialOrders }: OrderManagementClientPr
                     {viewOrder.shipping_address}
                   </div>
                   {viewOrder.notes && (
-                    <div className="mt-2 text-slate-600 italic bg-white p-1.5 rounded border border-slate-200 text-[11px]">
+                    <div className="mt-2 text-slate-600 italic bg-white p-1.5 rounded border border-slate-200 text-[11px] whitespace-pre-line">
+                      <span className="not-italic font-semibold text-slate-500">Customer note: </span>
                       {viewOrder.notes}
+                    </div>
+                  )}
+                  {viewOrder.admin_notes && (
+                    <div className="mt-2 text-amber-900 bg-amber-50 p-1.5 rounded border border-amber-200 text-[11px] whitespace-pre-line">
+                      <span className="font-semibold">Internal notes: </span>
+                      {viewOrder.admin_notes}
                     </div>
                   )}
                 </div>
